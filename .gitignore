@@ -1,0 +1,13 @@
+# Environment variables — do not commit real secrets
+.env
+
+# OS / editor artifacts
+.DS_Store
+*.swp
+*.swo
+
+# Node
+node_modules/
+
+# Logs
+*.log
