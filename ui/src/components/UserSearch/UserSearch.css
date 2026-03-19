@@ -1,0 +1,54 @@
+/* -- UserSearch ------------------------------------------ */
+
+.us-root {
+  position: relative;
+  width: 100%;
+}
+
+.us-input {
+  width: 100%;
+}
+
+.us-dropdown {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  right: 0;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: 2px;
+  box-shadow: var(--shadow-md);
+  max-height: 240px;
+  overflow-y: auto;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  z-index: 100;
+}
+
+.us-option {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 0.5rem 0.75rem;
+  cursor: pointer;
+  transition: background var(--transition-fast);
+}
+
+.us-option:hover,
+.us-option--active {
+  background: var(--color-bg-secondary);
+}
+
+.us-option-name {
+  font-family: var(--font-body);
+  font-size: 0.9rem;
+  color: var(--color-text);
+}
+
+.us-option-email {
+  font-family: var(--font-body);
+  font-size: 0.75rem;
+  color: var(--color-text-muted);
+}

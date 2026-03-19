@@ -1,7 +1,10 @@
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { apiFetch } from '../../api/client'
 import type { Game } from '../../types/game'
 import GameCard from '../../components/GameCard/GameCard'
+import Modal from '../../components/Modal/Modal'
+import NewCampaignForm from '../../components/NewCampaignForm/NewCampaignForm'
 import { useLocalStorage } from '../../hooks/useLocalStorage'
 import './GamesList.css'
 
@@ -33,6 +36,9 @@ export default function GamesList() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [layout, setLayout] = useLocalStorage<Layout>('pf2e-layout-pref', 'grid')
+  const [modalOpen, setModalOpen] = useState(false)
+  const [isDirty, setIsDirty] = useState(false)
+  const navigate = useNavigate()
 
   useEffect(() => {
     let cancelled = false
@@ -57,6 +63,26 @@ export default function GamesList() {
     return () => { cancelled = true }
   }, [])
 
+  const handleClose = useCallback(() => {
+    if (isDirty && !window.confirm('Discard changes?')) return
+    setModalOpen(false)
+  }, [isDirty])
+
+  const handleSuccess = useCallback((gameId: string, title: string) => {
+    setModalOpen(false)
+    navigate(`/games/${gameId}`, { state: { title } })
+  }, [navigate])
+
+  const handleDelete = useCallback(async (gameId: string) => {
+    if (!window.confirm('Are you sure you want to delete this campaign? This action cannot be undone.')) return
+    try {
+      await apiFetch(`/games/${gameId}`, { method: 'DELETE' })
+      setGames((prev) => prev.filter((g) => g.id !== gameId))
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'Failed to delete campaign.')
+    }
+  }, [])
+
   return (
     <div className="gameslist-page">
       <div className="gameslist-header">
@@ -68,21 +94,29 @@ export default function GamesList() {
 
         <div className="gameslist-controls">
           <button
-            className={`layout-btn ${layout === 'grid' ? 'layout-btn--active' : ''}`}
-            onClick={() => setLayout('grid')}
-            aria-label="Grid view"
-            title="Grid view"
+            className="new-campaign-btn"
+            onClick={() => setModalOpen(true)}
           >
-            <GridIcon />
+            + New Campaign
           </button>
-          <button
-            className={`layout-btn ${layout === 'list' ? 'layout-btn--active' : ''}`}
-            onClick={() => setLayout('list')}
-            aria-label="List view"
-            title="List view"
-          >
-            <ListIcon />
-          </button>
+          <div className="layout-toggle">
+            <button
+              className={`layout-btn ${layout === 'grid' ? 'layout-btn--active' : ''}`}
+              onClick={() => setLayout('grid')}
+              aria-label="Grid view"
+              title="Grid view"
+            >
+              <GridIcon />
+            </button>
+            <button
+              className={`layout-btn ${layout === 'list' ? 'layout-btn--active' : ''}`}
+              onClick={() => setLayout('list')}
+              aria-label="List view"
+              title="List view"
+            >
+              <ListIcon />
+            </button>
+          </div>
         </div>
       </div>
 
@@ -110,17 +144,29 @@ export default function GamesList() {
             <div className="empty-sigil" aria-hidden="true">✦</div>
             <p className="empty-message">No campaigns found.</p>
             <p className="empty-sub">The realm awaits your stories.</p>
+            <button
+              className="new-campaign-btn new-campaign-btn--empty"
+              onClick={() => setModalOpen(true)}
+            >
+              + New Campaign
+            </button>
           </div>
         )}
 
         {!loading && !error && games.length > 0 && (
           <div className={`gameslist-grid gameslist-grid--${layout}`}>
             {games.map((game) => (
-              <GameCard key={game.id} game={game} mode={layout} />
+              <GameCard key={game.id} game={game} mode={layout} onDelete={handleDelete} />
             ))}
           </div>
         )}
       </div>
+
+      {modalOpen && (
+        <Modal title="New Campaign" onClose={handleClose}>
+          <NewCampaignForm onSuccess={handleSuccess} onDirtyChange={setIsDirty} />
+        </Modal>
+      )}
     </div>
   )
 }

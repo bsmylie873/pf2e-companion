@@ -89,8 +89,8 @@ export default function TopBar() {
         </nav>
       </header>
 
-      {settingsOpen && <Modal title="Settings" onClose={() => setSettingsOpen(false)} />}
-      {accountOpen && <Modal title="Account" onClose={() => setAccountOpen(false)} />}
+      {settingsOpen && <Modal title="Settings" onClose={() => setSettingsOpen(false)}><p style={{ textAlign: 'center', color: 'var(--color-text-muted)', fontStyle: 'italic' }}>The scribes are still writing this chapter.</p></Modal>}
+      {accountOpen && <Modal title="Account" onClose={() => setAccountOpen(false)}><p style={{ textAlign: 'center', color: 'var(--color-text-muted)', fontStyle: 'italic' }}>The scribes are still writing this chapter.</p></Modal>}
     </>
   )
 }
