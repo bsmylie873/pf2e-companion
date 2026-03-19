@@ -38,6 +38,7 @@
   height: 170px;
   overflow: hidden;
   flex-shrink: 0;
+  position: relative;
 }
 
 .gamecard-img {
@@ -206,4 +207,66 @@
 .gamecard--list:hover .gamecard-list-arrow {
   color: var(--color-accent);
   transform: translateX(3px);
+}
+
+/* Delete button — Grid mode */
+.gamecard-delete {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  width: 28px;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.6);
+  border: none;
+  border-radius: 2px;
+  cursor: pointer;
+  color: var(--color-text-muted);
+  opacity: 0;
+  transition: opacity var(--transition-fast), color var(--transition-fast), background var(--transition-fast);
+  z-index: 2;
+}
+
+.gamecard-delete svg {
+  width: 14px;
+  height: 14px;
+}
+
+.gamecard--grid:hover .gamecard-delete {
+  opacity: 1;
+}
+
+.gamecard-delete:hover {
+  color: var(--color-accent);
+  background: rgba(0, 0, 0, 0.8);
+}
+
+/* Delete button — List mode */
+.gamecard-list-delete {
+  width: 32px;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  color: var(--color-text-muted);
+  opacity: 0;
+  transition: opacity var(--transition-fast), color var(--transition-fast);
+}
+
+.gamecard-list-delete svg {
+  width: 14px;
+  height: 14px;
+}
+
+.gamecard--list:hover .gamecard-list-delete {
+  opacity: 1;
+}
+
+.gamecard-list-delete:hover {
+  color: var(--color-accent);
 }

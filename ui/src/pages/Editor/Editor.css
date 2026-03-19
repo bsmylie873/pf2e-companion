@@ -172,3 +172,30 @@
   text-transform: uppercase;
   opacity: 0.8;
 }
+
+/* Edit Campaign button */
+.editor-edit-btn {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-family: var(--font-heading);
+  font-size: 0.7rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--color-text-muted);
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  padding: 0.4rem 0;
+  transition: color var(--transition-fast);
+  margin: 0 auto;
+}
+
+.editor-edit-btn svg {
+  width: 14px;
+  height: 14px;
+}
+
+.editor-edit-btn:hover {
+  color: var(--color-accent);
+}

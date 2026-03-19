@@ -5,11 +5,24 @@ import (
 	"net/http"
 	"strings"
 
+	"github.com/google/uuid"
 	"github.com/labstack/echo/v4"
 	"gorm.io/gorm"
 	"pf2e-companion/backend/models"
 	"pf2e-companion/backend/services"
 )
+
+type createGameMember struct {
+	UserID string `json:"user_id"`
+	IsGM   bool   `json:"is_gm"`
+}
+
+type createGameRequest struct {
+	Title          string             `json:"title"`
+	Description    *string            `json:"description"`
+	SplashImageURL *string            `json:"splash_image_url"`
+	Members        []createGameMember `json:"members"`
+}
 
 type GameHandler struct {
 	service services.GameService
@@ -20,19 +33,37 @@ func NewGameHandler(service services.GameService) *GameHandler {
 }
 
 func (h *GameHandler) CreateGame(c echo.Context) error {
-	var game models.Game
-	if err := c.Bind(&game); err != nil {
+	var req createGameRequest
+	if err := c.Bind(&req); err != nil {
 		return ErrorResponse(c, http.StatusBadRequest, "invalid request body")
 	}
 
 	missing := ValidateRequired(map[string]interface{}{
-		"title": game.Title,
+		"title": req.Title,
 	})
 	if len(missing) > 0 {
 		return ErrorResponse(c, http.StatusUnprocessableEntity, "missing required fields: "+strings.Join(missing, ", "))
 	}
 
-	resp, err := h.service.CreateGame(&game)
+	game := models.Game{
+		Title:          req.Title,
+		Description:    req.Description,
+		SplashImageURL: req.SplashImageURL,
+	}
+
+	var memberships []models.GameMembership
+	for _, m := range req.Members {
+		uid, err := uuid.Parse(m.UserID)
+		if err != nil {
+			return ErrorResponse(c, http.StatusBadRequest, "invalid user_id: "+m.UserID)
+		}
+		memberships = append(memberships, models.GameMembership{
+			UserID: uid,
+			IsGM:   m.IsGM,
+		})
+	}
+
+	resp, err := h.service.CreateGame(&game, memberships)
 	if err != nil {
 		return ErrorResponse(c, http.StatusInternalServerError, "failed to create game")
 	}
