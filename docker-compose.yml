@@ -26,5 +26,19 @@ services:
       - ./database/migrations:/flyway/sql
     command: migrate
 
+  seed:
+    image: postgres:16-alpine
+    depends_on:
+      flyway:
+        condition: service_completed_successfully
+    env_file:
+      - .env
+    volumes:
+      - ./database/local-data-seed:/seed
+    entrypoint: >
+      sh -c 'for f in /seed/*.sql; do
+        PGPASSWORD=$$POSTGRES_PASSWORD psql -h db -U $$POSTGRES_USER -d $$POSTGRES_DB -f "$$f";
+      done'
+
 volumes:
   pgdata:

@@ -1,4 +1,4 @@
-.PHONY: db-up db-down db-migrate db-reset backend-run backend-build ui-dev ui-build start stop
+.PHONY: db-up db-down db-migrate db-seed db-reset backend-run backend-build ui-dev ui-build start stop
 
 db-up: ## Start the database container (detached)
 	docker compose up -d db
@@ -10,12 +10,16 @@ db-down: ## Stop all containers
 db-migrate: ## Run Flyway migrations
 	docker compose run --rm flyway
 
-db-reset: ## Tear down volumes, restart db, and re-run migrations
+db-seed: ## Run seed data against a migrated database
+	docker compose run --rm seed
+
+db-reset: ## Tear down volumes, restart db, re-run migrations, and seed
 	docker compose down -v
 	docker compose up -d db
 	@echo "Waiting for db to be healthy..."
 	@until docker compose exec db pg_isready -U $${POSTGRES_USER:-pf2e} -d $${POSTGRES_DB:-pf2e_companion}; do sleep 1; done
 	docker compose run --rm flyway
+	docker compose run --rm seed
 
 backend-run: ## Run the backend API server locally
 	@echo "→ Starting backend on port $${PORT:-8080}..."
@@ -36,6 +40,7 @@ start: backend-build ui-build ## Start the full stack (db, migrations, backend, 
 	@echo "Waiting for database to be healthy..."
 	@until docker compose exec db pg_isready -U $${POSTGRES_USER:-pf2e} -d $${POSTGRES_DB:-pf2e_companion} > /dev/null 2>&1; do sleep 1; done
 	docker compose run --rm flyway
+	docker compose run --rm seed
 	set -a && . ./.env && set +a && cd backend && go run main.go &
 	cd ui && npm run dev &
 	@echo ""
