@@ -1,7 +1,8 @@
-.PHONY: db-up db-down db-migrate db-reset backend-run
+.PHONY: db-up db-down db-migrate db-reset backend-run backend-build ui-dev ui-build start stop
 
 db-up: ## Start the database container (detached)
 	docker compose up -d db
+	@echo "✔ Database running on port $${POSTGRES_PORT:-5432}"
 
 db-down: ## Stop all containers
 	docker compose down
@@ -17,4 +18,45 @@ db-reset: ## Tear down volumes, restart db, and re-run migrations
 	docker compose run --rm flyway
 
 backend-run: ## Run the backend API server locally
+	@echo "→ Starting backend on port $${PORT:-8080}..."
 	set -a && . ./.env && set +a && cd backend && go run main.go
+
+ui-dev: ## Start the frontend dev server
+	@echo "→ Starting frontend dev server on port 5173..."
+	cd ui && npm run dev
+
+backend-build: ## Build the backend binary
+	cd backend && go build -o bin/server .
+
+ui-build: ## Build the frontend for production
+	cd ui && npm run build
+
+start: backend-build ui-build ## Start the full stack (db, migrations, backend, frontend)
+	docker compose up -d db
+	@echo "Waiting for database to be healthy..."
+	@until docker compose exec db pg_isready -U $${POSTGRES_USER:-pf2e} -d $${POSTGRES_DB:-pf2e_companion} > /dev/null 2>&1; do sleep 1; done
+	docker compose run --rm flyway
+	set -a && . ./.env && set +a && cd backend && go run main.go &
+	cd ui && npm run dev &
+	@echo ""
+	@echo "══════════════════════════════════════"
+	@echo "  Stack running"
+	@echo "──────────────────────────────────────"
+	@echo "  Database → localhost:$${POSTGRES_PORT:-5432}"
+	@echo "  Backend  → http://localhost:$${PORT:-8080}"
+	@echo "  Frontend → http://localhost:5173"
+	@echo "══════════════════════════════════════"
+	@wait
+
+stop: ## Tear down the full stack (containers, volumes, build artifacts)
+	docker compose down -v
+	rm -rf backend/bin
+	rm -rf ui/dist
+	@echo ""
+	@echo "══════════════════════════════════════"
+	@echo "  Teardown complete"
+	@echo "──────────────────────────────────────"
+	@echo "  ✔ Containers & volumes removed"
+	@echo "  ✔ backend/bin cleaned"
+	@echo "  ✔ ui/dist cleaned"
+	@echo "══════════════════════════════════════"
