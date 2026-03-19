@@ -1,0 +1,209 @@
+/* ── GameCard ─────────────────────────────────────────────── */
+
+.gamecard {
+  cursor: pointer;
+  transition:
+    transform var(--transition-base),
+    box-shadow var(--transition-base),
+    background var(--transition-base);
+  outline: none;
+}
+
+.gamecard:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 2px;
+}
+
+/* ── GRID MODE ────────────────────────────────────────────── */
+
+.gamecard--grid {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: 3px;
+  box-shadow: var(--shadow-sm);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  width: 290px;
+}
+
+.gamecard--grid:hover {
+  transform: translateY(-4px);
+  box-shadow: var(--shadow-lg);
+}
+
+/* Image / Fallback area */
+.gamecard-image-wrap {
+  width: 100%;
+  height: 170px;
+  overflow: hidden;
+  flex-shrink: 0;
+}
+
+.gamecard-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+  transition: transform 400ms ease;
+}
+
+.gamecard--grid:hover .gamecard-img {
+  transform: scale(1.04);
+}
+
+/* Fallback art — crimson-to-dark gradient with sigil */
+.gamecard-fallback {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+}
+
+.gamecard-fallback--large {
+  background: linear-gradient(160deg, #6b1515 0%, #3a1a08 50%, #1a0f06 100%);
+}
+
+.gamecard-fallback--small {
+  background: linear-gradient(135deg, #5a1212 0%, #2a1206 100%);
+}
+
+[data-theme='dark'] .gamecard-fallback--large {
+  background: linear-gradient(160deg, #7a1a1a 0%, #2a1206 50%, #0e0906 100%);
+}
+
+[data-theme='dark'] .gamecard-fallback--small {
+  background: linear-gradient(135deg, #6e1414 0%, #1e0d04 100%);
+}
+
+.gamecard-fallback-sigil {
+  color: rgba(255, 220, 180, 0.4);
+  transition: color 300ms ease, transform 400ms ease;
+}
+
+.gamecard-fallback--large .gamecard-fallback-sigil {
+  width: 80px;
+  height: 80px;
+}
+
+.gamecard-fallback--small .gamecard-fallback-sigil {
+  width: 44px;
+  height: 44px;
+}
+
+.gamecard--grid:hover .gamecard-fallback-sigil {
+  color: rgba(255, 220, 180, 0.65);
+  transform: rotate(15deg) scale(1.05);
+}
+
+/* Content area */
+.gamecard-content {
+  padding: 1rem 1.1rem 1.25rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  flex: 1;
+}
+
+.gamecard-title {
+  font-family: var(--font-heading);
+  font-size: 0.95rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  color: var(--color-text);
+  line-height: 1.3;
+  margin: 0;
+}
+
+.gamecard-desc {
+  font-family: var(--font-body);
+  font-size: 0.95rem;
+  color: var(--color-text-muted);
+  line-height: 1.55;
+  margin: 0;
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+/* ── LIST MODE ────────────────────────────────────────────── */
+
+.gamecard--list {
+  display: flex;
+  align-items: center;
+  gap: 0;
+  border-bottom: 1px solid var(--color-border);
+  background: transparent;
+  border-left: 3px solid transparent;
+  transition:
+    background var(--transition-base),
+    border-left-color var(--transition-base);
+}
+
+.gamecard--list:hover {
+  background: var(--color-bg-secondary);
+  border-left-color: var(--color-accent);
+}
+
+.gamecard-list-thumb {
+  width: 84px;
+  height: 72px;
+  flex-shrink: 0;
+  overflow: hidden;
+}
+
+.gamecard-list-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.gamecard-list-body {
+  flex: 1;
+  padding: 0.75rem 1rem;
+  min-width: 0;
+}
+
+.gamecard-list-title {
+  font-family: var(--font-heading);
+  font-size: 0.9rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  color: var(--color-text);
+  margin: 0 0 0.2rem;
+  line-height: 1.3;
+}
+
+.gamecard-list-desc {
+  font-family: var(--font-body);
+  font-size: 0.9rem;
+  color: var(--color-text-muted);
+  margin: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.gamecard-list-arrow {
+  width: 40px;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--color-border);
+  transition: color var(--transition-fast), transform var(--transition-fast);
+}
+
+.gamecard-list-arrow svg {
+  width: 16px;
+  height: 16px;
+}
+
+.gamecard--list:hover .gamecard-list-arrow {
+  color: var(--color-accent);
+  transform: translateX(3px);
+}

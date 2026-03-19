@@ -14,3 +14,7 @@ node_modules/
 
 # Go
 backend/tmp/
+
+# UI
+ui/dist/
+ui/.env
