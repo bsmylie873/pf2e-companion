@@ -1,4 +1,7 @@
+import { useState, useCallback } from 'react'
 import { useParams, useLocation, useNavigate } from 'react-router-dom'
+import Modal from '../../components/Modal/Modal'
+import EditCampaignForm from '../../components/EditCampaignForm/EditCampaignForm'
 import './Editor.css'
 
 interface LocationState {
@@ -11,7 +14,21 @@ export default function Editor() {
   const navigate = useNavigate()
   const state = location.state as LocationState | null
 
-  const title = state?.title ?? `Game #${gameId}`
+  const [title, setTitle] = useState(state?.title ?? `Game #${gameId}`)
+  const [editOpen, setEditOpen] = useState(false)
+  const [isDirty, setIsDirty] = useState(false)
+
+  const handleClose = useCallback(() => {
+    if (isDirty && !confirm('Discard unsaved changes?')) return
+    setEditOpen(false)
+    setIsDirty(false)
+  }, [isDirty])
+
+  const handleSuccess = useCallback((newTitle: string) => {
+    setEditOpen(false)
+    setIsDirty(false)
+    setTitle(newTitle)
+  }, [])
 
   return (
     <div className="editor-page">
@@ -28,6 +45,17 @@ export default function Editor() {
             <span /><span className="editor-title-ornament">✦</span><span />
           </div>
           <h1 className="editor-title">{title}</h1>
+          <button
+            className="editor-edit-btn"
+            onClick={() => setEditOpen(true)}
+            title="Edit Campaign"
+          >
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
+              <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
+            </svg>
+            Edit Campaign
+          </button>
           <div className="editor-title-rule" aria-hidden="true">
             <span /><span className="editor-title-ornament">✦</span><span />
           </div>
@@ -57,6 +85,16 @@ export default function Editor() {
           </div>
         </div>
       </div>
+
+      {editOpen && (
+        <Modal title="Edit Campaign" onClose={handleClose}>
+          <EditCampaignForm
+            gameId={gameId!}
+            onSuccess={handleSuccess}
+            onDirtyChange={setIsDirty}
+          />
+        </Modal>
+      )}
     </div>
   )
 }

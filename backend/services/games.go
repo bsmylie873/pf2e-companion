@@ -7,7 +7,7 @@ import (
 )
 
 type GameService interface {
-	CreateGame(game *models.Game) (models.Game, error)
+	CreateGame(game *models.Game, members []models.GameMembership) (models.Game, error)
 	ListGames() ([]models.Game, error)
 	GetGame(id uuid.UUID) (models.Game, error)
 	UpdateGame(id uuid.UUID, updates map[string]interface{}) (models.Game, error)
@@ -15,16 +15,37 @@ type GameService interface {
 }
 
 type gameService struct {
-	repo repositories.GameRepository
+	repo           repositories.GameRepository
+	userRepo       repositories.UserRepository
+	membershipRepo repositories.MembershipRepository
 }
 
-func NewGameService(repo repositories.GameRepository) GameService {
-	return &gameService{repo: repo}
+func NewGameService(repo repositories.GameRepository, userRepo repositories.UserRepository, membershipRepo repositories.MembershipRepository) GameService {
+	return &gameService{repo: repo, userRepo: userRepo, membershipRepo: membershipRepo}
 }
 
-func (s *gameService) CreateGame(game *models.Game) (models.Game, error) {
+func (s *gameService) CreateGame(game *models.Game, members []models.GameMembership) (models.Game, error) {
 	if err := s.repo.Create(game); err != nil {
 		return models.Game{}, err
+	}
+	if len(members) > 0 {
+		for i := range members {
+			members[i].GameID = game.ID
+			if err := s.membershipRepo.Create(&members[i]); err != nil {
+				return models.Game{}, err
+			}
+		}
+	} else {
+		users, err := s.userRepo.FindAll()
+		if err != nil {
+			return models.Game{}, err
+		}
+		if len(users) > 0 {
+			membership := &models.GameMembership{GameID: game.ID, UserID: users[0].ID, IsGM: true}
+			if err := s.membershipRepo.Create(membership); err != nil {
+				return models.Game{}, err
+			}
+		}
 	}
 	return *game, nil
 }

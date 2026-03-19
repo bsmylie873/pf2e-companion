@@ -5,6 +5,7 @@ import './GameCard.css'
 interface GameCardProps {
   game: Game
   mode: 'grid' | 'list'
+  onDelete?: (gameId: string) => void
 }
 
 function FallbackArt({ size }: { size: 'large' | 'small' }) {
@@ -30,7 +31,7 @@ function FallbackArt({ size }: { size: 'large' | 'small' }) {
   )
 }
 
-export default function GameCard({ game, mode }: GameCardProps) {
+export default function GameCard({ game, mode, onDelete }: GameCardProps) {
   const navigate = useNavigate()
 
   const handleClick = () => {
@@ -53,6 +54,21 @@ export default function GameCard({ game, mode }: GameCardProps) {
             <p className="gamecard-list-desc">{game.description}</p>
           )}
         </div>
+        {onDelete && (
+          <button
+            className="gamecard-list-delete"
+            onClick={(e) => { e.stopPropagation(); onDelete(game.id) }}
+            aria-label="Delete campaign"
+            title="Delete"
+          >
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
+              <polyline points="3 6 5 6 21 6" />
+              <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+              <line x1="10" y1="11" x2="10" y2="17" />
+              <line x1="14" y1="11" x2="14" y2="17" />
+            </svg>
+          </button>
+        )}
         <div className="gamecard-list-arrow">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round">
             <path d="M9 18l6-6-6-6" />
@@ -69,6 +85,21 @@ export default function GameCard({ game, mode }: GameCardProps) {
           <img src={game.splash_image_url} alt={game.title} className="gamecard-img" />
         ) : (
           <FallbackArt size="large" />
+        )}
+        {onDelete && (
+          <button
+            className="gamecard-delete"
+            onClick={(e) => { e.stopPropagation(); onDelete(game.id) }}
+            aria-label="Delete campaign"
+            title="Delete"
+          >
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
+              <polyline points="3 6 5 6 21 6" />
+              <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+              <line x1="10" y1="11" x2="10" y2="17" />
+              <line x1="14" y1="11" x2="14" y2="17" />
+            </svg>
+          </button>
         )}
       </div>
       <div className="gamecard-content">

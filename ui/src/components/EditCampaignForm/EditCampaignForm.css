@@ -1,0 +1,16 @@
+.ecf-loading {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1rem;
+  padding: 3rem 1rem;
+  color: var(--color-text-muted);
+  font-family: var(--font-body);
+  font-size: 0.95rem;
+  font-style: italic;
+}
+
+.ecf-loading .ncf-spinner {
+  width: 20px;
+  height: 20px;
+}
