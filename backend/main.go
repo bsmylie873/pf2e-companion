@@ -36,11 +36,11 @@ func main() {
 
 	// Games
 	gameRepo := repositories.NewGameRepository(db)
-	gameService := services.NewGameService(gameRepo)
+	membershipRepo := repositories.NewMembershipRepository(db)
+	gameService := services.NewGameService(gameRepo, userRepo, membershipRepo)
 	handlers.RegisterGameRoutes(e, gameService)
 
 	// Memberships
-	membershipRepo := repositories.NewMembershipRepository(db)
 	membershipService := services.NewMembershipService(membershipRepo)
 	handlers.RegisterMembershipRoutes(e, membershipService)
 
