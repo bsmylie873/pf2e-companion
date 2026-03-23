@@ -228,3 +228,52 @@
   transform: translateY(0);
   box-shadow: none;
 }
+
+/* Mode toggle */
+.login-mode-toggle {
+  text-align: center;
+  margin-top: 1.25rem;
+  font-family: var(--font-body);
+  font-size: 0.95rem;
+  font-style: italic;
+  color: var(--color-text-muted);
+}
+
+.login-mode-btn {
+  background: none;
+  border: none;
+  color: var(--color-accent);
+  font-family: var(--font-body);
+  font-size: 0.95rem;
+  font-style: italic;
+  cursor: pointer;
+  padding: 0;
+  transition: color var(--transition-fast);
+}
+
+.login-mode-btn:hover {
+  color: var(--color-accent-hover);
+}
+
+/* Error */
+.login-error {
+  background: rgba(139, 46, 46, 0.08);
+  border: 1px solid rgba(139, 46, 46, 0.3);
+  border-radius: 2px;
+  padding: 0.6rem 0.9rem;
+  font-family: var(--font-body);
+  font-size: 0.95rem;
+  color: var(--color-accent);
+}
+
+[data-theme='dark'] .login-error {
+  background: rgba(201, 76, 76, 0.1);
+  border-color: rgba(201, 76, 76, 0.35);
+}
+
+/* Disabled button state */
+.login-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  transform: none;
+}

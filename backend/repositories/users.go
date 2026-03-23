@@ -12,6 +12,8 @@ type UserRepository interface {
 	FindByID(id uuid.UUID) (models.User, error)
 	Update(id uuid.UUID, updates map[string]interface{}) (models.User, error)
 	Delete(id uuid.UUID) error
+	FindByEmail(email string) (models.User, error)
+	FindByUsername(username string) (models.User, error)
 }
 
 type userRepository struct {
@@ -47,4 +49,16 @@ func (r *userRepository) Update(id uuid.UUID, updates map[string]interface{}) (m
 
 func (r *userRepository) Delete(id uuid.UUID) error {
 	return r.db.Delete(&models.User{}, "id = ?", id).Error
+}
+
+func (r *userRepository) FindByEmail(email string) (models.User, error) {
+	var user models.User
+	err := r.db.First(&user, "email = ?", email).Error
+	return user, err
+}
+
+func (r *userRepository) FindByUsername(username string) (models.User, error) {
+	var user models.User
+	err := r.db.First(&user, "username = ?", username).Error
+	return user, err
 }

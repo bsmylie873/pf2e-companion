@@ -21,18 +21,23 @@ func NewCharacterHandler(service services.CharacterService) *CharacterHandler {
 	return &CharacterHandler{service: service}
 }
 
-// RegisterCharacterRoutes wires all character routes onto the Echo instance.
-func RegisterCharacterRoutes(e *echo.Echo, service services.CharacterService) {
+// RegisterCharacterRoutes wires all character routes onto the group.
+func RegisterCharacterRoutes(g *echo.Group, service services.CharacterService) {
 	h := NewCharacterHandler(service)
-	e.POST("/games/:id/characters", h.CreateCharacter)
-	e.GET("/games/:id/characters", h.ListGameCharacters)
-	e.GET("/characters/:id", h.GetCharacter)
-	e.PATCH("/characters/:id", h.UpdateCharacter)
-	e.DELETE("/characters/:id", h.DeleteCharacter)
+	g.POST("/games/:id/characters", h.CreateCharacter)
+	g.GET("/games/:id/characters", h.ListGameCharacters)
+	g.GET("/characters/:id", h.GetCharacter)
+	g.PATCH("/characters/:id", h.UpdateCharacter)
+	g.DELETE("/characters/:id", h.DeleteCharacter)
 }
 
 // CreateCharacter handles POST /games/:id/characters.
 func (h *CharacterHandler) CreateCharacter(c echo.Context) error {
+	authUserID, err := GetAuthUserID(c)
+	if err != nil {
+		return nil
+	}
+
 	gameID, err := ParseUUID(c, "id")
 	if err != nil {
 		return nil
@@ -50,8 +55,11 @@ func (h *CharacterHandler) CreateCharacter(c echo.Context) error {
 		return ErrorResponse(c, http.StatusUnprocessableEntity, "missing required fields: "+strings.Join(missing, ", "))
 	}
 
-	resp, err := h.service.CreateCharacter(gameID, &character)
+	resp, err := h.service.CreateCharacter(gameID, authUserID, &character)
 	if err != nil {
+		if errors.Is(err, services.ErrForbidden) {
+			return ErrorResponse(c, http.StatusForbidden, "forbidden")
+		}
 		return ErrorResponse(c, http.StatusInternalServerError, "failed to create character")
 	}
 
@@ -60,13 +68,21 @@ func (h *CharacterHandler) CreateCharacter(c echo.Context) error {
 
 // ListGameCharacters handles GET /games/:id/characters.
 func (h *CharacterHandler) ListGameCharacters(c echo.Context) error {
+	authUserID, err := GetAuthUserID(c)
+	if err != nil {
+		return nil
+	}
+
 	gameID, err := ParseUUID(c, "id")
 	if err != nil {
 		return nil
 	}
 
-	characters, err := h.service.ListGameCharacters(gameID)
+	characters, err := h.service.ListGameCharacters(gameID, authUserID)
 	if err != nil {
+		if errors.Is(err, services.ErrForbidden) {
+			return ErrorResponse(c, http.StatusForbidden, "forbidden")
+		}
 		return ErrorResponse(c, http.StatusInternalServerError, "failed to list characters")
 	}
 
@@ -75,13 +91,21 @@ func (h *CharacterHandler) ListGameCharacters(c echo.Context) error {
 
 // GetCharacter handles GET /characters/:id.
 func (h *CharacterHandler) GetCharacter(c echo.Context) error {
+	authUserID, err := GetAuthUserID(c)
+	if err != nil {
+		return nil
+	}
+
 	id, err := ParseUUID(c, "id")
 	if err != nil {
 		return nil
 	}
 
-	character, err := h.service.GetCharacter(id)
+	character, err := h.service.GetCharacter(id, authUserID)
 	if err != nil {
+		if errors.Is(err, services.ErrForbidden) {
+			return ErrorResponse(c, http.StatusForbidden, "forbidden")
+		}
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return ErrorResponse(c, http.StatusNotFound, "character not found")
 		}
@@ -93,6 +117,11 @@ func (h *CharacterHandler) GetCharacter(c echo.Context) error {
 
 // UpdateCharacter handles PATCH /characters/:id.
 func (h *CharacterHandler) UpdateCharacter(c echo.Context) error {
+	authUserID, err := GetAuthUserID(c)
+	if err != nil {
+		return nil
+	}
+
 	id, err := ParseUUID(c, "id")
 	if err != nil {
 		return nil
@@ -103,8 +132,11 @@ func (h *CharacterHandler) UpdateCharacter(c echo.Context) error {
 		return ErrorResponse(c, http.StatusBadRequest, "invalid request body")
 	}
 
-	character, err := h.service.UpdateCharacter(id, updates)
+	character, err := h.service.UpdateCharacter(id, authUserID, updates)
 	if err != nil {
+		if errors.Is(err, services.ErrForbidden) {
+			return ErrorResponse(c, http.StatusForbidden, "forbidden")
+		}
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return ErrorResponse(c, http.StatusNotFound, "character not found")
 		}
@@ -116,12 +148,20 @@ func (h *CharacterHandler) UpdateCharacter(c echo.Context) error {
 
 // DeleteCharacter handles DELETE /characters/:id.
 func (h *CharacterHandler) DeleteCharacter(c echo.Context) error {
+	authUserID, err := GetAuthUserID(c)
+	if err != nil {
+		return nil
+	}
+
 	id, err := ParseUUID(c, "id")
 	if err != nil {
 		return nil
 	}
 
-	if err := h.service.DeleteCharacter(id); err != nil {
+	if err := h.service.DeleteCharacter(id, authUserID); err != nil {
+		if errors.Is(err, services.ErrForbidden) {
+			return ErrorResponse(c, http.StatusForbidden, "forbidden")
+		}
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return ErrorResponse(c, http.StatusNotFound, "character not found")
 		}

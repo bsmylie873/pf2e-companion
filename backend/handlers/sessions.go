@@ -25,6 +25,11 @@ func NewSessionHandler(service services.SessionService) *SessionHandler {
 
 // CreateSession handles POST /games/:id/sessions.
 func (h *SessionHandler) CreateSession(c echo.Context) error {
+	authUserID, err := GetAuthUserID(c)
+	if err != nil {
+		return nil
+	}
+
 	gameID, err := ParseUUID(c, "id")
 	if err != nil {
 		return nil
@@ -46,8 +51,11 @@ func (h *SessionHandler) CreateSession(c echo.Context) error {
 		return ErrorResponse(c, http.StatusUnprocessableEntity, "runtime_end must be after runtime_start")
 	}
 
-	resp, err := h.service.CreateSession(gameID, &session)
+	resp, err := h.service.CreateSession(gameID, authUserID, &session)
 	if err != nil {
+		if errors.Is(err, services.ErrForbidden) {
+			return ErrorResponse(c, http.StatusForbidden, "forbidden")
+		}
 		return ErrorResponse(c, http.StatusInternalServerError, "failed to create session")
 	}
 
@@ -56,13 +64,21 @@ func (h *SessionHandler) CreateSession(c echo.Context) error {
 
 // ListGameSessions handles GET /games/:id/sessions.
 func (h *SessionHandler) ListGameSessions(c echo.Context) error {
+	authUserID, err := GetAuthUserID(c)
+	if err != nil {
+		return nil
+	}
+
 	gameID, err := ParseUUID(c, "id")
 	if err != nil {
 		return nil
 	}
 
-	sessions, err := h.service.ListGameSessions(gameID)
+	sessions, err := h.service.ListGameSessions(gameID, authUserID)
 	if err != nil {
+		if errors.Is(err, services.ErrForbidden) {
+			return ErrorResponse(c, http.StatusForbidden, "forbidden")
+		}
 		return ErrorResponse(c, http.StatusInternalServerError, "failed to list sessions")
 	}
 
@@ -71,13 +87,21 @@ func (h *SessionHandler) ListGameSessions(c echo.Context) error {
 
 // GetSession handles GET /sessions/:id.
 func (h *SessionHandler) GetSession(c echo.Context) error {
+	authUserID, err := GetAuthUserID(c)
+	if err != nil {
+		return nil
+	}
+
 	id, err := ParseUUID(c, "id")
 	if err != nil {
 		return nil
 	}
 
-	session, err := h.service.GetSession(id)
+	session, err := h.service.GetSession(id, authUserID)
 	if err != nil {
+		if errors.Is(err, services.ErrForbidden) {
+			return ErrorResponse(c, http.StatusForbidden, "forbidden")
+		}
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return ErrorResponse(c, http.StatusNotFound, "session not found")
 		}
@@ -89,6 +113,11 @@ func (h *SessionHandler) GetSession(c echo.Context) error {
 
 // UpdateSession handles PATCH /sessions/:id.
 func (h *SessionHandler) UpdateSession(c echo.Context) error {
+	authUserID, err := GetAuthUserID(c)
+	if err != nil {
+		return nil
+	}
+
 	id, err := ParseUUID(c, "id")
 	if err != nil {
 		return nil
@@ -112,8 +141,11 @@ func (h *SessionHandler) UpdateSession(c echo.Context) error {
 		}
 	}
 
-	session, err := h.service.UpdateSession(id, updates)
+	session, err := h.service.UpdateSession(id, authUserID, updates)
 	if err != nil {
+		if errors.Is(err, services.ErrForbidden) {
+			return ErrorResponse(c, http.StatusForbidden, "forbidden")
+		}
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return ErrorResponse(c, http.StatusNotFound, "session not found")
 		}
@@ -128,12 +160,20 @@ func (h *SessionHandler) UpdateSession(c echo.Context) error {
 
 // DeleteSession handles DELETE /sessions/:id.
 func (h *SessionHandler) DeleteSession(c echo.Context) error {
+	authUserID, err := GetAuthUserID(c)
+	if err != nil {
+		return nil
+	}
+
 	id, err := ParseUUID(c, "id")
 	if err != nil {
 		return nil
 	}
 
-	if err := h.service.DeleteSession(id); err != nil {
+	if err := h.service.DeleteSession(id, authUserID); err != nil {
+		if errors.Is(err, services.ErrForbidden) {
+			return ErrorResponse(c, http.StatusForbidden, "forbidden")
+		}
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return ErrorResponse(c, http.StatusNotFound, "session not found")
 		}
@@ -143,12 +183,12 @@ func (h *SessionHandler) DeleteSession(c echo.Context) error {
 	return SuccessResponse(c, http.StatusOK, map[string]string{"message": "deleted"})
 }
 
-// RegisterSessionRoutes registers all session-related routes on the Echo instance.
-func RegisterSessionRoutes(e *echo.Echo, service services.SessionService) {
+// RegisterSessionRoutes registers all session-related routes on the group.
+func RegisterSessionRoutes(g *echo.Group, service services.SessionService) {
 	h := NewSessionHandler(service)
-	e.POST("/games/:id/sessions", h.CreateSession)
-	e.GET("/games/:id/sessions", h.ListGameSessions)
-	e.GET("/sessions/:id", h.GetSession)
-	e.PATCH("/sessions/:id", h.UpdateSession)
-	e.DELETE("/sessions/:id", h.DeleteSession)
+	g.POST("/games/:id/sessions", h.CreateSession)
+	g.GET("/games/:id/sessions", h.ListGameSessions)
+	g.GET("/sessions/:id", h.GetSession)
+	g.PATCH("/sessions/:id", h.UpdateSession)
+	g.DELETE("/sessions/:id", h.DeleteSession)
 }

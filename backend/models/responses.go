@@ -13,6 +13,8 @@ type UserResponse struct {
 	Username    string         `json:"username"`
 	Email       string         `json:"email"`
 	AvatarURL   *string        `json:"avatar_url"`
+	Description *string        `json:"description"`
+	Location    *string        `json:"location"`
 	FoundryData datatypes.JSON `json:"foundry_data"`
 	CreatedAt   time.Time      `json:"created_at"`
 	UpdatedAt   time.Time      `json:"updated_at"`
@@ -25,8 +27,41 @@ func FromUser(user User) UserResponse {
 		Username:    user.Username,
 		Email:       user.Email,
 		AvatarURL:   user.AvatarURL,
+		Description: user.Description,
+		Location:    user.Location,
 		FoundryData: user.FoundryData,
 		CreatedAt:   user.CreatedAt,
 		UpdatedAt:   user.UpdatedAt,
 	}
+}
+
+// UserPublicResponse is a minimal public user DTO (no email, foundry_data, etc.)
+type UserPublicResponse struct {
+	ID        uuid.UUID `json:"id"`
+	Username  string    `json:"username"`
+	AvatarURL *string   `json:"avatar_url"`
+}
+
+// FromUserPublic converts a User to a UserPublicResponse.
+func FromUserPublic(user User) UserPublicResponse {
+	return UserPublicResponse{ID: user.ID, Username: user.Username, AvatarURL: user.AvatarURL}
+}
+
+// LoginRequest is the DTO for the POST /auth/login endpoint.
+type LoginRequest struct {
+	Username string `json:"username"`
+	Password string `json:"password"`
+}
+
+// RegisterRequest is the DTO for the POST /auth/register endpoint.
+type RegisterRequest struct {
+	Username string `json:"username"`
+	Email    string `json:"email"`
+	Password string `json:"password"`
+}
+
+// TokenPair holds an access token and a refresh token.
+type TokenPair struct {
+	AccessToken  string `json:"access_token"`
+	RefreshToken string `json:"refresh_token"`
 }

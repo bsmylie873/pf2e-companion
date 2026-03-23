@@ -12,6 +12,8 @@ type MembershipRepository interface {
 	FindByID(id uuid.UUID) (models.GameMembership, error)
 	Update(id uuid.UUID, updates map[string]interface{}) (models.GameMembership, error)
 	Delete(id uuid.UUID) error
+	FindByUserID(userID uuid.UUID) ([]models.GameMembership, error)
+	FindByUserAndGameID(userID, gameID uuid.UUID) (models.GameMembership, error)
 }
 
 type membershipRepository struct {
@@ -47,4 +49,16 @@ func (r *membershipRepository) Update(id uuid.UUID, updates map[string]interface
 
 func (r *membershipRepository) Delete(id uuid.UUID) error {
 	return r.db.Delete(&models.GameMembership{}, "id = ?", id).Error
+}
+
+func (r *membershipRepository) FindByUserID(userID uuid.UUID) ([]models.GameMembership, error) {
+	var memberships []models.GameMembership
+	err := r.db.Where("user_id = ?", userID).Find(&memberships).Error
+	return memberships, err
+}
+
+func (r *membershipRepository) FindByUserAndGameID(userID, gameID uuid.UUID) (models.GameMembership, error) {
+	var m models.GameMembership
+	err := r.db.First(&m, "user_id = ? AND game_id = ?", userID, gameID).Error
+	return m, err
 }

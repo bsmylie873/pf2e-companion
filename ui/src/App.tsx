@@ -1,26 +1,32 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
+import { AuthProvider } from './context/AuthContext'
+import ProtectedRoute from './components/ProtectedRoute/ProtectedRoute'
 import TopBar from './components/TopBar/TopBar'
 import Login from './pages/Login/Login'
 import GamesList from './pages/GamesList/GamesList'
 import Editor from './pages/Editor/Editor'
 import SessionNotes from './pages/SessionNotes/SessionNotes'
+import Profile from './pages/Profile/Profile'
 import './App.css'
 
 export default function App() {
   return (
     <BrowserRouter>
-      <div className="app">
-        <TopBar />
-        <main className="app-content">
-          <Routes>
-            <Route path="/" element={<Login />} />
-            <Route path="/games" element={<GamesList />} />
-            <Route path="/games/:gameId" element={<Editor />} />
-            <Route path="/games/:gameId/sessions/:sessionId/notes" element={<SessionNotes />} />
-            <Route path="*" element={<Navigate to="/" replace />} />
-          </Routes>
-        </main>
-      </div>
+      <AuthProvider>
+        <div className="app">
+          <TopBar />
+          <main className="app-content">
+            <Routes>
+              <Route path="/" element={<Login />} />
+              <Route path="/games" element={<ProtectedRoute><GamesList /></ProtectedRoute>} />
+              <Route path="/games/:gameId" element={<ProtectedRoute><Editor /></ProtectedRoute>} />
+              <Route path="/games/:gameId/sessions/:sessionId/notes" element={<ProtectedRoute><SessionNotes /></ProtectedRoute>} />
+              <Route path="/profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
+              <Route path="*" element={<Navigate to="/" replace />} />
+            </Routes>
+          </main>
+        </div>
+      </AuthProvider>
     </BrowserRouter>
   )
 }

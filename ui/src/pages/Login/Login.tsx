@@ -1,12 +1,58 @@
+import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { useAuth } from '../../context/AuthContext'
 import './Login.css'
+
+type Mode = 'login' | 'register'
 
 export default function Login() {
   const navigate = useNavigate()
+  const { login, register, isAuthenticated, isLoading } = useAuth()
 
-  const handleLogin = (e: React.FormEvent) => {
+  const [mode, setMode] = useState<Mode>('login')
+  const [username, setUsername] = useState('')
+  const [email, setEmail] = useState('')
+  const [password, setPassword] = useState('')
+  const [confirmPassword, setConfirmPassword] = useState('')
+  const [error, setError] = useState<string | null>(null)
+  const [isSubmitting, setIsSubmitting] = useState(false)
+
+  useEffect(() => {
+    if (!isLoading && isAuthenticated) navigate('/games', { replace: true })
+  }, [isAuthenticated, isLoading, navigate])
+
+  if (isLoading) return null
+
+  const switchMode = (next: Mode) => {
+    setMode(next)
+    setError(null)
+    setEmail('')
+    setPassword('')
+    setConfirmPassword('')
+  }
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    navigate('/games')
+    setError(null)
+
+    if (mode === 'register' && password !== confirmPassword) {
+      setError('Passphrases do not match.')
+      return
+    }
+
+    setIsSubmitting(true)
+    try {
+      if (mode === 'login') {
+        await login(username, password)
+      } else {
+        await register(username, email, password)
+      }
+      navigate('/games', { replace: true })
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'Something went wrong.')
+    } finally {
+      setIsSubmitting(false)
+    }
   }
 
   return (
@@ -34,13 +80,13 @@ export default function Login() {
 
         <header className="login-header">
           <h1 className="login-title">PF2E Companion</h1>
-          <p className="login-subtitle">Enter the Realm</p>
+          <p className="login-subtitle">{mode === 'login' ? 'Enter the Realm' : 'Forge Your Legend'}</p>
           <div className="login-title-rule" aria-hidden="true">
             <span />✦<span />
           </div>
         </header>
 
-        <form className="login-form" onSubmit={handleLogin}>
+        <form className="login-form" onSubmit={handleSubmit}>
           <div className="login-field">
             <label className="login-label" htmlFor="username">Adventurer</label>
             <input
@@ -49,8 +95,27 @@ export default function Login() {
               className="login-input"
               placeholder="Your name, adventurer..."
               autoComplete="username"
+              value={username}
+              onChange={e => setUsername(e.target.value)}
+              required
             />
           </div>
+
+          {mode === 'register' && (
+            <div className="login-field">
+              <label className="login-label" htmlFor="email">Sending Stone</label>
+              <input
+                id="email"
+                type="email"
+                className="login-input"
+                placeholder="Your email address..."
+                autoComplete="email"
+                value={email}
+                onChange={e => setEmail(e.target.value)}
+                required
+              />
+            </div>
+          )}
 
           <div className="login-field">
             <label className="login-label" htmlFor="password">Passphrase</label>
@@ -59,17 +124,52 @@ export default function Login() {
               type="password"
               className="login-input"
               placeholder="Speak the arcane word..."
-              autoComplete="current-password"
+              autoComplete={mode === 'login' ? 'current-password' : 'new-password'}
+              value={password}
+              onChange={e => setPassword(e.target.value)}
+              required
             />
           </div>
 
-          <button type="submit" className="login-btn">
-            <span className="login-btn-text">Begin Your Journey</span>
+          {mode === 'register' && (
+            <div className="login-field">
+              <label className="login-label" htmlFor="confirmPassword">Confirm Passphrase</label>
+              <input
+                id="confirmPassword"
+                type="password"
+                className="login-input"
+                placeholder="Speak it once more..."
+                autoComplete="new-password"
+                value={confirmPassword}
+                onChange={e => setConfirmPassword(e.target.value)}
+                required
+              />
+            </div>
+          )}
+
+          {error && <div className="login-error" role="alert">{error}</div>}
+
+          <button type="submit" className="login-btn" disabled={isSubmitting}>
+            <span className="login-btn-text">
+              {isSubmitting ? 'Consulting the oracle…' : mode === 'login' ? 'Begin Your Journey' : 'Forge Your Path'}
+            </span>
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round">
               <path d="M5 12h14M12 5l7 7-7 7" />
             </svg>
           </button>
         </form>
+
+        <div className="login-mode-toggle">
+          {mode === 'login' ? (
+            <button className="login-mode-btn" type="button" onClick={() => switchMode('register')}>
+              New adventurer? Forge your legend →
+            </button>
+          ) : (
+            <button className="login-mode-btn" type="button" onClick={() => switchMode('login')}>
+              ← Return to the gates
+            </button>
+          )}
+        </div>
       </div>
     </div>
   )

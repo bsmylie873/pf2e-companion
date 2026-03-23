@@ -5,9 +5,10 @@ import (
 	"os"
 
 	"github.com/labstack/echo/v4"
-	"github.com/labstack/echo/v4/middleware"
+	echomw "github.com/labstack/echo/v4/middleware"
 	"pf2e-companion/backend/database"
 	"pf2e-companion/backend/handlers"
+	custmw "pf2e-companion/backend/middleware"
 	"pf2e-companion/backend/repositories"
 	"pf2e-companion/backend/services"
 )
@@ -16,53 +17,56 @@ func main() {
 	db := database.Connect()
 
 	e := echo.New()
-	e.Use(middleware.Logger())
-	e.Use(middleware.Recover())
+	e.Use(echomw.Logger())
+	e.Use(echomw.Recover())
+	e.Use(custmw.CSRF())
 
 	corsOrigin := os.Getenv("CORS_ALLOW_ORIGIN")
 	if corsOrigin == "" {
-		corsOrigin = "*"
+		corsOrigin = "http://localhost:5173"
 	}
-	e.Use(middleware.CORSWithConfig(middleware.CORSConfig{
-		AllowOrigins: []string{corsOrigin},
-		AllowMethods: []string{http.MethodGet, http.MethodPost, http.MethodPatch, http.MethodDelete, http.MethodOptions},
-		AllowHeaders: []string{echo.HeaderContentType, echo.HeaderAccept},
+	e.Use(echomw.CORSWithConfig(echomw.CORSConfig{
+		AllowOrigins:     []string{corsOrigin},
+		AllowMethods:     []string{http.MethodGet, http.MethodPost, http.MethodPatch, http.MethodDelete, http.MethodOptions},
+		AllowHeaders:     []string{echo.HeaderContentType, echo.HeaderAccept, "X-CSRF-Token"},
+		AllowCredentials: true,
 	}))
 
-	// Users
+	// Repositories
 	userRepo := repositories.NewUserRepository(db)
-	userService := services.NewUserService(userRepo)
-	handlers.RegisterUserRoutes(e, userService)
-
-	// Games
 	gameRepo := repositories.NewGameRepository(db)
 	membershipRepo := repositories.NewMembershipRepository(db)
-	gameService := services.NewGameService(gameRepo, userRepo, membershipRepo)
-	handlers.RegisterGameRoutes(e, gameService)
-
-	// Memberships
-	membershipService := services.NewMembershipService(membershipRepo)
-	handlers.RegisterMembershipRoutes(e, membershipService)
-
-	// Sessions
 	sessionRepo := repositories.NewSessionRepository(db)
-	sessionService := services.NewSessionService(sessionRepo)
-	handlers.RegisterSessionRoutes(e, sessionService)
-
-	// Notes
 	noteRepo := repositories.NewNoteRepository(db)
-	noteService := services.NewNoteService(noteRepo)
-	handlers.RegisterNoteRoutes(e, noteService)
-
-	// Characters
 	characterRepo := repositories.NewCharacterRepository(db)
-	characterService := services.NewCharacterService(characterRepo)
-	handlers.RegisterCharacterRoutes(e, characterService)
-
-	// Items
 	itemRepo := repositories.NewItemRepository(db)
-	itemService := services.NewItemService(itemRepo)
-	handlers.RegisterItemRoutes(e, itemService)
+	refreshTokenRepo := repositories.NewRefreshTokenRepository(db)
+
+	// Services
+	authService := services.NewAuthService(userRepo, refreshTokenRepo)
+	userService := services.NewUserService(userRepo, authService)
+	gameService := services.NewGameService(gameRepo, membershipRepo)
+	membershipService := services.NewMembershipService(membershipRepo)
+	sessionService := services.NewSessionService(sessionRepo, membershipRepo)
+	noteService := services.NewNoteService(noteRepo, membershipRepo)
+	characterService := services.NewCharacterService(characterRepo, membershipRepo)
+	itemService := services.NewItemService(itemRepo, membershipRepo, characterRepo)
+
+	// Protected group — all resource routes require a valid JWT
+	protected := e.Group("", custmw.RequireAuth(authService))
+
+	// Auth routes (register, login, refresh are public; logout and me are protected)
+	loginRateLimiter := custmw.RateLimiter()
+	handlers.RegisterAuthRoutes(e, protected, authService, loginRateLimiter)
+
+	// Protected resource routes
+	handlers.RegisterUserRoutes(protected, userService)
+	handlers.RegisterGameRoutes(protected, gameService)
+	handlers.RegisterMembershipRoutes(protected, membershipService)
+	handlers.RegisterSessionRoutes(protected, sessionService)
+	handlers.RegisterNoteRoutes(protected, noteService)
+	handlers.RegisterCharacterRoutes(protected, characterService)
+	handlers.RegisterItemRoutes(protected, itemService)
 
 	port := os.Getenv("PORT")
 	if port == "" {
