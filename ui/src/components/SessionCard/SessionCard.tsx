@@ -16,6 +16,19 @@ export default function SessionCard({ session, isGM, onEdit, onDelete }: Session
       }).format(new Date(session.scheduled_at))
     : null
 
+  const runtimeLabel = (() => {
+    if (!session.runtime_start || !session.runtime_end) return null
+    const start = new Date(session.runtime_start)
+    const end = new Date(session.runtime_end)
+    const diffMs = end.getTime() - start.getTime()
+    if (diffMs <= 0) return null
+    const hours = Math.floor(diffMs / 3_600_000)
+    const minutes = Math.floor((diffMs % 3_600_000) / 60_000)
+    if (hours > 0 && minutes > 0) return `${hours}h ${minutes}m`
+    if (hours > 0) return `${hours}h`
+    return `${minutes}m`
+  })()
+
   return (
     <article className="session-card">
       <div className="session-card-body">
@@ -25,6 +38,15 @@ export default function SessionCard({ session, isGM, onEdit, onDelete }: Session
         <h3 className="session-card-title">{session.title}</h3>
         {formattedDate && (
           <time className="session-card-date">{formattedDate}</time>
+        )}
+        {runtimeLabel && (
+          <span className="session-card-runtime">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
+              <circle cx="12" cy="12" r="10" />
+              <polyline points="12 6 12 12 16 14" />
+            </svg>
+            {runtimeLabel}
+          </span>
         )}
       </div>
       <div className="session-card-actions">
