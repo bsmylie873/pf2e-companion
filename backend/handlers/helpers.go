@@ -1,10 +1,12 @@
 package handlers
 
 import (
+	"errors"
 	"net/http"
 
 	"github.com/google/uuid"
 	"github.com/labstack/echo/v4"
+	authmw "pf2e-companion/backend/middleware"
 )
 
 // SuccessResponse wraps data in a standard {"data": ...} envelope and sends the response.
@@ -49,4 +51,20 @@ func ValidateRequired(fields map[string]interface{}) []string {
 		}
 	}
 	return missing
+}
+
+// GetAuthUserID retrieves the authenticated user's UUID from the Echo context.
+// Returns an error and writes a 401 response if not set.
+func GetAuthUserID(c echo.Context) (uuid.UUID, error) {
+	val := c.Get(authmw.AuthUserIDKey)
+	if val == nil {
+		_ = ErrorResponse(c, http.StatusUnauthorized, "unauthorized")
+		return uuid.Nil, errors.New("unauthorized")
+	}
+	id, ok := val.(uuid.UUID)
+	if !ok {
+		_ = ErrorResponse(c, http.StatusUnauthorized, "unauthorized")
+		return uuid.Nil, errors.New("unauthorized")
+	}
+	return id, nil
 }

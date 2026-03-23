@@ -7,22 +7,26 @@ import (
 )
 
 type SessionService interface {
-	CreateSession(gameID uuid.UUID, session *models.Session) (models.Session, error)
-	ListGameSessions(gameID uuid.UUID) ([]models.Session, error)
-	GetSession(id uuid.UUID) (models.Session, error)
-	UpdateSession(id uuid.UUID, updates map[string]interface{}) (models.Session, error)
-	DeleteSession(id uuid.UUID) error
+	CreateSession(gameID, userID uuid.UUID, session *models.Session) (models.Session, error)
+	ListGameSessions(gameID, userID uuid.UUID) ([]models.Session, error)
+	GetSession(id, userID uuid.UUID) (models.Session, error)
+	UpdateSession(id, userID uuid.UUID, updates map[string]interface{}) (models.Session, error)
+	DeleteSession(id, userID uuid.UUID) error
 }
 
 type sessionService struct {
-	repo repositories.SessionRepository
+	repo           repositories.SessionRepository
+	membershipRepo repositories.MembershipRepository
 }
 
-func NewSessionService(repo repositories.SessionRepository) SessionService {
-	return &sessionService{repo: repo}
+func NewSessionService(repo repositories.SessionRepository, membershipRepo repositories.MembershipRepository) SessionService {
+	return &sessionService{repo: repo, membershipRepo: membershipRepo}
 }
 
-func (s *sessionService) CreateSession(gameID uuid.UUID, session *models.Session) (models.Session, error) {
+func (s *sessionService) CreateSession(gameID, userID uuid.UUID, session *models.Session) (models.Session, error) {
+	if _, err := s.membershipRepo.FindByUserAndGameID(userID, gameID); err != nil {
+		return models.Session{}, ErrForbidden
+	}
 	session.ID = uuid.Nil
 	session.GameID = gameID
 	if err := s.repo.Create(session); err != nil {
@@ -31,17 +35,31 @@ func (s *sessionService) CreateSession(gameID uuid.UUID, session *models.Session
 	return *session, nil
 }
 
-func (s *sessionService) ListGameSessions(gameID uuid.UUID) ([]models.Session, error) {
+func (s *sessionService) ListGameSessions(gameID, userID uuid.UUID) ([]models.Session, error) {
+	if _, err := s.membershipRepo.FindByUserAndGameID(userID, gameID); err != nil {
+		return nil, ErrForbidden
+	}
 	return s.repo.FindByGameID(gameID)
 }
 
-func (s *sessionService) GetSession(id uuid.UUID) (models.Session, error) {
-	return s.repo.FindByID(id)
+func (s *sessionService) GetSession(id, userID uuid.UUID) (models.Session, error) {
+	session, err := s.repo.FindByID(id)
+	if err != nil {
+		return models.Session{}, err
+	}
+	if _, err := s.membershipRepo.FindByUserAndGameID(userID, session.GameID); err != nil {
+		return models.Session{}, ErrForbidden
+	}
+	return session, nil
 }
 
-func (s *sessionService) UpdateSession(id uuid.UUID, updates map[string]interface{}) (models.Session, error) {
-	if _, err := s.repo.FindByID(id); err != nil {
+func (s *sessionService) UpdateSession(id, userID uuid.UUID, updates map[string]interface{}) (models.Session, error) {
+	session, err := s.repo.FindByID(id)
+	if err != nil {
 		return models.Session{}, err
+	}
+	if _, err := s.membershipRepo.FindByUserAndGameID(userID, session.GameID); err != nil {
+		return models.Session{}, ErrForbidden
 	}
 	delete(updates, "id")
 	delete(updates, "created_at")
@@ -57,9 +75,13 @@ func (s *sessionService) UpdateSession(id uuid.UUID, updates map[string]interfac
 	return s.repo.Update(id, updates, expectedVersion)
 }
 
-func (s *sessionService) DeleteSession(id uuid.UUID) error {
-	if _, err := s.repo.FindByID(id); err != nil {
+func (s *sessionService) DeleteSession(id, userID uuid.UUID) error {
+	session, err := s.repo.FindByID(id)
+	if err != nil {
 		return err
+	}
+	if _, err := s.membershipRepo.FindByUserAndGameID(userID, session.GameID); err != nil {
+		return ErrForbidden
 	}
 	return s.repo.Delete(id)
 }

@@ -7,24 +7,23 @@ import (
 )
 
 type GameService interface {
-	CreateGame(game *models.Game, members []models.GameMembership) (models.Game, error)
-	ListGames() ([]models.Game, error)
-	GetGame(id uuid.UUID) (models.Game, error)
-	UpdateGame(id uuid.UUID, updates map[string]interface{}) (models.Game, error)
-	DeleteGame(id uuid.UUID) error
+	CreateGame(game *models.Game, members []models.GameMembership, creatorID uuid.UUID) (models.Game, error)
+	ListGames(userID uuid.UUID) ([]models.Game, error)
+	GetGame(id, userID uuid.UUID) (models.Game, error)
+	UpdateGame(id, userID uuid.UUID, updates map[string]interface{}) (models.Game, error)
+	DeleteGame(id, userID uuid.UUID) error
 }
 
 type gameService struct {
 	repo           repositories.GameRepository
-	userRepo       repositories.UserRepository
 	membershipRepo repositories.MembershipRepository
 }
 
-func NewGameService(repo repositories.GameRepository, userRepo repositories.UserRepository, membershipRepo repositories.MembershipRepository) GameService {
-	return &gameService{repo: repo, userRepo: userRepo, membershipRepo: membershipRepo}
+func NewGameService(repo repositories.GameRepository, membershipRepo repositories.MembershipRepository) GameService {
+	return &gameService{repo: repo, membershipRepo: membershipRepo}
 }
 
-func (s *gameService) CreateGame(game *models.Game, members []models.GameMembership) (models.Game, error) {
+func (s *gameService) CreateGame(game *models.Game, members []models.GameMembership, creatorID uuid.UUID) (models.Game, error) {
 	if err := s.repo.Create(game); err != nil {
 		return models.Game{}, err
 	}
@@ -36,31 +35,36 @@ func (s *gameService) CreateGame(game *models.Game, members []models.GameMembers
 			}
 		}
 	} else {
-		users, err := s.userRepo.FindAll()
-		if err != nil {
+		membership := &models.GameMembership{GameID: game.ID, UserID: creatorID, IsGM: true}
+		if err := s.membershipRepo.Create(membership); err != nil {
 			return models.Game{}, err
-		}
-		if len(users) > 0 {
-			membership := &models.GameMembership{GameID: game.ID, UserID: users[0].ID, IsGM: true}
-			if err := s.membershipRepo.Create(membership); err != nil {
-				return models.Game{}, err
-			}
 		}
 	}
 	return *game, nil
 }
 
-func (s *gameService) ListGames() ([]models.Game, error) {
-	return s.repo.FindAll()
+func (s *gameService) ListGames(userID uuid.UUID) ([]models.Game, error) {
+	memberships, err := s.membershipRepo.FindByUserID(userID)
+	if err != nil {
+		return nil, err
+	}
+	ids := make([]uuid.UUID, len(memberships))
+	for i, m := range memberships {
+		ids[i] = m.GameID
+	}
+	return s.repo.FindByIDs(ids)
 }
 
-func (s *gameService) GetGame(id uuid.UUID) (models.Game, error) {
+func (s *gameService) GetGame(id, userID uuid.UUID) (models.Game, error) {
+	if _, err := s.membershipRepo.FindByUserAndGameID(userID, id); err != nil {
+		return models.Game{}, ErrForbidden
+	}
 	return s.repo.FindByID(id)
 }
 
-func (s *gameService) UpdateGame(id uuid.UUID, updates map[string]interface{}) (models.Game, error) {
-	if _, err := s.repo.FindByID(id); err != nil {
-		return models.Game{}, err
+func (s *gameService) UpdateGame(id, userID uuid.UUID, updates map[string]interface{}) (models.Game, error) {
+	if _, err := s.membershipRepo.FindByUserAndGameID(userID, id); err != nil {
+		return models.Game{}, ErrForbidden
 	}
 	delete(updates, "id")
 	delete(updates, "created_at")
@@ -68,9 +72,9 @@ func (s *gameService) UpdateGame(id uuid.UUID, updates map[string]interface{}) (
 	return s.repo.Update(id, updates)
 }
 
-func (s *gameService) DeleteGame(id uuid.UUID) error {
-	if _, err := s.repo.FindByID(id); err != nil {
-		return err
+func (s *gameService) DeleteGame(id, userID uuid.UUID) error {
+	if _, err := s.membershipRepo.FindByUserAndGameID(userID, id); err != nil {
+		return ErrForbidden
 	}
 	return s.repo.Delete(id)
 }

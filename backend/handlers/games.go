@@ -33,6 +33,11 @@ func NewGameHandler(service services.GameService) *GameHandler {
 }
 
 func (h *GameHandler) CreateGame(c echo.Context) error {
+	authUserID, err := GetAuthUserID(c)
+	if err != nil {
+		return nil
+	}
+
 	var req createGameRequest
 	if err := c.Bind(&req); err != nil {
 		return ErrorResponse(c, http.StatusBadRequest, "invalid request body")
@@ -63,7 +68,7 @@ func (h *GameHandler) CreateGame(c echo.Context) error {
 		})
 	}
 
-	resp, err := h.service.CreateGame(&game, memberships)
+	resp, err := h.service.CreateGame(&game, memberships, authUserID)
 	if err != nil {
 		return ErrorResponse(c, http.StatusInternalServerError, "failed to create game")
 	}
@@ -72,7 +77,12 @@ func (h *GameHandler) CreateGame(c echo.Context) error {
 }
 
 func (h *GameHandler) ListGames(c echo.Context) error {
-	games, err := h.service.ListGames()
+	authUserID, err := GetAuthUserID(c)
+	if err != nil {
+		return nil
+	}
+
+	games, err := h.service.ListGames(authUserID)
 	if err != nil {
 		return ErrorResponse(c, http.StatusInternalServerError, "failed to list games")
 	}
@@ -80,13 +90,21 @@ func (h *GameHandler) ListGames(c echo.Context) error {
 }
 
 func (h *GameHandler) GetGame(c echo.Context) error {
+	authUserID, err := GetAuthUserID(c)
+	if err != nil {
+		return nil
+	}
+
 	id, err := ParseUUID(c, "id")
 	if err != nil {
 		return nil
 	}
 
-	game, err := h.service.GetGame(id)
+	game, err := h.service.GetGame(id, authUserID)
 	if err != nil {
+		if errors.Is(err, services.ErrForbidden) {
+			return ErrorResponse(c, http.StatusForbidden, "forbidden")
+		}
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return ErrorResponse(c, http.StatusNotFound, "game not found")
 		}
@@ -97,6 +115,11 @@ func (h *GameHandler) GetGame(c echo.Context) error {
 }
 
 func (h *GameHandler) UpdateGame(c echo.Context) error {
+	authUserID, err := GetAuthUserID(c)
+	if err != nil {
+		return nil
+	}
+
 	id, err := ParseUUID(c, "id")
 	if err != nil {
 		return nil
@@ -107,8 +130,11 @@ func (h *GameHandler) UpdateGame(c echo.Context) error {
 		return ErrorResponse(c, http.StatusBadRequest, "invalid request body")
 	}
 
-	game, err := h.service.UpdateGame(id, updates)
+	game, err := h.service.UpdateGame(id, authUserID, updates)
 	if err != nil {
+		if errors.Is(err, services.ErrForbidden) {
+			return ErrorResponse(c, http.StatusForbidden, "forbidden")
+		}
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return ErrorResponse(c, http.StatusNotFound, "game not found")
 		}
@@ -119,12 +145,20 @@ func (h *GameHandler) UpdateGame(c echo.Context) error {
 }
 
 func (h *GameHandler) DeleteGame(c echo.Context) error {
+	authUserID, err := GetAuthUserID(c)
+	if err != nil {
+		return nil
+	}
+
 	id, err := ParseUUID(c, "id")
 	if err != nil {
 		return nil
 	}
 
-	if err := h.service.DeleteGame(id); err != nil {
+	if err := h.service.DeleteGame(id, authUserID); err != nil {
+		if errors.Is(err, services.ErrForbidden) {
+			return ErrorResponse(c, http.StatusForbidden, "forbidden")
+		}
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return ErrorResponse(c, http.StatusNotFound, "game not found")
 		}
@@ -134,11 +168,11 @@ func (h *GameHandler) DeleteGame(c echo.Context) error {
 	return SuccessResponse(c, http.StatusOK, map[string]string{"message": "deleted"})
 }
 
-func RegisterGameRoutes(e *echo.Echo, service services.GameService) {
+func RegisterGameRoutes(g *echo.Group, service services.GameService) {
 	h := NewGameHandler(service)
-	e.POST("/games", h.CreateGame)
-	e.GET("/games", h.ListGames)
-	e.GET("/games/:id", h.GetGame)
-	e.PATCH("/games/:id", h.UpdateGame)
-	e.DELETE("/games/:id", h.DeleteGame)
+	g.POST("/games", h.CreateGame)
+	g.GET("/games", h.ListGames)
+	g.GET("/games/:id", h.GetGame)
+	g.PATCH("/games/:id", h.UpdateGame)
+	g.DELETE("/games/:id", h.DeleteGame)
 }

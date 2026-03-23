@@ -9,9 +9,9 @@
 -- -----------------------------------------------------------------------------
 INSERT INTO users (id, username, email, password_hash, avatar_url, foundry_data, created_at, updated_at)
 VALUES
-    ('a1b2c3d4-0001-4000-8000-000000000001', 'gm_valen',     'valen@example.com', '$2y$10$4ZtZMk0tY40kYxuxOC2UuS0xdr5qAC7ya0vqRV201Uc56YsqY9di', NULL, NULL, NOW(), NOW()),
-    ('a1b2c3d4-0002-4000-8000-000000000002', 'player_elara', 'elara@example.com', '$2y$10$4ZtZMk0tY40kYxuxOC2UuS0xdr5qAC7ya0vqRV201Uc56YsqY9di', NULL, NULL, NOW(), NOW()),
-    ('a1b2c3d4-0003-4000-8000-000000000003', 'player_dorn',  'dorn@example.com',  '$2y$10$4ZtZMk0tY40kYxuxOC2UuS0xdr5qAC7ya0vqRV201Uc56YsqY9di', NULL, NULL, NOW(), NOW())
+    ('a1b2c3d4-0001-4000-8000-000000000001', 'gm_valen',     'valen@example.com', '$2a$10$4q/Kh9TstbqRMtajn7Fb6e.uy8YKIZfGIj8qW5Scpr/ML2wpLqwMS', NULL, NULL, NOW(), NOW()),
+    ('a1b2c3d4-0002-4000-8000-000000000002', 'player_elara', 'elara@example.com', '$2a$10$4q/Kh9TstbqRMtajn7Fb6e.uy8YKIZfGIj8qW5Scpr/ML2wpLqwMS', NULL, NULL, NOW(), NOW()),
+    ('a1b2c3d4-0003-4000-8000-000000000003', 'player_dorn',  'dorn@example.com',  '$2a$10$4q/Kh9TstbqRMtajn7Fb6e.uy8YKIZfGIj8qW5Scpr/ML2wpLqwMS', NULL, NULL, NOW(), NOW())
 ON CONFLICT (id) DO NOTHING;
 
 -- -----------------------------------------------------------------------------

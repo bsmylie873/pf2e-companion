@@ -4,7 +4,7 @@ import type { Session, SessionFormData } from '../../types/session'
 import type { GameMembership } from '../../types/membership'
 import { listGameSessions, createSession, updateSession, deleteSession } from '../../api/sessions'
 import { listMemberships } from '../../api/memberships'
-import { DEV_USER_ID } from '../../constants/dev'
+import { useAuth } from '../../context/AuthContext'
 import SessionCard from '../../components/SessionCard/SessionCard'
 import SessionFormModal from '../../components/SessionFormModal/SessionFormModal'
 import ConfirmModal from '../../components/ConfirmModal/ConfirmModal'
@@ -20,6 +20,7 @@ export default function Editor() {
   const { gameId } = useParams<{ gameId: string }>()
   const location = useLocation()
   const navigate = useNavigate()
+  const { user } = useAuth()
   const state = location.state as LocationState | null
 
   const [title, setTitle] = useState(state?.title ?? `Game #${gameId}`)
@@ -108,7 +109,7 @@ export default function Editor() {
     return () => { cancelled = true }
   }, [gameId])
 
-  const isGM = memberships.some(m => m.user_id === DEV_USER_ID && m.is_gm)
+  const isGM = memberships.some(m => m.user_id === user?.id && m.is_gm)
 
   const sortedSessions = [...sessions].sort((a, b) => {
     const dir = sortDir === 'asc' ? 1 : -1

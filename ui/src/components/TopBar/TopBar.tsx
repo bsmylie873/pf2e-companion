@@ -1,5 +1,7 @@
 import { useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { useDarkMode } from '../../hooks/useDarkMode'
+import { useAuth } from '../../context/AuthContext'
 import Modal from '../Modal/Modal'
 import './TopBar.css'
 
@@ -45,10 +47,21 @@ function UserIcon() {
   )
 }
 
+function LogoutIcon() {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
+      <polyline points="16 17 21 12 16 7" />
+      <line x1="21" y1="12" x2="9" y2="12" />
+    </svg>
+  )
+}
+
 export default function TopBar() {
   const [isDark, setIsDark] = useDarkMode()
   const [settingsOpen, setSettingsOpen] = useState(false)
-  const [accountOpen, setAccountOpen] = useState(false)
+  const { isAuthenticated, logout } = useAuth()
+  const navigate = useNavigate()
 
   return (
     <>
@@ -78,19 +91,31 @@ export default function TopBar() {
             <GearIcon />
           </button>
 
-          <button
-            className="topbar-icon-btn"
-            onClick={() => setAccountOpen(true)}
-            aria-label="Account"
-            title="Account"
-          >
-            <UserIcon />
-          </button>
+          {isAuthenticated && (
+            <>
+              <button
+                className="topbar-icon-btn"
+                onClick={() => navigate('/profile')}
+                aria-label="Profile"
+                title="Profile"
+              >
+                <UserIcon />
+              </button>
+
+              <button
+                className="topbar-icon-btn"
+                onClick={() => logout()}
+                aria-label="Logout"
+                title="Logout"
+              >
+                <LogoutIcon />
+              </button>
+            </>
+          )}
         </nav>
       </header>
 
       {settingsOpen && <Modal title="Settings" onClose={() => setSettingsOpen(false)}><p style={{ textAlign: 'center', color: 'var(--color-text-muted)', fontStyle: 'italic' }}>The scribes are still writing this chapter.</p></Modal>}
-      {accountOpen && <Modal title="Account" onClose={() => setAccountOpen(false)}><p style={{ textAlign: 'center', color: 'var(--color-text-muted)', fontStyle: 'italic' }}>The scribes are still writing this chapter.</p></Modal>}
     </>
   )
 }

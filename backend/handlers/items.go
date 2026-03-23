@@ -21,19 +21,24 @@ func NewItemHandler(service services.ItemService) *ItemHandler {
 	return &ItemHandler{service: service}
 }
 
-// RegisterItemRoutes registers all item routes on the Echo instance.
-func RegisterItemRoutes(e *echo.Echo, service services.ItemService) {
+// RegisterItemRoutes registers all item routes on the group.
+func RegisterItemRoutes(g *echo.Group, service services.ItemService) {
 	h := NewItemHandler(service)
-	e.POST("/games/:id/items", h.CreateItem)
-	e.GET("/games/:id/items", h.ListGameItems)
-	e.GET("/characters/:id/items", h.ListCharacterItems)
-	e.GET("/items/:id", h.GetItem)
-	e.PATCH("/items/:id", h.UpdateItem)
-	e.DELETE("/items/:id", h.DeleteItem)
+	g.POST("/games/:id/items", h.CreateItem)
+	g.GET("/games/:id/items", h.ListGameItems)
+	g.GET("/characters/:id/items", h.ListCharacterItems)
+	g.GET("/items/:id", h.GetItem)
+	g.PATCH("/items/:id", h.UpdateItem)
+	g.DELETE("/items/:id", h.DeleteItem)
 }
 
 // CreateItem handles POST /games/:id/items.
 func (h *ItemHandler) CreateItem(c echo.Context) error {
+	authUserID, err := GetAuthUserID(c)
+	if err != nil {
+		return nil
+	}
+
 	gameID, err := ParseUUID(c, "id")
 	if err != nil {
 		return nil
@@ -49,8 +54,11 @@ func (h *ItemHandler) CreateItem(c echo.Context) error {
 		return ErrorResponse(c, http.StatusUnprocessableEntity, "missing required fields: "+strings.Join(missing, ", "))
 	}
 
-	resp, err := h.service.CreateItem(gameID, &item)
+	resp, err := h.service.CreateItem(gameID, authUserID, &item)
 	if err != nil {
+		if errors.Is(err, services.ErrForbidden) {
+			return ErrorResponse(c, http.StatusForbidden, "forbidden")
+		}
 		return ErrorResponse(c, http.StatusInternalServerError, "failed to create item")
 	}
 
@@ -59,13 +67,21 @@ func (h *ItemHandler) CreateItem(c echo.Context) error {
 
 // ListGameItems handles GET /games/:id/items.
 func (h *ItemHandler) ListGameItems(c echo.Context) error {
+	authUserID, err := GetAuthUserID(c)
+	if err != nil {
+		return nil
+	}
+
 	gameID, err := ParseUUID(c, "id")
 	if err != nil {
 		return nil
 	}
 
-	items, err := h.service.ListGameItems(gameID)
+	items, err := h.service.ListGameItems(gameID, authUserID)
 	if err != nil {
+		if errors.Is(err, services.ErrForbidden) {
+			return ErrorResponse(c, http.StatusForbidden, "forbidden")
+		}
 		return ErrorResponse(c, http.StatusInternalServerError, "failed to fetch items")
 	}
 
@@ -74,13 +90,21 @@ func (h *ItemHandler) ListGameItems(c echo.Context) error {
 
 // ListCharacterItems handles GET /characters/:id/items.
 func (h *ItemHandler) ListCharacterItems(c echo.Context) error {
+	authUserID, err := GetAuthUserID(c)
+	if err != nil {
+		return nil
+	}
+
 	characterID, err := ParseUUID(c, "id")
 	if err != nil {
 		return nil
 	}
 
-	items, err := h.service.ListCharacterItems(characterID)
+	items, err := h.service.ListCharacterItems(characterID, authUserID)
 	if err != nil {
+		if errors.Is(err, services.ErrForbidden) {
+			return ErrorResponse(c, http.StatusForbidden, "forbidden")
+		}
 		return ErrorResponse(c, http.StatusInternalServerError, "failed to fetch items")
 	}
 
@@ -89,13 +113,21 @@ func (h *ItemHandler) ListCharacterItems(c echo.Context) error {
 
 // GetItem handles GET /items/:id.
 func (h *ItemHandler) GetItem(c echo.Context) error {
+	authUserID, err := GetAuthUserID(c)
+	if err != nil {
+		return nil
+	}
+
 	id, err := ParseUUID(c, "id")
 	if err != nil {
 		return nil
 	}
 
-	item, err := h.service.GetItem(id)
+	item, err := h.service.GetItem(id, authUserID)
 	if err != nil {
+		if errors.Is(err, services.ErrForbidden) {
+			return ErrorResponse(c, http.StatusForbidden, "forbidden")
+		}
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return ErrorResponse(c, http.StatusNotFound, "item not found")
 		}
@@ -107,6 +139,11 @@ func (h *ItemHandler) GetItem(c echo.Context) error {
 
 // UpdateItem handles PATCH /items/:id.
 func (h *ItemHandler) UpdateItem(c echo.Context) error {
+	authUserID, err := GetAuthUserID(c)
+	if err != nil {
+		return nil
+	}
+
 	id, err := ParseUUID(c, "id")
 	if err != nil {
 		return nil
@@ -117,8 +154,11 @@ func (h *ItemHandler) UpdateItem(c echo.Context) error {
 		return ErrorResponse(c, http.StatusBadRequest, "invalid request body")
 	}
 
-	item, err := h.service.UpdateItem(id, updates)
+	item, err := h.service.UpdateItem(id, authUserID, updates)
 	if err != nil {
+		if errors.Is(err, services.ErrForbidden) {
+			return ErrorResponse(c, http.StatusForbidden, "forbidden")
+		}
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return ErrorResponse(c, http.StatusNotFound, "item not found")
 		}
@@ -130,12 +170,20 @@ func (h *ItemHandler) UpdateItem(c echo.Context) error {
 
 // DeleteItem handles DELETE /items/:id.
 func (h *ItemHandler) DeleteItem(c echo.Context) error {
+	authUserID, err := GetAuthUserID(c)
+	if err != nil {
+		return nil
+	}
+
 	id, err := ParseUUID(c, "id")
 	if err != nil {
 		return nil
 	}
 
-	if err := h.service.DeleteItem(id); err != nil {
+	if err := h.service.DeleteItem(id, authUserID); err != nil {
+		if errors.Is(err, services.ErrForbidden) {
+			return ErrorResponse(c, http.StatusForbidden, "forbidden")
+		}
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return ErrorResponse(c, http.StatusNotFound, "item not found")
 		}

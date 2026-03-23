@@ -15,6 +15,8 @@ type User struct {
 	Email        string         `gorm:"not null;uniqueIndex"                            json:"email"`
 	PasswordHash string         `gorm:"column:password_hash;not null"                   json:"password_hash"`
 	AvatarURL    *string        `gorm:"column:avatar_url"                               json:"avatar_url"`
+	Description  *string        `gorm:"column:description"                              json:"description"`
+	Location     *string        `gorm:"column:location"                                 json:"location"`
 	FoundryData  datatypes.JSON `gorm:"column:foundry_data;type:jsonb"                  json:"foundry_data"`
 	CreatedAt    time.Time      `gorm:"autoCreateTime"                                  json:"created_at"`
 	UpdatedAt    time.Time      `gorm:"autoUpdateTime"                                  json:"updated_at"`
@@ -130,3 +132,14 @@ type Item struct {
 }
 
 func (Item) TableName() string { return "items" }
+
+// RefreshToken represents a stored refresh token for JWT rotation.
+type RefreshToken struct {
+	ID        uuid.UUID `gorm:"type:uuid;default:gen_random_uuid();primaryKey" json:"id"`
+	UserID    uuid.UUID `gorm:"type:uuid;not null;column:user_id"               json:"user_id"`
+	TokenHash string    `gorm:"column:token_hash;not null;uniqueIndex"          json:"token_hash"`
+	ExpiresAt time.Time `gorm:"column:expires_at;not null"                     json:"expires_at"`
+	CreatedAt time.Time `gorm:"autoCreateTime"                                  json:"created_at"`
+}
+
+func (RefreshToken) TableName() string { return "refresh_tokens" }

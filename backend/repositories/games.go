@@ -12,6 +12,7 @@ type GameRepository interface {
 	FindByID(id uuid.UUID) (models.Game, error)
 	Update(id uuid.UUID, updates map[string]interface{}) (models.Game, error)
 	Delete(id uuid.UUID) error
+	FindByIDs(ids []uuid.UUID) ([]models.Game, error)
 }
 
 type gameRepository struct {
@@ -47,4 +48,13 @@ func (r *gameRepository) Update(id uuid.UUID, updates map[string]interface{}) (m
 
 func (r *gameRepository) Delete(id uuid.UUID) error {
 	return r.db.Delete(&models.Game{}, "id = ?", id).Error
+}
+
+func (r *gameRepository) FindByIDs(ids []uuid.UUID) ([]models.Game, error) {
+	if len(ids) == 0 {
+		return []models.Game{}, nil
+	}
+	var games []models.Game
+	err := r.db.Where("id IN ?", ids).Find(&games).Error
+	return games, err
 }

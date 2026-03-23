@@ -3,10 +3,10 @@ package handlers
 import (
 	"errors"
 	"net/http"
-	"strings"
 
 	"github.com/labstack/echo/v4"
 	"gorm.io/gorm"
+	custmw "pf2e-companion/backend/middleware"
 	"pf2e-companion/backend/models"
 	"pf2e-companion/backend/services"
 )
@@ -19,30 +19,12 @@ func NewUserHandler(service services.UserService) *UserHandler {
 	return &UserHandler{service: service}
 }
 
-func (h *UserHandler) CreateUser(c echo.Context) error {
-	var user models.User
-	if err := c.Bind(&user); err != nil {
-		return ErrorResponse(c, http.StatusBadRequest, "invalid request body")
-	}
-
-	missing := ValidateRequired(map[string]interface{}{
-		"username":      user.Username,
-		"email":         user.Email,
-		"password_hash": user.PasswordHash,
-	})
-	if len(missing) > 0 {
-		return ErrorResponse(c, http.StatusUnprocessableEntity, "missing required fields: "+strings.Join(missing, ", "))
-	}
-
-	resp, err := h.service.CreateUser(&user)
-	if err != nil {
-		return ErrorResponse(c, http.StatusInternalServerError, "failed to create user")
-	}
-
-	return SuccessResponse(c, http.StatusCreated, resp)
-}
-
 func (h *UserHandler) ListUsers(c echo.Context) error {
+	_, err := GetAuthUserID(c)
+	if err != nil {
+		return nil
+	}
+
 	responses, err := h.service.ListUsers()
 	if err != nil {
 		return ErrorResponse(c, http.StatusInternalServerError, "failed to retrieve users")
@@ -51,6 +33,11 @@ func (h *UserHandler) ListUsers(c echo.Context) error {
 }
 
 func (h *UserHandler) GetUser(c echo.Context) error {
+	authUserID, err := GetAuthUserID(c)
+	if err != nil {
+		return nil
+	}
+
 	id, err := ParseUUID(c, "id")
 	if err != nil {
 		return nil
@@ -64,13 +51,27 @@ func (h *UserHandler) GetUser(c echo.Context) error {
 		return ErrorResponse(c, http.StatusInternalServerError, "failed to retrieve user")
 	}
 
-	return SuccessResponse(c, http.StatusOK, resp)
+	if id == authUserID {
+		return SuccessResponse(c, http.StatusOK, resp)
+	}
+
+	public := models.UserPublicResponse{ID: resp.ID, Username: resp.Username, AvatarURL: resp.AvatarURL}
+	return SuccessResponse(c, http.StatusOK, public)
 }
 
 func (h *UserHandler) UpdateUser(c echo.Context) error {
+	authUserID, err := GetAuthUserID(c)
+	if err != nil {
+		return nil
+	}
+
 	id, err := ParseUUID(c, "id")
 	if err != nil {
 		return nil
+	}
+
+	if id != authUserID {
+		return ErrorResponse(c, http.StatusForbidden, "forbidden")
 	}
 
 	var updates map[string]interface{}
@@ -78,24 +79,41 @@ func (h *UserHandler) UpdateUser(c echo.Context) error {
 		return ErrorResponse(c, http.StatusBadRequest, "invalid request body")
 	}
 
-	resp, err := h.service.UpdateUser(id, updates)
+	_, hasPassword := updates["password"]
+
+	resp, err := h.service.UpdateUser(id, updates, authUserID)
 	if err != nil {
+		if errors.Is(err, services.ErrForbidden) {
+			return ErrorResponse(c, http.StatusForbidden, "forbidden")
+		}
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return ErrorResponse(c, http.StatusNotFound, "user not found")
 		}
 		return ErrorResponse(c, http.StatusInternalServerError, "failed to update user")
 	}
 
+	if hasPassword {
+		custmw.ClearAuthCookies(c)
+	}
+
 	return SuccessResponse(c, http.StatusOK, resp)
 }
 
 func (h *UserHandler) DeleteUser(c echo.Context) error {
+	authUserID, err := GetAuthUserID(c)
+	if err != nil {
+		return nil
+	}
+
 	id, err := ParseUUID(c, "id")
 	if err != nil {
 		return nil
 	}
 
-	if err := h.service.DeleteUser(id); err != nil {
+	if err := h.service.DeleteUser(id, authUserID); err != nil {
+		if errors.Is(err, services.ErrForbidden) {
+			return ErrorResponse(c, http.StatusForbidden, "forbidden")
+		}
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return ErrorResponse(c, http.StatusNotFound, "user not found")
 		}
@@ -105,11 +123,10 @@ func (h *UserHandler) DeleteUser(c echo.Context) error {
 	return SuccessResponse(c, http.StatusOK, map[string]string{"message": "deleted"})
 }
 
-func RegisterUserRoutes(e *echo.Echo, service services.UserService) {
+func RegisterUserRoutes(g *echo.Group, service services.UserService) {
 	h := NewUserHandler(service)
-	e.POST("/users", h.CreateUser)
-	e.GET("/users", h.ListUsers)
-	e.GET("/users/:id", h.GetUser)
-	e.PATCH("/users/:id", h.UpdateUser)
-	e.DELETE("/users/:id", h.DeleteUser)
+	g.GET("/users", h.ListUsers)
+	g.GET("/users/:id", h.GetUser)
+	g.PATCH("/users/:id", h.UpdateUser)
+	g.DELETE("/users/:id", h.DeleteUser)
 }

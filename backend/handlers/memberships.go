@@ -32,6 +32,11 @@ func NewMembershipHandler(service services.MembershipService) *MembershipHandler
 
 // CreateMembership handles POST /memberships.
 func (h *MembershipHandler) CreateMembership(c echo.Context) error {
+	authUserID, err := GetAuthUserID(c)
+	if err != nil {
+		return nil
+	}
+
 	var req createMembershipRequest
 	if err := c.Bind(&req); err != nil {
 		return ErrorResponse(c, http.StatusBadRequest, "invalid request body")
@@ -61,8 +66,11 @@ func (h *MembershipHandler) CreateMembership(c echo.Context) error {
 		IsGM:   req.IsGM,
 	}
 
-	resp, err := h.service.CreateMembership(&membership)
+	resp, err := h.service.CreateMembership(&membership, authUserID)
 	if err != nil {
+		if errors.Is(err, services.ErrForbidden) {
+			return ErrorResponse(c, http.StatusForbidden, "forbidden")
+		}
 		return ErrorResponse(c, http.StatusInternalServerError, "failed to create membership")
 	}
 
@@ -71,6 +79,11 @@ func (h *MembershipHandler) CreateMembership(c echo.Context) error {
 
 // ListMemberships handles GET /memberships?game_id=<uuid>.
 func (h *MembershipHandler) ListMemberships(c echo.Context) error {
+	authUserID, err := GetAuthUserID(c)
+	if err != nil {
+		return nil
+	}
+
 	gameIDStr := c.QueryParam("game_id")
 	if gameIDStr == "" {
 		return ErrorResponse(c, http.StatusBadRequest, "query param game_id is required")
@@ -81,8 +94,11 @@ func (h *MembershipHandler) ListMemberships(c echo.Context) error {
 		return ErrorResponse(c, http.StatusBadRequest, "invalid UUID for game_id: "+gameIDStr)
 	}
 
-	memberships, err := h.service.ListMemberships(gameID)
+	memberships, err := h.service.ListMemberships(gameID, authUserID)
 	if err != nil {
+		if errors.Is(err, services.ErrForbidden) {
+			return ErrorResponse(c, http.StatusForbidden, "forbidden")
+		}
 		return ErrorResponse(c, http.StatusInternalServerError, "failed to list memberships")
 	}
 
@@ -91,13 +107,21 @@ func (h *MembershipHandler) ListMemberships(c echo.Context) error {
 
 // GetMembership handles GET /memberships/:id.
 func (h *MembershipHandler) GetMembership(c echo.Context) error {
+	authUserID, err := GetAuthUserID(c)
+	if err != nil {
+		return nil
+	}
+
 	id, err := ParseUUID(c, "id")
 	if err != nil {
 		return nil
 	}
 
-	membership, err := h.service.GetMembership(id)
+	membership, err := h.service.GetMembership(id, authUserID)
 	if err != nil {
+		if errors.Is(err, services.ErrForbidden) {
+			return ErrorResponse(c, http.StatusForbidden, "forbidden")
+		}
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return ErrorResponse(c, http.StatusNotFound, "membership not found")
 		}
@@ -109,6 +133,11 @@ func (h *MembershipHandler) GetMembership(c echo.Context) error {
 
 // UpdateMembership handles PATCH /memberships/:id.
 func (h *MembershipHandler) UpdateMembership(c echo.Context) error {
+	authUserID, err := GetAuthUserID(c)
+	if err != nil {
+		return nil
+	}
+
 	id, err := ParseUUID(c, "id")
 	if err != nil {
 		return nil
@@ -119,8 +148,11 @@ func (h *MembershipHandler) UpdateMembership(c echo.Context) error {
 		return ErrorResponse(c, http.StatusBadRequest, "invalid request body")
 	}
 
-	membership, err := h.service.UpdateMembership(id, updates)
+	membership, err := h.service.UpdateMembership(id, authUserID, updates)
 	if err != nil {
+		if errors.Is(err, services.ErrForbidden) {
+			return ErrorResponse(c, http.StatusForbidden, "forbidden")
+		}
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return ErrorResponse(c, http.StatusNotFound, "membership not found")
 		}
@@ -132,12 +164,20 @@ func (h *MembershipHandler) UpdateMembership(c echo.Context) error {
 
 // DeleteMembership handles DELETE /memberships/:id.
 func (h *MembershipHandler) DeleteMembership(c echo.Context) error {
+	authUserID, err := GetAuthUserID(c)
+	if err != nil {
+		return nil
+	}
+
 	id, err := ParseUUID(c, "id")
 	if err != nil {
 		return nil
 	}
 
-	if err := h.service.DeleteMembership(id); err != nil {
+	if err := h.service.DeleteMembership(id, authUserID); err != nil {
+		if errors.Is(err, services.ErrForbidden) {
+			return ErrorResponse(c, http.StatusForbidden, "forbidden")
+		}
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return ErrorResponse(c, http.StatusNotFound, "membership not found")
 		}
@@ -147,12 +187,12 @@ func (h *MembershipHandler) DeleteMembership(c echo.Context) error {
 	return SuccessResponse(c, http.StatusOK, map[string]string{"message": "deleted"})
 }
 
-// RegisterMembershipRoutes wires up all membership routes on the echo instance.
-func RegisterMembershipRoutes(e *echo.Echo, service services.MembershipService) {
+// RegisterMembershipRoutes wires up all membership routes on the group.
+func RegisterMembershipRoutes(g *echo.Group, service services.MembershipService) {
 	h := NewMembershipHandler(service)
-	e.POST("/memberships", h.CreateMembership)
-	e.GET("/memberships", h.ListMemberships)
-	e.GET("/memberships/:id", h.GetMembership)
-	e.PATCH("/memberships/:id", h.UpdateMembership)
-	e.DELETE("/memberships/:id", h.DeleteMembership)
+	g.POST("/memberships", h.CreateMembership)
+	g.GET("/memberships", h.ListMemberships)
+	g.GET("/memberships/:id", h.GetMembership)
+	g.PATCH("/memberships/:id", h.UpdateMembership)
+	g.DELETE("/memberships/:id", h.DeleteMembership)
 }
