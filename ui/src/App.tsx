@@ -3,6 +3,7 @@ import TopBar from './components/TopBar/TopBar'
 import Login from './pages/Login/Login'
 import GamesList from './pages/GamesList/GamesList'
 import Editor from './pages/Editor/Editor'
+import SessionNotes from './pages/SessionNotes/SessionNotes'
 import './App.css'
 
 export default function App() {
@@ -15,6 +16,7 @@ export default function App() {
             <Route path="/" element={<Login />} />
             <Route path="/games" element={<GamesList />} />
             <Route path="/games/:gameId" element={<Editor />} />
+            <Route path="/games/:gameId/sessions/:sessionId/notes" element={<SessionNotes />} />
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
         </main>

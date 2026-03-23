@@ -1,3 +1,5 @@
+import type { JSONContent } from '@tiptap/react'
+
 export interface Session {
   id: string
   game_id: string
@@ -6,7 +8,7 @@ export interface Session {
   scheduled_at: string | null
   runtime_start: string | null
   runtime_end: string | null
-  notes: unknown
+  notes: JSONContent | null
   version: number
   foundry_data: unknown
   created_at: string

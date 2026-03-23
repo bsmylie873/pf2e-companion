@@ -1,16 +1,20 @@
 package repositories
 
 import (
+	"errors"
+
 	"github.com/google/uuid"
 	"gorm.io/gorm"
 	"pf2e-companion/backend/models"
 )
 
+var ErrVersionConflict = errors.New("version conflict")
+
 type SessionRepository interface {
 	Create(session *models.Session) error
 	FindByGameID(gameID uuid.UUID) ([]models.Session, error)
 	FindByID(id uuid.UUID) (models.Session, error)
-	Update(id uuid.UUID, updates map[string]interface{}) (models.Session, error)
+	Update(id uuid.UUID, updates map[string]interface{}, expectedVersion *int) (models.Session, error)
 	Delete(id uuid.UUID) error
 }
 
@@ -38,10 +42,23 @@ func (r *sessionRepository) FindByID(id uuid.UUID) (models.Session, error) {
 	return session, err
 }
 
-func (r *sessionRepository) Update(id uuid.UUID, updates map[string]interface{}) (models.Session, error) {
-	if err := r.db.Model(&models.Session{}).Where("id = ?", id).Updates(updates).Error; err != nil {
-		return models.Session{}, err
+func (r *sessionRepository) Update(id uuid.UUID, updates map[string]interface{}, expectedVersion *int) (models.Session, error) {
+	updates["version"] = gorm.Expr("version + 1")
+
+	if expectedVersion != nil {
+		result := r.db.Model(&models.Session{}).Where("id = ? AND version = ?", id, *expectedVersion).Updates(updates)
+		if result.Error != nil {
+			return models.Session{}, result.Error
+		}
+		if result.RowsAffected == 0 {
+			return models.Session{}, ErrVersionConflict
+		}
+	} else {
+		if err := r.db.Model(&models.Session{}).Where("id = ?", id).Updates(updates).Error; err != nil {
+			return models.Session{}, err
+		}
 	}
+
 	return r.FindByID(id)
 }
 

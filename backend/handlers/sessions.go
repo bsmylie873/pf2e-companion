@@ -9,6 +9,7 @@ import (
 	"github.com/labstack/echo/v4"
 	"gorm.io/gorm"
 	"pf2e-companion/backend/models"
+	"pf2e-companion/backend/repositories"
 	"pf2e-companion/backend/services"
 )
 
@@ -115,6 +116,9 @@ func (h *SessionHandler) UpdateSession(c echo.Context) error {
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return ErrorResponse(c, http.StatusNotFound, "session not found")
+		}
+		if errors.Is(err, repositories.ErrVersionConflict) {
+			return ErrorResponse(c, http.StatusConflict, "session was modified by another user — please refresh and try again")
 		}
 		return ErrorResponse(c, http.StatusInternalServerError, "failed to update session")
 	}

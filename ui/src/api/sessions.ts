@@ -1,5 +1,6 @@
 import { apiFetch } from './client'
 import type { Session, SessionFormData } from '../types/session'
+import type { JSONContent } from '@tiptap/react'
 
 export function listGameSessions(gameId: string): Promise<Session[]> {
   return apiFetch<Session[]>(`/games/${gameId}/sessions`)
@@ -25,4 +26,11 @@ export function updateSession(sessionId: string, data: Partial<SessionFormData>)
 
 export function deleteSession(sessionId: string): Promise<void> {
   return apiFetch<void>(`/sessions/${sessionId}`, { method: 'DELETE' })
+}
+
+export function updateSessionNotes(sessionId: string, data: { notes: JSONContent; version: number }): Promise<Session> {
+  return apiFetch<Session>(`/sessions/${sessionId}`, {
+    method: 'PATCH',
+    body: JSON.stringify(data),
+  })
 }

@@ -216,6 +216,10 @@ export default function Editor() {
     setDeletingSession(session)
   }
 
+  const openNotes = (session: Session) => {
+    navigate(`/games/${gameId}/sessions/${session.id}/notes`)
+  }
+
   return (
     <div className="editor-page">
       <div className="editor-inner">
@@ -408,6 +412,7 @@ export default function Editor() {
                   isGM={isGM}
                   onEdit={openEdit}
                   onDelete={openDelete}
+                  onOpen={openNotes}
                 />
               ))}
             </div>

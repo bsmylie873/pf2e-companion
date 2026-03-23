@@ -1,0 +1,169 @@
+/* ── Session Notes Page ───────────────────────────────────────
+   Ancient tome / manuscript chronicle page layout.
+   Matches Editor.css conventions.
+   ─────────────────────────────────────────────────────────── */
+
+@keyframes snp-in {
+  from { opacity: 0; transform: translateY(20px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* ── Page wrapper ────────────────────────────────────────────── */
+.session-notes-page {
+  flex: 1;
+  display: flex;
+  justify-content: center;
+  padding: 3rem 2rem;
+  animation: snp-in 400ms ease forwards;
+}
+
+/* ── Inner content column ────────────────────────────────────── */
+.session-notes-inner {
+  width: 100%;
+  max-width: 900px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2rem;
+}
+
+/* ── Back button ─────────────────────────────────────────────── */
+.snp-back-btn {
+  align-self: flex-start;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-family: var(--font-heading);
+  font-size: 0.7rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--color-text-muted);
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  padding: 0.4rem 0;
+  transition: color var(--transition-fast);
+}
+
+.snp-back-btn svg {
+  width: 16px;
+  height: 16px;
+  transition: transform var(--transition-fast);
+}
+
+.snp-back-btn:hover {
+  color: var(--color-accent);
+}
+
+.snp-back-btn:hover svg {
+  transform: translateX(-3px);
+}
+
+/* ── Page header ─────────────────────────────────────────────── */
+.snp-header {
+  text-align: center;
+  width: 100%;
+}
+
+/* ── Ornamental title rule ───────────────────────────────────── */
+.snp-title-rule {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  width: 100%;
+}
+
+.snp-title-rule span:first-child,
+.snp-title-rule span:last-child {
+  flex: 1;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.snp-title-ornament {
+  font-family: var(--font-heading);
+  color: var(--color-accent);
+  flex-shrink: 0;
+  font-size: 0.85rem;
+  opacity: 0.8;
+}
+
+[data-theme='dark'] .snp-title-ornament {
+  opacity: 1;
+  text-shadow: 0 0 12px rgba(201, 76, 76, 0.5);
+}
+
+/* ── Session number label ────────────────────────────────────── */
+.snp-session-num {
+  font-family: var(--font-heading);
+  font-size: 0.65rem;
+  font-weight: 600;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--color-text-muted);
+  margin-top: 0.75rem;
+  margin-bottom: 0.4rem;
+}
+
+/* ── Title ───────────────────────────────────────────────────── */
+.snp-title {
+  font-family: var(--font-heading);
+  font-size: 2rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--color-text);
+  margin: 0.5rem 0 0.4rem;
+  text-shadow: 0 0 30px rgba(139, 46, 46, 0.3);
+}
+
+[data-theme='dark'] .snp-title {
+  text-shadow: 0 0 32px rgba(201, 76, 76, 0.5);
+}
+
+/* ── Subtitle ────────────────────────────────────────────────── */
+.snp-subtitle {
+  font-family: var(--font-body);
+  font-size: 0.9rem;
+  font-style: italic;
+  color: var(--color-text-muted);
+  margin-bottom: 0.75rem;
+}
+
+/* ── Loading state ───────────────────────────────────────────── */
+.snp-loading {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1rem;
+  padding: 3rem 0;
+}
+
+/* ── Error state ─────────────────────────────────────────────── */
+.snp-error {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75rem;
+  color: var(--color-accent);
+  font-family: var(--font-body);
+  font-size: 0.95rem;
+  padding: 1rem 1.25rem;
+  border: 1px solid var(--color-accent);
+  border-radius: 2px;
+  background-color: rgba(139, 46, 46, 0.06);
+  width: 100%;
+}
+
+[data-theme='dark'] .snp-error {
+  background-color: rgba(201, 76, 76, 0.08);
+}
+
+.snp-error svg {
+  width: 20px;
+  height: 20px;
+  flex-shrink: 0;
+  margin-top: 0.1rem;
+}
+
+.snp-error p {
+  margin: 0;
+}

@@ -6,9 +6,10 @@ interface SessionCardProps {
   isGM: boolean
   onEdit: (session: Session) => void
   onDelete: (session: Session) => void
+  onOpen?: (session: Session) => void
 }
 
-export default function SessionCard({ session, isGM, onEdit, onDelete }: SessionCardProps) {
+export default function SessionCard({ session, isGM, onEdit, onDelete, onOpen }: SessionCardProps) {
   const formattedDate = session.scheduled_at
     ? new Intl.DateTimeFormat(undefined, {
         dateStyle: 'medium',
@@ -31,7 +32,7 @@ export default function SessionCard({ session, isGM, onEdit, onDelete }: Session
 
   return (
     <article className="session-card">
-      <div className="session-card-body">
+      <div className="session-card-body" onClick={() => onOpen?.(session)} style={{ cursor: onOpen ? 'pointer' : 'default' }}>
         {session.session_number != null && (
           <span className="session-card-number">Session #{session.session_number}</span>
         )}
