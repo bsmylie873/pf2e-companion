@@ -85,6 +85,7 @@ export default function SessionNotes() {
               initialContent={session.notes as JSONContent | null}
               version={session.version}
               onSave={handleSave}
+              editable={true}
             />
           </>
         )}
