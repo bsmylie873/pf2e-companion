@@ -53,7 +53,10 @@ start: backend-build ui-build ## Start the full stack (db, migrations, backend, 
 	@echo "══════════════════════════════════════"
 	@wait
 
-stop: ## Tear down the full stack (containers, volumes, build artifacts)
+stop: ## Tear down the full stack (containers, volumes, build artifacts, running processes)
+	@echo "Killing processes on ports 8080 and 5173..."
+	-@lsof -ti :8080 | xargs kill -9 2>/dev/null || true
+	-@lsof -ti :5173 | xargs kill -9 2>/dev/null || true
 	docker compose down -v
 	rm -rf backend/bin
 	rm -rf ui/dist
@@ -61,6 +64,7 @@ stop: ## Tear down the full stack (containers, volumes, build artifacts)
 	@echo "══════════════════════════════════════"
 	@echo "  Teardown complete"
 	@echo "──────────────────────────────────────"
+	@echo "  ✔ Processes on :8080 and :5173 killed"
 	@echo "  ✔ Containers & volumes removed"
 	@echo "  ✔ backend/bin cleaned"
 	@echo "  ✔ ui/dist cleaned"

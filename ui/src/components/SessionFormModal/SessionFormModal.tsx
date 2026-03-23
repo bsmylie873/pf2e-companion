@@ -27,11 +27,19 @@ export default function SessionFormModal({ mode, initial, error, saving, onSave,
   const [scheduledAt, setScheduledAt] = useState(
     initial?.scheduled_at ? toLocalDatetime(initial.scheduled_at) : ''
   )
+  const [runtimeStart, setRuntimeStart] = useState(
+    initial?.runtime_start ? toLocalDatetime(initial.runtime_start) : ''
+  )
+  const [runtimeEnd, setRuntimeEnd] = useState(
+    initial?.runtime_end ? toLocalDatetime(initial.runtime_end) : ''
+  )
 
   useEffect(() => {
     setTitle(initial?.title ?? '')
     setSessionNumber(initial?.session_number != null ? String(initial.session_number) : '')
     setScheduledAt(initial?.scheduled_at ? toLocalDatetime(initial.scheduled_at) : '')
+    setRuntimeStart(initial?.runtime_start ? toLocalDatetime(initial.runtime_start) : '')
+    setRuntimeEnd(initial?.runtime_end ? toLocalDatetime(initial.runtime_end) : '')
   }, [initial])
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -41,10 +49,13 @@ export default function SessionFormModal({ mode, initial, error, saving, onSave,
       title: title.trim(),
       session_number: sessionNumber ? Number(sessionNumber) : null,
       scheduled_at: scheduledAt ? new Date(scheduledAt).toISOString() : null,
+      runtime_start: runtimeStart ? new Date(runtimeStart).toISOString() : null,
+      runtime_end: runtimeEnd ? new Date(runtimeEnd).toISOString() : null,
     })
   }
 
-  const canSave = title.trim().length > 0 && !saving
+  const runtimeInvalid = runtimeStart !== '' && runtimeEnd !== '' && new Date(runtimeEnd) <= new Date(runtimeStart)
+  const canSave = title.trim().length > 0 && !saving && !runtimeInvalid
 
   return (
     <div className="modal-backdrop" onClick={onClose}>
@@ -97,6 +108,30 @@ export default function SessionFormModal({ mode, initial, error, saving, onSave,
               value={scheduledAt}
               onChange={(e) => setScheduledAt(e.target.value)}
             />
+          </div>
+
+          <div className="session-form-field">
+            <label className="session-form-label">Runtime</label>
+            <div className="session-form-runtime-row">
+              <input
+                className="session-form-input"
+                type="datetime-local"
+                value={runtimeStart}
+                onChange={(e) => setRuntimeStart(e.target.value)}
+                placeholder="Start"
+              />
+              <span className="session-form-runtime-sep">&ndash;</span>
+              <input
+                className="session-form-input"
+                type="datetime-local"
+                value={runtimeEnd}
+                onChange={(e) => setRuntimeEnd(e.target.value)}
+                placeholder="End"
+              />
+            </div>
+            {runtimeInvalid && (
+              <span className="session-form-hint">End time must be after start time.</span>
+            )}
           </div>
 
           {error && (

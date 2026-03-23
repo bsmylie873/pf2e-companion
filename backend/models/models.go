@@ -55,6 +55,8 @@ type Session struct {
 	Title         string         `gorm:"not null"                                       json:"title"`
 	SessionNumber *int           `gorm:"column:session_number"                          json:"session_number"`
 	ScheduledAt   *time.Time     `gorm:"column:scheduled_at"                            json:"scheduled_at"`
+	RuntimeStart  *time.Time     `gorm:"column:runtime_start"                           json:"runtime_start"`
+	RuntimeEnd    *time.Time     `gorm:"column:runtime_end"                             json:"runtime_end"`
 	Notes         datatypes.JSON `gorm:"column:notes;type:jsonb"                        json:"notes"`
 	Version       int            `gorm:"not null;default:1"                             json:"version"`
 	FoundryData   datatypes.JSON `gorm:"column:foundry_data;type:jsonb"                 json:"foundry_data"`

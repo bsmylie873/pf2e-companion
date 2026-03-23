@@ -4,6 +4,8 @@ export interface Session {
   title: string
   session_number: number | null
   scheduled_at: string | null
+  runtime_start: string | null
+  runtime_end: string | null
   notes: unknown
   version: number
   foundry_data: unknown
@@ -15,4 +17,6 @@ export interface SessionFormData {
   title: string
   session_number: number | null
   scheduled_at: string | null
+  runtime_start: string | null
+  runtime_end: string | null
 }

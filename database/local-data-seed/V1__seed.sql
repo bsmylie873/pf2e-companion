@@ -35,13 +35,13 @@ ON CONFLICT (game_id, user_id) DO NOTHING;
 -- -----------------------------------------------------------------------------
 -- sessions
 -- -----------------------------------------------------------------------------
-INSERT INTO sessions (id, game_id, title, session_number, scheduled_at, notes, version, foundry_data, created_at, updated_at)
+INSERT INTO sessions (id, game_id, title, session_number, scheduled_at, runtime_start, runtime_end, notes, version, foundry_data, created_at, updated_at)
 VALUES
-    ('d1b2c3d4-0001-4000-8000-000000000001', 'b1b2c3d4-0001-4000-8000-000000000001', 'The Goblin Warrens', 1, '2025-01-15 18:00:00+00', '{}'::jsonb, 1, NULL, NOW(), NOW()),
-    ('d1b2c3d4-0002-4000-8000-000000000002', 'b1b2c3d4-0001-4000-8000-000000000001', 'Into the Ruins',     2, '2025-02-15 18:00:00+00', '{}'::jsonb, 1, NULL, NOW(), NOW()),
-    ('d1b2c3d4-0003-4000-8000-000000000003', 'b1b2c3d4-0001-4000-8000-000000000001', 'The Crimson Pact',     3, '2025-03-15 18:00:00+00', '{}'::jsonb, 1, NULL, NOW(), NOW()),
-    ('d1b2c3d4-0004-4000-8000-000000000004', 'b1b2c3d4-0001-4000-8000-000000000001', 'Downtime in Otari',   NULL, NULL,                    '{}'::jsonb, 1, NULL, NOW(), NOW()),
-    ('d1b2c3d4-0005-4000-8000-000000000005', 'b1b2c3d4-0001-4000-8000-000000000001', 'The Dragon''s Demand', 4, '2025-04-12 18:00:00+00', '{}'::jsonb, 1, NULL, NOW(), NOW())
+    ('d1b2c3d4-0001-4000-8000-000000000001', 'b1b2c3d4-0001-4000-8000-000000000001', 'The Goblin Warrens', 1, '2025-01-15 18:00:00+00', '2025-01-15 18:00:00+00', '2025-01-15 22:30:00+00', '{}'::jsonb, 1, NULL, NOW(), NOW()),
+    ('d1b2c3d4-0002-4000-8000-000000000002', 'b1b2c3d4-0001-4000-8000-000000000001', 'Into the Ruins',     2, '2025-02-15 18:00:00+00', '2025-02-15 18:15:00+00', '2025-02-15 21:45:00+00', '{}'::jsonb, 1, NULL, NOW(), NOW()),
+    ('d1b2c3d4-0003-4000-8000-000000000003', 'b1b2c3d4-0001-4000-8000-000000000001', 'The Crimson Pact',     3, '2025-03-15 18:00:00+00', '2025-03-15 18:00:00+00', '2025-03-15 23:00:00+00', '{}'::jsonb, 1, NULL, NOW(), NOW()),
+    ('d1b2c3d4-0004-4000-8000-000000000004', 'b1b2c3d4-0001-4000-8000-000000000001', 'Downtime in Otari',   NULL, NULL, NULL, NULL, '{}'::jsonb, 1, NULL, NOW(), NOW()),
+    ('d1b2c3d4-0005-4000-8000-000000000005', 'b1b2c3d4-0001-4000-8000-000000000001', 'The Dragon''s Demand', 4, '2025-04-12 18:00:00+00', NULL, NULL, '{}'::jsonb, 1, NULL, NOW(), NOW())
 ON CONFLICT (id) DO NOTHING;
 
 -- -----------------------------------------------------------------------------

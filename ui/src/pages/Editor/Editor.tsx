@@ -431,6 +431,8 @@ export default function Editor() {
               title: editingSession.title,
               session_number: editingSession.session_number,
               scheduled_at: editingSession.scheduled_at,
+              runtime_start: editingSession.runtime_start,
+              runtime_end: editingSession.runtime_end,
             }}
             error={mutationError}
             saving={saving}

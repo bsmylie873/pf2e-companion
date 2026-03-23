@@ -4,6 +4,7 @@ import (
 	"errors"
 	"net/http"
 	"strings"
+	"time"
 
 	"github.com/labstack/echo/v4"
 	"gorm.io/gorm"
@@ -38,6 +39,10 @@ func (h *SessionHandler) CreateSession(c echo.Context) error {
 	})
 	if len(missing) > 0 {
 		return ErrorResponse(c, http.StatusUnprocessableEntity, "missing required fields: "+strings.Join(missing, ", "))
+	}
+
+	if session.RuntimeStart != nil && session.RuntimeEnd != nil && !session.RuntimeEnd.After(*session.RuntimeStart) {
+		return ErrorResponse(c, http.StatusUnprocessableEntity, "runtime_end must be after runtime_start")
 	}
 
 	resp, err := h.service.CreateSession(gameID, &session)
@@ -91,6 +96,19 @@ func (h *SessionHandler) UpdateSession(c echo.Context) error {
 	var updates map[string]interface{}
 	if err := c.Bind(&updates); err != nil {
 		return ErrorResponse(c, http.StatusBadRequest, "invalid request body")
+	}
+
+	// Validate runtime_end is after runtime_start when both are present in the update.
+	if startStr, hasStart := updates["runtime_start"]; hasStart {
+		if endStr, hasEnd := updates["runtime_end"]; hasEnd {
+			if startStr != nil && endStr != nil {
+				start, errS := time.Parse(time.RFC3339, startStr.(string))
+				end, errE := time.Parse(time.RFC3339, endStr.(string))
+				if errS == nil && errE == nil && !end.After(start) {
+					return ErrorResponse(c, http.StatusUnprocessableEntity, "runtime_end must be after runtime_start")
+				}
+			}
+		}
 	}
 
 	session, err := h.service.UpdateSession(id, updates)

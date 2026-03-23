@@ -111,3 +111,28 @@
   opacity: 0.5;
   cursor: not-allowed;
 }
+
+.session-form-runtime-row {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.session-form-runtime-row .session-form-input {
+  flex: 1;
+  min-width: 0;
+}
+
+.session-form-runtime-sep {
+  color: var(--color-text-muted);
+  font-size: 0.85rem;
+  flex-shrink: 0;
+}
+
+.session-form-hint {
+  font-family: var(--font-body);
+  font-size: 0.8rem;
+  font-style: italic;
+  color: var(--color-accent);
+  margin-top: 0.15rem;
+}
