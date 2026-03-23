@@ -45,6 +45,12 @@ interface SessionNotesEditorProps {
   onSave?: (content: JSONContent, version: number) => Promise<Session>
 }
 
+const IMAGE_URL_RE = /^https?:\/\/\S+\.(?:png|jpe?g|gif|webp|svg|bmp|ico|avif)(?:\?[^\s]*)?$/i
+
+function isImageUrl(text: string): boolean {
+  return IMAGE_URL_RE.test(text.trim())
+}
+
 const STATUS_LABELS: Record<string, string> = {
   idle: '',
   saving: 'Saving…',
@@ -87,6 +93,19 @@ export default function SessionNotesEditor({
           if (onSave) scheduleAutosave(ed.getJSON())
         }
       : undefined,
+    editorProps: {
+      handlePaste: (view, event) => {
+        const text = event.clipboardData?.getData('text/plain') ?? ''
+        if (isImageUrl(text)) {
+          const { state, dispatch } = view
+          const node = state.schema.nodes.image.create({ src: text.trim() })
+          const tr = state.tr.replaceSelectionWith(node)
+          dispatch(tr)
+          return true
+        }
+        return false
+      },
+    },
   })
 
   if (!editor) return null
