@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from 'react'
 import { apiFetch } from '../../api/client'
 import type { Game } from '../../types/game'
 import type { User } from '../../types/user'
-import type { Membership } from '../../types/membership'
+import type { GameMembership } from '../../types/membership'
 import UserSearch from '../UserSearch/UserSearch'
 import '../NewCampaignForm/NewCampaignForm.css'
 import './EditCampaignForm.css'
@@ -39,7 +39,7 @@ export default function EditCampaignForm({ gameId, onSuccess, onDirtyChange }: E
       try {
         const [game, memberships, users] = await Promise.all([
           apiFetch<Game>(`/games/${gameId}`),
-          apiFetch<Membership[]>(`/memberships?game_id=${gameId}`),
+          apiFetch<GameMembership[]>(`/memberships?game_id=${gameId}`),
           apiFetch<User[]>('/users'),
         ])
 
