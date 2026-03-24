@@ -11,9 +11,9 @@
 }
 
 .gameslist-page {
-  max-width: 1200px;
+  max-width: 1600px;
   margin: 0 auto;
-  padding: 2.5rem 2rem 4rem;
+  padding: 2.5rem 3rem 4rem;
   animation: page-in 400ms ease forwards;
 }
 
@@ -232,4 +232,11 @@
   margin-top: 1.5rem;
   padding: 0.6rem 1.5rem;
   font-size: 0.85rem;
+}
+
+@media (max-width: 1400px) {
+  .gameslist-page {
+    padding-left: 2rem;
+    padding-right: 2rem;
+  }
 }

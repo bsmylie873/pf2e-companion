@@ -24,7 +24,8 @@
   overflow: hidden;
   display: flex;
   flex-direction: column;
-  width: 290px;
+  flex: 1 1 280px;
+  min-width: 280px;
 }
 
 .gamecard--grid:hover {
@@ -269,4 +270,10 @@
 
 .gamecard-list-delete:hover {
   color: var(--color-accent);
+}
+
+@media (max-width: 900px) {
+  .gamecard--grid {
+    flex: 1 1 100%;
+  }
 }
