@@ -4,12 +4,12 @@
   flex: 1;
   display: flex;
   justify-content: center;
-  padding: 2rem 1.5rem 4rem;
+  padding: 2.5rem 3rem 4rem;
 }
 
 .profile-inner {
   width: 100%;
-  max-width: 640px;
+  max-width: 1600px;
 }
 
 .profile-back-btn {
@@ -89,6 +89,9 @@
   border-radius: 3px;
   box-shadow: var(--shadow-md);
   padding: 2rem;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0 2rem;
   background-image:
     repeating-linear-gradient(
       -45deg,
@@ -120,7 +123,7 @@
 }
 
 .profile-divider {
-  display: flex;
+  display: none;
   align-items: center;
   gap: 0.75rem;
   margin: 1.75rem 0;
@@ -330,4 +333,20 @@
 .profile-cancel-btn:hover:not(:disabled) {
   color: var(--color-text);
   border-color: var(--color-text-muted);
+}
+
+@media (max-width: 900px) {
+  .profile-card {
+    grid-template-columns: 1fr;
+  }
+  .profile-divider {
+    display: flex;
+  }
+}
+
+@media (max-width: 1400px) {
+  .profile-inner {
+    padding-left: 2rem;
+    padding-right: 2rem;
+  }
 }

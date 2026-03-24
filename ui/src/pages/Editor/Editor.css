@@ -9,13 +9,13 @@
   flex: 1;
   display: flex;
   justify-content: center;
-  padding: 3rem 2rem;
+  padding: 3rem 3rem;
   animation: editor-in 400ms ease forwards;
 }
 
 .editor-inner {
   width: 100%;
-  max-width: 720px;
+  max-width: 1200px;
   display: flex;
   flex-direction: column;
   align-items: center;
