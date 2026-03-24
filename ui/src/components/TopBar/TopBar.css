@@ -91,3 +91,17 @@
 [data-theme='dark'] .topbar-icon-btn:hover {
   background: rgba(201, 76, 76, 0.12);
 }
+
+/* Avatar in place of user icon */
+.topbar-avatar {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 1.5px solid var(--color-border);
+  transition: border-color var(--transition-fast);
+}
+
+.topbar-icon-btn:hover .topbar-avatar {
+  border-color: var(--color-accent);
+}

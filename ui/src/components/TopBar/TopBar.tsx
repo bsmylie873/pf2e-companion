@@ -60,7 +60,7 @@ function LogoutIcon() {
 export default function TopBar() {
   const [isDark, setIsDark] = useDarkMode()
   const [settingsOpen, setSettingsOpen] = useState(false)
-  const { isAuthenticated, logout } = useAuth()
+  const { user, isAuthenticated, logout } = useAuth()
   const navigate = useNavigate()
 
   return (
@@ -99,7 +99,15 @@ export default function TopBar() {
                 aria-label="Profile"
                 title="Profile"
               >
-                <UserIcon />
+                {user?.avatar_url ? (
+                  <img
+                    className="topbar-avatar"
+                    src={user.avatar_url}
+                    alt={user.username}
+                  />
+                ) : (
+                  <UserIcon />
+                )}
               </button>
 
               <button
