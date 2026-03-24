@@ -9,6 +9,7 @@ export default function Profile() {
   const { user, logout, refreshUser } = useAuth()
 
   const [editMode, setEditMode] = useState(false)
+  const [username, setUsername] = useState(user?.username ?? '')
   const [avatarUrl, setAvatarUrl] = useState(user?.avatar_url ?? '')
   const [description, setDescription] = useState(user?.description ?? '')
   const [location, setLocation] = useState(user?.location ?? '')
@@ -32,6 +33,7 @@ export default function Profile() {
       await apiFetch(`/users/${user.id}`, {
         method: 'PATCH',
         body: JSON.stringify({
+          username: username || undefined,
           avatar_url: avatarUrl || undefined,
           description: description || undefined,
           location: location || undefined,
@@ -103,17 +105,16 @@ export default function Profile() {
               )}
             </div>
 
-            <div className="profile-readonly-field">
-              <span className="profile-field-label">Adventurer</span>
-              <span className="profile-field-value">{user.username}</span>
-            </div>
-            <div className="profile-readonly-field">
-              <span className="profile-field-label">Sending Stone</span>
-              <span className="profile-field-value">{user.email}</span>
-            </div>
-
             {!editMode ? (
               <>
+                <div className="profile-readonly-field">
+                  <span className="profile-field-label">Adventurer</span>
+                  <span className="profile-field-value">{user.username}</span>
+                </div>
+                <div className="profile-readonly-field">
+                  <span className="profile-field-label">Sending Stone</span>
+                  <span className="profile-field-value">{user.email}</span>
+                </div>
                 {user.avatar_url && (
                   <div className="profile-readonly-field">
                     <span className="profile-field-label">Sigil</span>
@@ -135,6 +136,18 @@ export default function Profile() {
               </>
             ) : (
               <form className="profile-edit-form" onSubmit={handleProfileSave}>
+                <div className="profile-edit-field">
+                  <label className="profile-field-label" htmlFor="username">Adventurer</label>
+                  <input
+                    id="username"
+                    type="text"
+                    className="profile-input"
+                    placeholder="Your name, adventurer..."
+                    value={username}
+                    onChange={e => setUsername(e.target.value)}
+                    required
+                  />
+                </div>
                 <div className="profile-edit-field">
                   <label className="profile-field-label" htmlFor="avatarUrl">Sigil URL</label>
                   <input
@@ -170,7 +183,7 @@ export default function Profile() {
                 </div>
                 {profileError && <div className="profile-error" role="alert">{profileError}</div>}
                 <div className="profile-edit-actions">
-                  <button type="button" className="profile-cancel-btn" onClick={() => setEditMode(false)} disabled={profileSaving}>
+                  <button type="button" className="profile-cancel-btn" onClick={() => { setEditMode(false); setUsername(user.username); setAvatarUrl(user.avatar_url ?? ''); setLocation(user.location ?? ''); setDescription(user.description ?? ''); setProfileError(null) }} disabled={profileSaving}>
                     Cancel
                   </button>
                   <button type="submit" className="profile-save-btn" disabled={profileSaving}>
