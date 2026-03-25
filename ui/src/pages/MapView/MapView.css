@@ -2,7 +2,7 @@
 
 @keyframes map-in {
   from { opacity: 0; transform: translateY(20px); }
-  to   { opacity: 1; transform: translateY(0); }
+  to   { opacity: 1; }
 }
 
 @keyframes pin-drop-up {
@@ -118,10 +118,10 @@
 /* ── Toolbar ─────────────────────────────────────────────────── */
 
 .map-toolbar {
-  align-self: flex-end;
   display: flex;
   align-items: center;
   gap: 0.625rem;
+  flex-wrap: wrap;
 }
 
 .map-gm-hint {
@@ -872,4 +872,195 @@
 .map-picker-cancel:hover {
   color: var(--color-text);
   border-color: var(--color-text-muted);
+}
+
+/* ── Map Viewport Container (anchors overlay panel) ────────── */
+
+.map-viewport-container {
+  position: relative;
+  width: 100%;
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+/* ── Full-screen layout on desktop ──────────────────────────── */
+
+@media (min-width: 768px) {
+  .map-view-page {
+    padding: 0;
+  }
+
+  .map-view-inner {
+    max-width: none;
+    height: 100%;
+  }
+
+  .map-viewport {
+    max-height: none;
+    overflow: hidden;
+    touch-action: none;
+    position: relative;
+  }
+}
+
+/* ── react-zoom-pan-pinch wrapper sizing ────────────────────── */
+
+.react-transform-wrapper {
+  width: 100% !important;
+  height: 100% !important;
+  position: relative;
+}
+
+.react-transform-component {
+  width: 100% !important;
+}
+
+/* ── Overlay Panel ───────────────────────────────────────────── */
+
+.map-overlay-panel {
+  position: absolute;
+  top: 0.75rem;
+  left: 0.75rem;
+  z-index: 20;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: 4px;
+  padding: 0.6rem 0.75rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  max-height: calc(100% - 1.5rem);
+  overflow-y: auto;
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.2);
+  opacity: 0.92;
+  min-width: 0;
+  font-size: 0.75rem;
+}
+
+.map-overlay-panel:hover {
+  opacity: 1;
+}
+
+.map-panel-toggle {
+  position: absolute;
+  top: 0.75rem;
+  left: 0.75rem;
+  z-index: 21;
+  width: 26px;
+  height: 26px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: 3px;
+  color: var(--color-text-muted);
+  cursor: pointer;
+  padding: 0;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
+  transition: color var(--transition-fast), border-color var(--transition-fast);
+}
+
+.map-panel-toggle svg {
+  width: 14px;
+  height: 14px;
+}
+
+.map-panel-toggle:hover {
+  color: var(--color-accent);
+  border-color: var(--color-accent);
+}
+
+.map-panel-close {
+  align-self: flex-end;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  background: transparent;
+  border: none;
+  color: var(--color-text-muted);
+  cursor: pointer;
+  padding: 0;
+  transition: color var(--transition-fast);
+  flex-shrink: 0;
+  margin-bottom: -0.2rem;
+}
+
+.map-panel-close svg {
+  width: 12px;
+  height: 12px;
+}
+
+.map-panel-close:hover {
+  color: var(--color-accent);
+}
+
+.map-panel-title {
+  font-family: var(--font-heading);
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--color-text);
+  margin: 0;
+}
+
+/* Compact overrides for elements inside the overlay panel */
+.map-overlay-panel .map-back-btn {
+  font-size: 0.6rem;
+  padding: 0.2rem 0;
+}
+
+.map-overlay-panel .map-back-btn svg {
+  width: 12px;
+  height: 12px;
+}
+
+.map-overlay-panel .map-gm-hint {
+  font-size: 0.65rem;
+  margin: 0;
+}
+
+.map-overlay-panel .map-toolbar {
+  gap: 0.4rem;
+}
+
+.map-overlay-panel .map-upload-btn,
+.map-overlay-panel .map-delete-btn {
+  font-size: 0.55rem;
+  padding: 0.3rem 0.6rem;
+}
+
+.map-overlay-panel .map-zoom-controls {
+  align-self: flex-start;
+}
+
+.map-overlay-panel .map-zoom-btn {
+  width: 26px;
+  height: 24px;
+}
+
+.map-overlay-panel .map-zoom-level {
+  height: 24px;
+  font-size: 0.55rem;
+  min-width: 38px;
+  padding: 0 0.35rem;
+}
+
+.map-overlay-panel .map-pin-toggle-btn {
+  width: 24px;
+  height: 24px;
+}
+
+.map-overlay-panel .map-pin-toggle-label {
+  font-size: 0.5rem;
+  padding: 0 0.35rem;
+}
+
+.map-overlay-panel .map-all-pinned {
+  font-size: 0.6rem;
 }
