@@ -1,16 +1,34 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
+import { createPortal } from 'react-dom'
 import { useParams, useNavigate } from 'react-router-dom'
+import { TransformWrapper, TransformComponent } from 'react-zoom-pan-pinch'
+import type { ReactZoomPanPinchRef } from 'react-zoom-pan-pinch'
 import { apiFetch, BASE_URL } from '../../api/client'
 import { listGameSessions } from '../../api/sessions'
 import { listGamePins, createPin, updatePin, deletePin } from '../../api/pins'
 import { uploadMapImage, deleteMapImage } from '../../api/mapImage'
 import { listMemberships } from '../../api/memberships'
 import { useAuth } from '../../context/AuthContext'
+import { useLocalStorage } from '../../hooks/useLocalStorage'
 import type { Game } from '../../types/game'
 import type { Session } from '../../types/session'
 import type { SessionPin } from '../../types/pin'
 import type { GameMembership } from '../../types/membership'
 import './MapView.css'
+
+interface MapViewState {
+  scale: number
+  positionX: number
+  positionY: number
+  defaultPinOrientation: 'up' | 'down'
+}
+
+const DEFAULT_VIEW_STATE: MapViewState = {
+  scale: 1,
+  positionX: 0,
+  positionY: 0,
+  defaultPinOrientation: 'down',
+}
 
 export default function MapView() {
   const { gameId } = useParams<{ gameId: string }>()
@@ -28,17 +46,23 @@ export default function MapView() {
   const [pendingCoords, setPendingCoords] = useState<{ x: number; y: number } | null>(null)
   const [hoveredPinId, setHoveredPinId] = useState<string | null>(null)
   const [dragging, setDragging] = useState<{ pinId: string; startX: number; startY: number } | null>(null)
-  const [panning, setPanning] = useState<{ startX: number; startY: number; scrollLeft: number; scrollTop: number } | null>(null)
-  const [zoom, setZoom] = useState(1)
-  const [defaultPinOrientation, setDefaultPinOrientation] = useState<'up' | 'down'>('down')
+  const [viewState, setViewState] = useLocalStorage<MapViewState>(
+    `pf2e-map-view-${gameId}`,
+    DEFAULT_VIEW_STATE,
+  )
+  const [panelOpen, setPanelOpen] = useState(true)
+  const [displayScale, setDisplayScale] = useState(viewState.scale)
 
   const mapContainerRef = useRef<HTMLDivElement>(null)
-  const mapViewportRef = useRef<HTMLDivElement>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
+  const transformRef = useRef<ReactZoomPanPinchRef>(null)
 
-  const MIN_ZOOM = 1
-  const MAX_ZOOM = 5
-  const ZOOM_STEP = 0.25
+  /** Persist transform to localStorage — called only when an interaction ends. */
+  const handleTransformEnd = useCallback((ref: ReactZoomPanPinchRef) => {
+    const { scale, positionX, positionY } = ref.state
+    setDisplayScale(scale)
+    setViewState(prev => ({ ...prev, scale, positionX, positionY }))
+  }, [setViewState])
 
   const isGM = memberships.some(m => m.user_id === user?.id && m.is_gm)
   const pinnedSessionIds = new Set(pins.map(p => p.session_id))
@@ -74,7 +98,31 @@ export default function MapView() {
     return () => { cancelled = true }
   }, [gameId])
 
-  /** Convert a client-space point to percentage coords on the map, accounting for zoom + scroll. */
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', ' '].includes(e.key)) {
+        const vp = document.querySelector('.map-viewport')
+        if (vp?.contains(document.activeElement) || document.activeElement === vp) {
+          e.preventDefault()
+        }
+      }
+    }
+    window.addEventListener('keydown', handler)
+    return () => window.removeEventListener('keydown', handler)
+  }, [])
+
+  // Suppress the browser's default middle-click auto-scroll icon
+  useEffect(() => {
+    const vp = document.querySelector('.map-viewport')
+    if (!vp) return
+    const onMouseDown = (e: Event) => {
+      if ((e as MouseEvent).button === 1) e.preventDefault()
+    }
+    vp.addEventListener('mousedown', onMouseDown)
+    return () => vp.removeEventListener('mousedown', onMouseDown)
+  }, [game?.map_image_url, loading])
+
+  /** Convert a client-space point to percentage coords on the map. */
   const clientToMapPct = useCallback((clientX: number, clientY: number): { x: number; y: number } => {
     if (!mapContainerRef.current) return { x: 0, y: 0 }
     const rect = mapContainerRef.current.getBoundingClientRect()
@@ -100,7 +148,6 @@ export default function MapView() {
       await updatePin(pin.id, { pin_type_id: newTypeId })
     } catch (err: unknown) {
       console.error('Failed to flip pin', err)
-      // Revert on failure
       setPins(prev => prev.map(p => p.id === pin.id ? pin : p))
     }
   }, [])
@@ -112,14 +159,14 @@ export default function MapView() {
         session_id: session.id,
         x: pendingCoords.x,
         y: pendingCoords.y,
-        pin_type_id: defaultPinOrientation === 'up' ? 1 : 2,
+        pin_type_id: viewState.defaultPinOrientation === 'up' ? 1 : 2,
       })
       setPins(prev => [...prev, pin])
       setPendingCoords(null)
     } catch (err: unknown) {
       console.error('Failed to create pin', err)
     }
-  }, [gameId, pendingCoords])
+  }, [gameId, pendingCoords, viewState])
 
   const handlePinPointerDown = useCallback((e: React.PointerEvent, pin: SessionPin) => {
     e.preventDefault()
@@ -183,113 +230,31 @@ export default function MapView() {
     }
   }, [gameId])
 
-  const handleWheel = useCallback((e: React.WheelEvent<HTMLDivElement>) => {
-    if (!e.ctrlKey && !e.metaKey) return
-    e.preventDefault()
-    const vp = mapViewportRef.current
-    if (!vp) return
-
-    setZoom(prev => {
-      const next = Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, Math.round((prev + (e.deltaY < 0 ? ZOOM_STEP : -ZOOM_STEP)) * 100) / 100))
-      if (next === prev) return prev
-
-      // Point under cursor in viewport-local coords (including scroll)
-      const rect = vp.getBoundingClientRect()
-      const cursorX = e.clientX - rect.left + vp.scrollLeft
-      const cursorY = e.clientY - rect.top + vp.scrollTop
-
-      // The cursor points at a position in the unscaled content
-      const contentX = cursorX / prev
-      const contentY = cursorY / prev
-
-      // After zoom, that same content point should stay under the cursor
-      const newScrollLeft = contentX * next - (e.clientX - rect.left)
-      const newScrollTop = contentY * next - (e.clientY - rect.top)
-
-      // Apply scroll after React re-renders with the new zoom
-      requestAnimationFrame(() => {
-        vp.scrollLeft = Math.max(0, newScrollLeft)
-        vp.scrollTop = Math.max(0, newScrollTop)
-      })
-
-      return next
-    })
-  }, [])
-
-  // Also listen for native wheel to preventDefault (React passive workaround)
-  useEffect(() => {
-    const viewport = mapViewportRef.current
-    if (!viewport) return
-    const onWheel = (e: WheelEvent) => {
-      if (e.ctrlKey || e.metaKey) e.preventDefault()
-    }
-    viewport.addEventListener('wheel', onWheel, { passive: false })
-    return () => viewport.removeEventListener('wheel', onWheel)
-  }, [game?.map_image_url, loading])
-
-  const zoomIn = useCallback(() => {
-    setZoom(prev => Math.min(MAX_ZOOM, Math.round((prev + ZOOM_STEP) * 100) / 100))
-  }, [])
-
-  const zoomOut = useCallback(() => {
-    setZoom(prev => Math.max(MIN_ZOOM, Math.round((prev - ZOOM_STEP) * 100) / 100))
-  }, [])
-
-  const zoomReset = useCallback(() => setZoom(1), [])
-
-  // Middle-mouse-button panning
-  const handleViewportPointerDown = useCallback((e: React.PointerEvent<HTMLDivElement>) => {
-    if (e.button !== 1 || !mapViewportRef.current) return // button 1 = middle
-    e.preventDefault()
-    const vp = mapViewportRef.current
-    vp.setPointerCapture(e.pointerId)
-    setPanning({ startX: e.clientX, startY: e.clientY, scrollLeft: vp.scrollLeft, scrollTop: vp.scrollTop })
-  }, [])
-
-  const handleViewportPointerMove = useCallback((e: React.PointerEvent<HTMLDivElement>) => {
-    if (!panning || !mapViewportRef.current) return
-    const dx = e.clientX - panning.startX
-    const dy = e.clientY - panning.startY
-    mapViewportRef.current.scrollLeft = panning.scrollLeft - dx
-    mapViewportRef.current.scrollTop = panning.scrollTop - dy
-  }, [panning])
-
-  const handleViewportPointerUp = useCallback((e: React.PointerEvent<HTMLDivElement>) => {
-    if (!panning) return
-    if (mapViewportRef.current) mapViewportRef.current.releasePointerCapture(e.pointerId)
-    setPanning(null)
-  }, [panning])
-
-  // Prevent default middle-click auto-scroll icon
-  useEffect(() => {
-    const viewport = mapViewportRef.current
-    if (!viewport) return
-    const onMouseDown = (e: MouseEvent) => { if (e.button === 1) e.preventDefault() }
-    viewport.addEventListener('mousedown', onMouseDown)
-    return () => viewport.removeEventListener('mousedown', onMouseDown)
-  }, [game?.map_image_url, loading])
-
   const sessionForPin = (pin: SessionPin) => sessions.find(s => s.id === pin.session_id)
 
   return (
     <div className="map-view-page">
       <div className="map-view-inner">
-        <button className="map-back-btn" onClick={() => navigate(`/games/${gameId}`)}>
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round">
-            <path d="M19 12H5M12 19l-7-7 7-7" />
-          </svg>
-          Back to Sessions
-        </button>
+        {(!game?.map_image_url || loading || !!error) && (
+          <>
+            <button className="map-back-btn" onClick={() => navigate(`/games/${gameId}`)}>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round">
+                <path d="M19 12H5M12 19l-7-7 7-7" />
+              </svg>
+              Back to Sessions
+            </button>
 
-        <header className="map-header">
-          <div className="map-title-rule" aria-hidden="true">
-            <span /><span className="map-title-ornament">✦</span><span />
-          </div>
-          <h1 className="map-title">{game?.title ?? 'Campaign Map'}</h1>
-          <div className="map-title-rule" aria-hidden="true">
-            <span /><span className="map-title-ornament">✦</span><span />
-          </div>
-        </header>
+            <header className="map-header">
+              <div className="map-title-rule" aria-hidden="true">
+                <span /><span className="map-title-ornament">✦</span><span />
+              </div>
+              <h1 className="map-title">{game?.title ?? 'Campaign Map'}</h1>
+              <div className="map-title-rule" aria-hidden="true">
+                <span /><span className="map-title-ornament">✦</span><span />
+              </div>
+            </header>
+          </>
+        )}
 
         {loading && (
           <div className="map-spinner">
@@ -337,161 +302,210 @@ export default function MapView() {
         )}
 
         {!loading && !error && game?.map_image_url && (
-          <>
-            {isGM && (
-              <div className="map-toolbar">
-                {uploadError && <span className="map-upload-error">{uploadError}</span>}
-                <button className="map-upload-btn" onClick={handleUploadClick} disabled={uploading}>
-                  {uploading ? 'Uploading…' : 'Replace Map'}
-                </button>
-                <button className="map-delete-btn" onClick={handleDeleteMap}>
-                  Remove Map
-                </button>
-                <input
-                  ref={fileInputRef}
-                  type="file"
-                  accept="image/*"
-                  className="map-file-input"
-                  onChange={handleFileChange}
-                />
-              </div>
-            )}
-
-            <p className="map-gm-hint">
-              Click anywhere on the map to place a session pin. Drag pins to reposition.
-              Middle-click and drag to pan. Ctrl + scroll to zoom.
-            </p>
-
-            <div className="map-toolbar-row">
-              <div className="map-pin-toggle">
-                <span className="map-pin-toggle-label">New pins:</span>
-                <button
-                  className={`map-pin-toggle-btn${defaultPinOrientation === 'up' ? ' map-pin-toggle-btn--active' : ''}`}
-                  onClick={() => setDefaultPinOrientation('up')}
-                  title="New pins point up"
-                >
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                    <path d="M12 2 L12 16" />
-                    <path d="M5 9 L12 2 L19 9" />
-                  </svg>
-                </button>
-                <button
-                  className={`map-pin-toggle-btn${defaultPinOrientation === 'down' ? ' map-pin-toggle-btn--active' : ''}`}
-                  onClick={() => setDefaultPinOrientation('down')}
-                  title="New pins point down"
-                >
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                    <path d="M12 22 L12 8" />
-                    <path d="M5 15 L12 22 L19 15" />
-                  </svg>
-                </button>
-              </div>
-
-              <div className="map-zoom-controls">
-                <button className="map-zoom-btn" onClick={zoomIn} disabled={zoom >= MAX_ZOOM} title="Zoom in">
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
-                    <line x1="12" y1="5" x2="12" y2="19" />
-                    <line x1="5" y1="12" x2="19" y2="12" />
-                  </svg>
-                </button>
-                <button
-                  className="map-zoom-level"
-                  onClick={zoomReset}
-                  title="Reset zoom"
-                >
-                  {Math.round(zoom * 100)}%
-                </button>
-                <button className="map-zoom-btn" onClick={zoomOut} disabled={zoom <= MIN_ZOOM} title="Zoom out">
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
-                    <line x1="5" y1="12" x2="19" y2="12" />
-                  </svg>
-                </button>
-              </div>
-            </div>
-
-            <div
-              className={`map-viewport${panning ? ' map-viewport--panning' : ''}`}
-              ref={mapViewportRef}
-              onWheel={handleWheel}
-              onPointerDown={handleViewportPointerDown}
-              onPointerMove={handleViewportPointerMove}
-              onPointerUp={handleViewportPointerUp}
+          <div className="map-viewport-container">
+            <TransformWrapper
+              ref={transformRef}
+              initialScale={viewState.scale}
+              initialPositionX={viewState.positionX}
+              initialPositionY={viewState.positionY}
+              minScale={1}
+              maxScale={5}
+              limitToBounds={true}
+              centerOnInit={false}
+              panning={{
+                allowLeftClickPan: false,
+                allowMiddleClickPan: true,
+                allowRightClickPan: false,
+              }}
+              wheel={{
+                activationKeys: ['Control', 'Meta'],
+                step: 0.25,
+              }}
+              doubleClick={{ disabled: true }}
+              onPanningStop={handleTransformEnd}
+              onZoomStop={handleTransformEnd}
+              onZoom={(ref) => setDisplayScale(ref.state.scale)}
             >
-              <div
-                className="map-container map-container--interactive"
-                ref={mapContainerRef}
-                style={{ transform: `scale(${zoom})`, transformOrigin: 'top left', width: '100%' }}
-                onClick={handleMapClick}
-                onPointerMove={handlePointerMove}
-                onPointerUp={handlePointerUp}
+              <TransformComponent
+                wrapperClass="map-viewport"
+                contentClass="map-container map-container--interactive"
               >
-                <img
-                  className="map-img"
-                  src={`${BASE_URL}${game.map_image_url}`}
-                  alt="Campaign map"
-                  draggable={false}
-                />
+                <div
+                  ref={mapContainerRef}
+                  style={{ width: '100%', position: 'relative' }}
+                  onClick={handleMapClick}
+                  onPointerMove={handlePointerMove}
+                  onPointerUp={handlePointerUp}
+                >
+                  <img
+                    className="map-img"
+                    src={`${BASE_URL}${game.map_image_url}`}
+                    alt="Campaign map"
+                    draggable={false}
+                  />
 
-                {pins.map(pin => {
-                  const session = sessionForPin(pin)
-                  const isDown = pin.pin_type?.name === 'down'
-                  return (
-                    <div
-                      key={pin.id}
-                      className={`map-pin-wrapper${isDown ? ' map-pin-wrapper--down' : ''}${hoveredPinId === pin.id ? ' map-pin-wrapper--hovered' : ''}${dragging?.pinId === pin.id ? ' map-pin-wrapper--dragging' : ''}`}
-                      style={{ left: `${pin.x}%`, top: `${pin.y}%` }}
-                      onMouseEnter={() => setHoveredPinId(pin.id)}
-                      onMouseLeave={() => setHoveredPinId(null)}
-                    >
-                      <button
-                        className="map-pin"
-                        title={session?.title ?? 'Session'}
-                        onClick={e => {
-                          e.stopPropagation()
-                          if (!dragging) navigate(`/games/${gameId}/sessions/${pin.session_id}/notes`)
-                        }}
-                        onPointerDown={e => handlePinPointerDown(e, pin)}
-                      />
-                      <span className="map-pin__label">
-                        {session?.session_number != null && (
-                          <span className="map-pin__label-num">#{session.session_number}</span>
-                        )}
-                        {session?.title ?? '?'}
-                      </span>
-                      <button
-                        className="map-pin__flip"
-                        title={isDown ? 'Flip pin up' : 'Flip pin down'}
-                        onClick={e => { e.stopPropagation(); handleFlipPin(pin) }}
+                  {pins.map(pin => {
+                    const session = sessionForPin(pin)
+                    const isDown = pin.pin_type?.name === 'down'
+                    return (
+                      <div
+                        key={pin.id}
+                        className={`map-pin-wrapper${isDown ? ' map-pin-wrapper--down' : ''}${hoveredPinId === pin.id ? ' map-pin-wrapper--hovered' : ''}${dragging?.pinId === pin.id ? ' map-pin-wrapper--dragging' : ''}`}
+                        style={{ left: `${pin.x}%`, top: `${pin.y}%` }}
+                        onMouseEnter={() => setHoveredPinId(pin.id)}
+                        onMouseLeave={() => setHoveredPinId(null)}
                       >
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
-                          <path d={isDown ? 'M12 19V5M5 12l7-7 7 7' : 'M12 5v14M5 12l7 7 7-7'} />
-                        </svg>
-                      </button>
-                      <button
-                        className="map-pin__delete"
-                        title="Remove pin"
-                        onClick={e => { e.stopPropagation(); handleDeletePin(pin.id) }}
-                      >
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
-                          <line x1="18" y1="6" x2="6" y2="18" />
-                          <line x1="6" y1="6" x2="18" y2="18" />
-                        </svg>
-                      </button>
-                    </div>
-                  )
-                })}
-              </div>
-            </div>
+                        <button
+                          className="map-pin"
+                          title={session?.title ?? 'Session'}
+                          onClick={e => {
+                            e.stopPropagation()
+                            if (!dragging) navigate(`/games/${gameId}/sessions/${pin.session_id}/notes`)
+                          }}
+                          onPointerDown={e => handlePinPointerDown(e, pin)}
+                        />
+                        <span className="map-pin__label">
+                          {session?.session_number != null && (
+                            <span className="map-pin__label-num">#{session.session_number}</span>
+                          )}
+                          {session?.title ?? '?'}
+                        </span>
+                        <button
+                          className="map-pin__flip"
+                          title={isDown ? 'Flip pin up' : 'Flip pin down'}
+                          onClick={e => { e.stopPropagation(); handleFlipPin(pin) }}
+                        >
+                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+                            <path d={isDown ? 'M12 19V5M5 12l7-7 7 7' : 'M12 5v14M5 12l7 7 7-7'} />
+                          </svg>
+                        </button>
+                        <button
+                          className="map-pin__delete"
+                          title="Remove pin"
+                          onClick={e => { e.stopPropagation(); handleDeletePin(pin.id) }}
+                        >
+                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+                            <line x1="18" y1="6" x2="6" y2="18" />
+                            <line x1="6" y1="6" x2="18" y2="18" />
+                          </svg>
+                        </button>
+                      </div>
+                    )
+                  })}
+                </div>
+              </TransformComponent>
+            </TransformWrapper>
 
-            {unpinnedSessions.length === 0 && pins.length > 0 && (
-              <p className="map-all-pinned">✦ All sessions are pinned on the map.</p>
+            {/* Overlay panel — outside TransformWrapper, fixed to viewport container */}
+            {!panelOpen && (
+              <button
+                className="map-panel-toggle"
+                onClick={() => setPanelOpen(true)}
+                title="Show controls"
+              >
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+                  <path d="M9 18l6-6-6-6" />
+                </svg>
+              </button>
             )}
-          </>
+
+            {panelOpen && (
+              <div className="map-overlay-panel">
+                <button
+                  className="map-panel-close"
+                  onClick={() => setPanelOpen(false)}
+                  title="Hide controls"
+                >
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+                    <path d="M15 18l-6-6 6-6" />
+                  </svg>
+                </button>
+
+                <button className="map-back-btn" onClick={() => navigate(`/games/${gameId}`)}>
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round">
+                    <path d="M19 12H5M12 19l-7-7 7-7" />
+                  </svg>
+                  Back to Sessions
+                </button>
+
+                <h2 className="map-panel-title">{game?.title ?? 'Campaign Map'}</h2>
+
+                {isGM && (
+                  <div className="map-toolbar">
+                    {uploadError && <span className="map-upload-error">{uploadError}</span>}
+                    <button className="map-upload-btn" onClick={handleUploadClick} disabled={uploading}>
+                      {uploading ? 'Uploading…' : 'Replace Map'}
+                    </button>
+                    <button className="map-delete-btn" onClick={handleDeleteMap}>
+                      Remove Map
+                    </button>
+                    <input
+                      ref={fileInputRef}
+                      type="file"
+                      accept="image/*"
+                      className="map-file-input"
+                      onChange={handleFileChange}
+                    />
+                  </div>
+                )}
+
+                <p className="map-gm-hint">
+                  Click anywhere on the map to place a session pin. Drag pins to reposition.
+                  Middle-click and drag to pan. Ctrl + scroll to zoom.
+                </p>
+
+                <div className="map-pin-toggle">
+                  <span className="map-pin-toggle-label">New pins:</span>
+                  <button
+                    className={`map-pin-toggle-btn${viewState.defaultPinOrientation === 'up' ? ' map-pin-toggle-btn--active' : ''}`}
+                    onClick={() => setViewState(prev => ({ ...prev, defaultPinOrientation: 'up' }))}
+                    title="New pins point up"
+                  >
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M12 2 L12 16" />
+                      <path d="M5 9 L12 2 L19 9" />
+                    </svg>
+                  </button>
+                  <button
+                    className={`map-pin-toggle-btn${viewState.defaultPinOrientation === 'down' ? ' map-pin-toggle-btn--active' : ''}`}
+                    onClick={() => setViewState(prev => ({ ...prev, defaultPinOrientation: 'down' }))}
+                    title="New pins point down"
+                  >
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M12 22 L12 8" />
+                      <path d="M5 15 L12 22 L19 15" />
+                    </svg>
+                  </button>
+                </div>
+
+                <div className="map-zoom-controls">
+                  <button className="map-zoom-btn" onClick={() => transformRef.current?.zoomIn()} disabled={displayScale >= 5} title="Zoom in">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+                      <line x1="12" y1="5" x2="12" y2="19" />
+                      <line x1="5" y1="12" x2="19" y2="12" />
+                    </svg>
+                  </button>
+                  <button className="map-zoom-level" onClick={() => transformRef.current?.resetTransform()} title="Reset zoom">
+                    {Math.round(displayScale * 100)}%
+                  </button>
+                  <button className="map-zoom-btn" onClick={() => transformRef.current?.zoomOut()} disabled={displayScale <= 1} title="Zoom out">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+                      <line x1="5" y1="12" x2="19" y2="12" />
+                    </svg>
+                  </button>
+                </div>
+
+                {unpinnedSessions.length === 0 && pins.length > 0 && (
+                  <p className="map-all-pinned">✦ All sessions are pinned on the map.</p>
+                )}
+              </div>
+            )}
+          </div>
         )}
       </div>
 
-      {/* Session Picker Modal */}
-      {pendingCoords && (
+      {/* Session Picker Modal — portalled to body to avoid transform containing block issues */}
+      {pendingCoords && createPortal(
         <div className="map-overlay" onClick={() => setPendingCoords(null)}>
           <div className="map-session-picker" onClick={e => e.stopPropagation()}>
             <div className="map-picker-header">
@@ -522,7 +536,8 @@ export default function MapView() {
               Cancel
             </button>
           </div>
-        </div>
+        </div>,
+        document.body,
       )}
     </div>
   )
