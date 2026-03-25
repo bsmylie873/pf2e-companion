@@ -2,8 +2,10 @@ import { useState, useEffect, useCallback } from 'react'
 import { useParams, useLocation, useNavigate } from 'react-router-dom'
 import type { Session, SessionFormData } from '../../types/session'
 import type { GameMembership } from '../../types/membership'
+import type { Game } from '../../types/game'
 import { listGameSessions, createSession, updateSession, deleteSession } from '../../api/sessions'
 import { listMemberships } from '../../api/memberships'
+import { apiFetch } from '../../api/client'
 import { useAuth } from '../../context/AuthContext'
 import SessionCard from '../../components/SessionCard/SessionCard'
 import SessionFormModal from '../../components/SessionFormModal/SessionFormModal'
@@ -39,8 +41,14 @@ export default function Editor() {
     setTitle(newTitle)
   }, [])
 
+  const handleMapView = useCallback(() => {
+    navigate(`/games/${gameId}/map`)
+  }, [gameId, navigate])
+
   const [sessions, setSessions] = useState<Session[]>([])
   const [memberships, setMemberships] = useState<GameMembership[]>([])
+  const [game, setGame] = useState<Game | null>(null)
+  const [viewMode, setViewMode] = useState<'list' | 'map'>('list')
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
@@ -90,11 +98,16 @@ export default function Editor() {
     setLoading(true)
     setError(null)
 
-    Promise.all([listGameSessions(gameId), listMemberships(gameId)])
-      .then(([sessionsData, membershipsData]) => {
+    Promise.all([
+      listGameSessions(gameId),
+      listMemberships(gameId),
+      apiFetch<Game>(`/games/${gameId}`),
+    ])
+      .then(([sessionsData, membershipsData, gameData]) => {
         if (!cancelled) {
           setSessions(sessionsData)
           setMemberships(membershipsData)
+          setGame(gameData)
         }
       })
       .catch((err: unknown) => {
@@ -256,6 +269,34 @@ export default function Editor() {
           <div className="sessions-header">
             <h2 className="sessions-heading">Sessions</h2>
             <div className="sessions-header-actions">
+              <div className="sessions-view-toggle">
+                <button
+                  className={`sessions-view-btn${viewMode === 'list' ? ' sessions-view-btn--active' : ''}`}
+                  onClick={() => setViewMode('list')}
+                  title="List view"
+                >
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
+                    <line x1="8" y1="6" x2="21" y2="6" />
+                    <line x1="8" y1="12" x2="21" y2="12" />
+                    <line x1="8" y1="18" x2="21" y2="18" />
+                    <line x1="3" y1="6" x2="3.01" y2="6" />
+                    <line x1="3" y1="12" x2="3.01" y2="12" />
+                    <line x1="3" y1="18" x2="3.01" y2="18" />
+                  </svg>
+                </button>
+                <button
+                  className={`sessions-view-btn${!game?.map_image_url && !isGM ? ' sessions-view-btn--disabled' : ''}`}
+                  onClick={handleMapView}
+                  disabled={!game?.map_image_url && !isGM}
+                  title={!game?.map_image_url && !isGM ? 'No campaign map yet' : 'Map view'}
+                >
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
+                    <polygon points="1 6 1 22 8 18 16 22 23 18 23 2 16 6 8 2 1 6" />
+                    <line x1="8" y1="2" x2="8" y2="18" />
+                    <line x1="16" y1="6" x2="16" y2="22" />
+                  </svg>
+                </button>
+              </div>
               <button
                 className={`sessions-filter-toggle${filtersOpen ? ' sessions-filter-toggle--active' : ''}${hasActiveFilters ? ' sessions-filter-toggle--has-filters' : ''}`}
                 onClick={() => setFiltersOpen(prev => !prev)}
