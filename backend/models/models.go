@@ -69,6 +69,14 @@ type Session struct {
 
 func (Session) TableName() string { return "sessions" }
 
+// PinType represents the pin_types lookup table.
+type PinType struct {
+	ID   int    `gorm:"primaryKey"  json:"id"`
+	Name string `gorm:"not null;uniqueIndex" json:"name"`
+}
+
+func (PinType) TableName() string { return "pin_types" }
+
 // SessionPin represents a map pin associated with a session.
 type SessionPin struct {
 	ID          uuid.UUID `gorm:"type:uuid;default:gen_random_uuid();primaryKey" json:"id"`
@@ -76,7 +84,8 @@ type SessionPin struct {
 	Label       string    `gorm:"not null"                                       json:"label"`
 	X           float64   `gorm:"type:numeric(6,4);not null"                     json:"x"`
 	Y           float64   `gorm:"type:numeric(6,4);not null"                     json:"y"`
-	PinType     string    `gorm:"column:pin_type;not null;default:default"       json:"pin_type"`
+	PinTypeID   int       `gorm:"column:pin_type_id;not null;default:2"          json:"pin_type_id"`
+	PinType     PinType   `gorm:"foreignKey:PinTypeID"                           json:"pin_type"`
 	Description *string   `                                                       json:"description"`
 	CreatedAt   time.Time `gorm:"autoCreateTime"                                 json:"created_at"`
 	UpdatedAt   time.Time `gorm:"autoUpdateTime"                                 json:"updated_at"`

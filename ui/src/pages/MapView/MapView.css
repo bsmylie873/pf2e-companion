@@ -309,6 +309,16 @@
   background: var(--color-surface);
 }
 
+.map-pin-toggle-label {
+  font-family: var(--font-heading);
+  font-size: 0.55rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--color-text-muted);
+  padding: 0 0.5rem;
+  flex-shrink: 0;
+}
+
 .map-pin-toggle-btn {
   display: flex;
   align-items: center;
@@ -574,6 +584,47 @@
 
 .map-pin-wrapper--hovered .map-pin__delete {
   opacity: 1;
+}
+
+/* Flip button (appears on hover, opposite side from delete) */
+.map-pin__flip {
+  position: absolute;
+  top: -9px;
+  left: -9px;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: var(--color-surface);
+  color: var(--color-text-muted);
+  border: 1px solid var(--color-border);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+  transition: opacity var(--transition-fast), transform var(--transition-fast), color var(--transition-fast), border-color var(--transition-fast);
+  z-index: 2;
+  padding: 0;
+}
+
+.map-pin__flip svg {
+  width: 9px;
+  height: 9px;
+}
+
+.map-pin__flip:hover {
+  transform: scale(1.15);
+  color: var(--color-accent);
+  border-color: var(--color-accent);
+}
+
+.map-pin-wrapper--hovered .map-pin__flip {
+  opacity: 1;
+}
+
+.map-pin-wrapper--down .map-pin__flip {
+  top: auto;
+  bottom: -9px;
 }
 
 /* ── Empty States ─────────────────────────────────────────────── */
