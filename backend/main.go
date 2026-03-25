@@ -40,6 +40,7 @@ func main() {
 	noteRepo := repositories.NewNoteRepository(db)
 	characterRepo := repositories.NewCharacterRepository(db)
 	itemRepo := repositories.NewItemRepository(db)
+	pinRepo := repositories.NewPinRepository(db)
 	refreshTokenRepo := repositories.NewRefreshTokenRepository(db)
 
 	// Services
@@ -51,6 +52,9 @@ func main() {
 	noteService := services.NewNoteService(noteRepo, membershipRepo)
 	characterService := services.NewCharacterService(characterRepo, membershipRepo)
 	itemService := services.NewItemService(itemRepo, membershipRepo, characterRepo)
+	pinService := services.NewPinService(pinRepo, sessionRepo, membershipRepo)
+
+	e.Static("/uploads", "./uploads")
 
 	// Protected group — all resource routes require a valid JWT
 	protected := e.Group("", custmw.RequireAuth(authService))
@@ -67,10 +71,15 @@ func main() {
 	handlers.RegisterNoteRoutes(protected, noteService)
 	handlers.RegisterCharacterRoutes(protected, characterService)
 	handlers.RegisterItemRoutes(protected, itemService)
+	handlers.RegisterPinRoutes(protected, pinService)
+	handlers.RegisterMapImageRoutes(protected, gameRepo, membershipRepo)
 
 	port := os.Getenv("PORT")
 	if port == "" {
 		port = "8080"
+	}
+	if err := os.MkdirAll("./uploads/maps", 0755); err != nil {
+		e.Logger.Fatal("failed to create uploads directory: ", err)
 	}
 	e.Logger.Fatal(e.Start(":" + port))
 }
