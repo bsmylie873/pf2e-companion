@@ -76,6 +76,7 @@ func (s *pinService) UpdatePin(id, userID uuid.UUID, updates map[string]interfac
 	}
 	delete(updates, "id")
 	delete(updates, "session_id")
+	delete(updates, "pin_type")
 	delete(updates, "created_at")
 	delete(updates, "updated_at")
 	return s.repo.Update(id, updates)

@@ -30,7 +30,7 @@ export default function MapView() {
   const [dragging, setDragging] = useState<{ pinId: string; startX: number; startY: number } | null>(null)
   const [panning, setPanning] = useState<{ startX: number; startY: number; scrollLeft: number; scrollTop: number } | null>(null)
   const [zoom, setZoom] = useState(1)
-  const [pinOrientation, setPinOrientation] = useState<'up' | 'down'>('down')
+  const [defaultPinOrientation, setDefaultPinOrientation] = useState<'up' | 'down'>('down')
 
   const mapContainerRef = useRef<HTMLDivElement>(null)
   const mapViewportRef = useRef<HTMLDivElement>(null)
@@ -93,6 +93,18 @@ export default function MapView() {
     setPendingCoords(coords)
   }, [dragging, clientToMapPct])
 
+  const handleFlipPin = useCallback(async (pin: SessionPin) => {
+    const newTypeId = pin.pin_type.name === 'down' ? 1 : 2 // 1=up, 2=down
+    setPins(prev => prev.map(p => p.id === pin.id ? { ...p, pin_type_id: newTypeId, pin_type: { id: newTypeId, name: newTypeId === 1 ? 'up' : 'down' } } : p))
+    try {
+      await updatePin(pin.id, { pin_type_id: newTypeId })
+    } catch (err: unknown) {
+      console.error('Failed to flip pin', err)
+      // Revert on failure
+      setPins(prev => prev.map(p => p.id === pin.id ? pin : p))
+    }
+  }, [])
+
   const handleSelectSession = useCallback(async (session: Session) => {
     if (!gameId || !pendingCoords) return
     try {
@@ -100,6 +112,7 @@ export default function MapView() {
         session_id: session.id,
         x: pendingCoords.x,
         y: pendingCoords.y,
+        pin_type_id: defaultPinOrientation === 'up' ? 1 : 2,
       })
       setPins(prev => [...prev, pin])
       setPendingCoords(null)
@@ -351,10 +364,11 @@ export default function MapView() {
 
             <div className="map-toolbar-row">
               <div className="map-pin-toggle">
+                <span className="map-pin-toggle-label">New pins:</span>
                 <button
-                  className={`map-pin-toggle-btn${pinOrientation === 'up' ? ' map-pin-toggle-btn--active' : ''}`}
-                  onClick={() => setPinOrientation('up')}
-                  title="Pins point up"
+                  className={`map-pin-toggle-btn${defaultPinOrientation === 'up' ? ' map-pin-toggle-btn--active' : ''}`}
+                  onClick={() => setDefaultPinOrientation('up')}
+                  title="New pins point up"
                 >
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                     <path d="M12 2 L12 16" />
@@ -362,9 +376,9 @@ export default function MapView() {
                   </svg>
                 </button>
                 <button
-                  className={`map-pin-toggle-btn${pinOrientation === 'down' ? ' map-pin-toggle-btn--active' : ''}`}
-                  onClick={() => setPinOrientation('down')}
-                  title="Pins point down"
+                  className={`map-pin-toggle-btn${defaultPinOrientation === 'down' ? ' map-pin-toggle-btn--active' : ''}`}
+                  onClick={() => setDefaultPinOrientation('down')}
+                  title="New pins point down"
                 >
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                     <path d="M12 22 L12 8" />
@@ -420,10 +434,11 @@ export default function MapView() {
 
                 {pins.map(pin => {
                   const session = sessionForPin(pin)
+                  const isDown = pin.pin_type?.name === 'down'
                   return (
                     <div
                       key={pin.id}
-                      className={`map-pin-wrapper${pinOrientation === 'down' ? ' map-pin-wrapper--down' : ''}${hoveredPinId === pin.id ? ' map-pin-wrapper--hovered' : ''}${dragging?.pinId === pin.id ? ' map-pin-wrapper--dragging' : ''}`}
+                      className={`map-pin-wrapper${isDown ? ' map-pin-wrapper--down' : ''}${hoveredPinId === pin.id ? ' map-pin-wrapper--hovered' : ''}${dragging?.pinId === pin.id ? ' map-pin-wrapper--dragging' : ''}`}
                       style={{ left: `${pin.x}%`, top: `${pin.y}%` }}
                       onMouseEnter={() => setHoveredPinId(pin.id)}
                       onMouseLeave={() => setHoveredPinId(null)}
@@ -443,6 +458,15 @@ export default function MapView() {
                         )}
                         {session?.title ?? '?'}
                       </span>
+                      <button
+                        className="map-pin__flip"
+                        title={isDown ? 'Flip pin up' : 'Flip pin down'}
+                        onClick={e => { e.stopPropagation(); handleFlipPin(pin) }}
+                      >
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+                          <path d={isDown ? 'M12 19V5M5 12l7-7 7 7' : 'M12 5v14M5 12l7 7 7-7'} />
+                        </svg>
+                      </button>
                       <button
                         className="map-pin__delete"
                         title="Remove pin"
