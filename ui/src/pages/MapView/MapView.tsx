@@ -124,6 +124,7 @@ export default function MapView() {
   const mapContainerRef = useRef<HTMLDivElement>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
   const transformRef = useRef<ReactZoomPanPinchRef>(null)
+  const wasDragRef = useRef(false)
 
   /** Persist transform to localStorage — called only when an interaction ends. */
   const handleTransformEnd = useCallback((ref: ReactZoomPanPinchRef) => {
@@ -230,20 +231,34 @@ export default function MapView() {
     e.preventDefault()
     e.stopPropagation()
     ;(e.currentTarget as HTMLElement).setPointerCapture(e.pointerId)
+    wasDragRef.current = false
     setDragging({ pinId: pin.id, startX: e.clientX, startY: e.clientY })
   }, [])
 
   const handlePointerMove = useCallback((e: React.PointerEvent<HTMLDivElement>) => {
     if (!dragging || !mapContainerRef.current) return
+
+    // Check if we've exceeded the 5px drag threshold
+    if (!wasDragRef.current) {
+      const dx = e.clientX - dragging.startX
+      const dy = e.clientY - dragging.startY
+      if (Math.sqrt(dx * dx + dy * dy) <= 5) return
+      wasDragRef.current = true
+    }
+
     const coords = clientToMapPct(e.clientX, e.clientY)
     setPins(prev => prev.map(p => p.id === dragging.pinId ? { ...p, x: coords.x, y: coords.y } : p))
   }, [dragging, clientToMapPct])
 
   const handlePointerUp = useCallback(async (e: React.PointerEvent<HTMLDivElement>) => {
     if (!dragging || !mapContainerRef.current) return
-    const coords = clientToMapPct(e.clientX, e.clientY)
     const pinId = dragging.pinId
     setDragging(null)
+
+    // Only persist position if the pointer actually dragged
+    if (!wasDragRef.current) return
+
+    const coords = clientToMapPct(e.clientX, e.clientY)
     try {
       await updatePin(pinId, { x: coords.x, y: coords.y })
     } catch (err: unknown) {
@@ -429,7 +444,7 @@ export default function MapView() {
                           title={session?.title ?? 'Session'}
                           onClick={e => {
                             e.stopPropagation()
-                            if (!dragging) navigate(`/games/${gameId}/sessions/${pin.session_id}/notes`)
+                            if (!wasDragRef.current) navigate(`/games/${gameId}/sessions/${pin.session_id}/notes`)
                           }}
                           onPointerDown={e => handlePinPointerDown(e, pin)}
                         >
