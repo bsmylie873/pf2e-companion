@@ -14,20 +14,81 @@ import type { Game } from '../../types/game'
 import type { Session } from '../../types/session'
 import type { SessionPin } from '../../types/pin'
 import type { GameMembership } from '../../types/membership'
+import { GiPositionMarker, GiCastle, GiCrossedSwords, GiDeathSkull, GiTreasureMap, GiCampfire, GiForestCamp, GiMountainCave, GiVillage, GiTempleGate, GiSailboat, GiCrown, GiDragonHead, GiTombstone, GiBridge, GiGoldMine, GiTowerFlag, GiCauldron, GiWoodCabin, GiPortal } from 'react-icons/gi'
 import './MapView.css'
+
+const PIN_COLOURS = ['grey', 'red', 'orange', 'gold', 'green', 'blue', 'purple', 'brown'] as const
+const PIN_ICONS = ['position-marker', 'castle', 'crossed-swords', 'skull', 'treasure-map', 'campfire', 'forest-camp', 'mountain-cave', 'village', 'temple-gate', 'sailboat', 'crown', 'dragon-head', 'tombstone', 'bridge', 'mine-entrance', 'tower-flag', 'cauldron', 'wood-cabin', 'portal'] as const
+type PinColour = typeof PIN_COLOURS[number]
+type PinIcon = typeof PIN_ICONS[number]
+
+const COLOUR_MAP: Record<PinColour, string> = {
+  grey:   '#8b8b8b',
+  red:    '#c94c4c',
+  orange: '#d4783a',
+  gold:   '#c4a035',
+  green:  '#4a8c5c',
+  blue:   '#4a6fa5',
+  purple: '#7b5ea7',
+  brown:  '#8b6b4a',
+}
+
+const PIN_ICON_COMPONENTS: Record<string, React.ComponentType<{ size?: number }>> = {
+  'position-marker': GiPositionMarker,
+  'castle': GiCastle,
+  'crossed-swords': GiCrossedSwords,
+  'skull': GiDeathSkull,
+  'treasure-map': GiTreasureMap,
+  'campfire': GiCampfire,
+  'forest-camp': GiForestCamp,
+  'mountain-cave': GiMountainCave,
+  'village': GiVillage,
+  'temple-gate': GiTempleGate,
+  'sailboat': GiSailboat,
+  'crown': GiCrown,
+  'dragon-head': GiDragonHead,
+  'tombstone': GiTombstone,
+  'bridge': GiBridge,
+  'mine-entrance': GiGoldMine,
+  'tower-flag': GiTowerFlag,
+  'cauldron': GiCauldron,
+  'wood-cabin': GiWoodCabin,
+  'portal': GiPortal,
+}
+
+const PIN_ICON_LABELS: Record<string, string> = {
+  'position-marker': 'Position Marker',
+  'castle': 'Castle',
+  'crossed-swords': 'Crossed Swords',
+  'skull': 'Skull',
+  'treasure-map': 'Treasure Map',
+  'campfire': 'Campfire',
+  'forest-camp': 'Forest Camp',
+  'mountain-cave': 'Mountain Cave',
+  'village': 'Village',
+  'temple-gate': 'Temple Gate',
+  'sailboat': 'Sailboat',
+  'crown': 'Crown',
+  'dragon-head': 'Dragon Head',
+  'tombstone': 'Tombstone',
+  'bridge': 'Bridge',
+  'mine-entrance': 'Mine Entrance',
+  'tower-flag': 'Tower Flag',
+  'cauldron': 'Cauldron',
+  'wood-cabin': 'Wood Cabin',
+  'portal': 'Portal',
+}
 
 interface MapViewState {
   scale: number
   positionX: number
   positionY: number
-  defaultPinOrientation: 'up' | 'down'
 }
 
 const DEFAULT_VIEW_STATE: MapViewState = {
   scale: 1,
   positionX: 0,
   positionY: 0,
-  defaultPinOrientation: 'down',
 }
 
 export default function MapView() {
@@ -52,6 +113,13 @@ export default function MapView() {
   )
   const [panelOpen, setPanelOpen] = useState(true)
   const [displayScale, setDisplayScale] = useState(viewState.scale)
+
+  // Colour/icon picker state
+  const [pendingColour, setPendingColour] = useState<PinColour>('grey')
+  const [pendingIcon, setPendingIcon] = useState<PinIcon>('position-marker')
+
+  // Edit pin popover (open/close only — changes save immediately)
+  const [editingPinId, setEditingPinId] = useState<string | null>(null)
 
   const mapContainerRef = useRef<HTMLDivElement>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
@@ -141,17 +209,6 @@ export default function MapView() {
     setPendingCoords(coords)
   }, [dragging, clientToMapPct])
 
-  const handleFlipPin = useCallback(async (pin: SessionPin) => {
-    const newTypeId = pin.pin_type.name === 'down' ? 1 : 2 // 1=up, 2=down
-    setPins(prev => prev.map(p => p.id === pin.id ? { ...p, pin_type_id: newTypeId, pin_type: { id: newTypeId, name: newTypeId === 1 ? 'up' : 'down' } } : p))
-    try {
-      await updatePin(pin.id, { pin_type_id: newTypeId })
-    } catch (err: unknown) {
-      console.error('Failed to flip pin', err)
-      setPins(prev => prev.map(p => p.id === pin.id ? pin : p))
-    }
-  }, [])
-
   const handleSelectSession = useCallback(async (session: Session) => {
     if (!gameId || !pendingCoords) return
     try {
@@ -159,14 +216,15 @@ export default function MapView() {
         session_id: session.id,
         x: pendingCoords.x,
         y: pendingCoords.y,
-        pin_type_id: viewState.defaultPinOrientation === 'up' ? 1 : 2,
+        colour: pendingColour,
+        icon: pendingIcon,
       })
       setPins(prev => [...prev, pin])
       setPendingCoords(null)
     } catch (err: unknown) {
       console.error('Failed to create pin', err)
     }
-  }, [gameId, pendingCoords, viewState])
+  }, [gameId, pendingCoords, pendingColour, pendingIcon])
 
   const handlePinPointerDown = useCallback((e: React.PointerEvent, pin: SessionPin) => {
     e.preventDefault()
@@ -199,6 +257,16 @@ export default function MapView() {
       setPins(prev => prev.filter(p => p.id !== pinId))
     } catch (err: unknown) {
       console.error('Failed to delete pin', err)
+    }
+  }, [])
+
+  const handleEditPinField = useCallback(async (pinId: string, field: { colour?: string; icon?: string }) => {
+    // Optimistically update local state, then persist
+    setPins(prev => prev.map(p => p.id === pinId ? { ...p, ...field } : p))
+    try {
+      await updatePin(pinId, field)
+    } catch (err: unknown) {
+      console.error('Failed to update pin', err)
     }
   }, [])
 
@@ -346,24 +414,30 @@ export default function MapView() {
 
                   {pins.map(pin => {
                     const session = sessionForPin(pin)
-                    const isDown = pin.pin_type?.name === 'down'
+                    const pinColour = (pin.colour as PinColour) ?? 'grey'
                     return (
                       <div
                         key={pin.id}
-                        className={`map-pin-wrapper${isDown ? ' map-pin-wrapper--down' : ''}${hoveredPinId === pin.id ? ' map-pin-wrapper--hovered' : ''}${dragging?.pinId === pin.id ? ' map-pin-wrapper--dragging' : ''}`}
+                        className={`map-pin-wrapper${hoveredPinId === pin.id ? ' map-pin-wrapper--hovered' : ''}${dragging?.pinId === pin.id ? ' map-pin-wrapper--dragging' : ''}`}
                         style={{ left: `${pin.x}%`, top: `${pin.y}%` }}
                         onMouseEnter={() => setHoveredPinId(pin.id)}
                         onMouseLeave={() => setHoveredPinId(null)}
                       >
                         <button
                           className="map-pin"
+                          style={{ '--pin-colour': COLOUR_MAP[pinColour] ?? COLOUR_MAP.grey } as React.CSSProperties}
                           title={session?.title ?? 'Session'}
                           onClick={e => {
                             e.stopPropagation()
                             if (!dragging) navigate(`/games/${gameId}/sessions/${pin.session_id}/notes`)
                           }}
                           onPointerDown={e => handlePinPointerDown(e, pin)}
-                        />
+                        >
+                          {(() => {
+                            const IconComp = PIN_ICON_COMPONENTS[pin.icon] ?? PIN_ICON_COMPONENTS['position-marker']
+                            return <span className="map-pin__icon"><IconComp size={10} /></span>
+                          })()}
+                        </button>
                         <span className="map-pin__label">
                           {session?.session_number != null && (
                             <span className="map-pin__label-num">#{session.session_number}</span>
@@ -371,13 +445,14 @@ export default function MapView() {
                           {session?.title ?? '?'}
                         </span>
                         <button
-                          className="map-pin__flip"
-                          title={isDown ? 'Flip pin up' : 'Flip pin down'}
-                          onClick={e => { e.stopPropagation(); handleFlipPin(pin) }}
+                          className="map-pin__edit"
+                          title="Edit pin"
+                          onClick={e => {
+                            e.stopPropagation()
+                            setEditingPinId(editingPinId === pin.id ? null : pin.id)
+                          }}
                         >
-                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
-                            <path d={isDown ? 'M12 19V5M5 12l7-7 7 7' : 'M12 5v14M5 12l7 7 7-7'} />
-                          </svg>
+                          ✎
                         </button>
                         <button
                           className="map-pin__delete"
@@ -389,6 +464,39 @@ export default function MapView() {
                             <line x1="6" y1="6" x2="18" y2="18" />
                           </svg>
                         </button>
+                        {editingPinId === pin.id && (
+                          <div className="map-pin-edit-popover" onClick={e => e.stopPropagation()}>
+                            <span className="map-pin-edit-popover-label">Colour</span>
+                            <div className="map-pin-edit-popover-colours">
+                              {PIN_COLOURS.map(c => (
+                                <button
+                                  key={c}
+                                  className={`pin-colour-swatch${pinColour === c ? ' pin-colour-swatch--selected' : ''}`}
+                                  style={{ '--swatch-colour': COLOUR_MAP[c] } as React.CSSProperties}
+                                  onClick={() => handleEditPinField(pin.id, { colour: c })}
+                                  title={c}
+                                />
+                              ))}
+                            </div>
+                            <span className="map-pin-edit-popover-label">Icon</span>
+                            <div className="map-pin-edit-popover-colours">
+                              {PIN_ICONS.map(i => {
+                                const IconComp = PIN_ICON_COMPONENTS[i]
+                                return (
+                                  <button
+                                    key={i}
+                                    className={`pin-icon-option${pin.icon === i ? ' pin-icon-option--selected' : ''}`}
+                                    onClick={() => handleEditPinField(pin.id, { icon: i })}
+                                    title={PIN_ICON_LABELS[i]}
+                                    aria-label={PIN_ICON_LABELS[i]}
+                                  >
+                                    <IconComp size={14} />
+                                  </button>
+                                )
+                              })}
+                            </div>
+                          </div>
+                        )}
                       </div>
                     )
                   })}
@@ -454,30 +562,6 @@ export default function MapView() {
                   Middle-click and drag to pan. Ctrl + scroll to zoom.
                 </p>
 
-                <div className="map-pin-toggle">
-                  <span className="map-pin-toggle-label">New pins:</span>
-                  <button
-                    className={`map-pin-toggle-btn${viewState.defaultPinOrientation === 'up' ? ' map-pin-toggle-btn--active' : ''}`}
-                    onClick={() => setViewState(prev => ({ ...prev, defaultPinOrientation: 'up' }))}
-                    title="New pins point up"
-                  >
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                      <path d="M12 2 L12 16" />
-                      <path d="M5 9 L12 2 L19 9" />
-                    </svg>
-                  </button>
-                  <button
-                    className={`map-pin-toggle-btn${viewState.defaultPinOrientation === 'down' ? ' map-pin-toggle-btn--active' : ''}`}
-                    onClick={() => setViewState(prev => ({ ...prev, defaultPinOrientation: 'down' }))}
-                    title="New pins point down"
-                  >
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                      <path d="M12 22 L12 8" />
-                      <path d="M5 15 L12 22 L19 15" />
-                    </svg>
-                  </button>
-                </div>
-
                 <div className="map-zoom-controls">
                   <button className="map-zoom-btn" onClick={() => transformRef.current?.zoomIn()} disabled={displayScale >= 5} title="Zoom in">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
@@ -511,6 +595,37 @@ export default function MapView() {
             <div className="map-picker-header">
               <span className="map-picker-rune" aria-hidden="true">⬡</span>
               <h3 className="map-picker-title">Mark This Location</h3>
+            </div>
+            <div className="map-picker-customise">
+              <span className="map-picker-customise-label">Pin colour:</span>
+              <div className="pin-colour-palette">
+                {PIN_COLOURS.map(c => (
+                  <button
+                    key={c}
+                    className={`pin-colour-swatch${pendingColour === c ? ' pin-colour-swatch--selected' : ''}`}
+                    style={{ '--swatch-colour': COLOUR_MAP[c] } as React.CSSProperties}
+                    onClick={() => setPendingColour(c)}
+                    title={c}
+                  />
+                ))}
+              </div>
+              <span className="map-picker-customise-label">Pin icon:</span>
+              <div className="pin-colour-palette">
+                {PIN_ICONS.map(i => {
+                  const IconComp = PIN_ICON_COMPONENTS[i]
+                  return (
+                    <button
+                      key={i}
+                      className={`pin-icon-option${pendingIcon === i ? ' pin-icon-option--selected' : ''}`}
+                      onClick={() => setPendingIcon(i)}
+                      title={PIN_ICON_LABELS[i]}
+                      aria-label={PIN_ICON_LABELS[i]}
+                    >
+                      <IconComp size={16} />
+                    </button>
+                  )
+                })}
+              </div>
             </div>
             <p className="map-picker-sub">Choose the session to pin here:</p>
             {unpinnedSessions.length === 0 ? (

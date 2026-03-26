@@ -26,18 +26,18 @@ func (r *pinRepository) Create(pin *models.SessionPin) error {
 	if err := r.db.Create(pin).Error; err != nil {
 		return err
 	}
-	return r.db.Preload("PinType").First(pin, "id = ?", pin.ID).Error
+	return r.db.First(pin, "id = ?", pin.ID).Error
 }
 
 func (r *pinRepository) FindByGameID(gameID uuid.UUID) ([]models.SessionPin, error) {
 	var pins []models.SessionPin
-	err := r.db.Preload("PinType").Joins("JOIN sessions ON sessions.id = session_pins.session_id").Where("sessions.game_id = ?", gameID).Find(&pins).Error
+	err := r.db.Joins("JOIN sessions ON sessions.id = session_pins.session_id").Where("sessions.game_id = ?", gameID).Find(&pins).Error
 	return pins, err
 }
 
 func (r *pinRepository) FindByID(id uuid.UUID) (models.SessionPin, error) {
 	var pin models.SessionPin
-	err := r.db.Preload("PinType").First(&pin, "id = ?", id).Error
+	err := r.db.First(&pin, "id = ?", id).Error
 	return pin, err
 }
 

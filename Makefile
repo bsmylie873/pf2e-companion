@@ -1,4 +1,16 @@
-.PHONY: db-up db-down db-migrate db-seed db-reset backend-run backend-build ui-dev ui-build start stop
+.PHONY: setup db-up db-down db-migrate db-seed db-reset backend-run backend-build ui-dev ui-build start stop
+
+setup: ## Install all project dependencies (Go modules + npm packages)
+	@echo "→ Installing Go dependencies..."
+	cd backend && go mod download
+	@echo "✔ Go modules ready"
+	@echo "→ Installing npm packages..."
+	cd ui && npm install
+	@echo "✔ npm packages ready"
+	@echo ""
+	@echo "══════════════════════════════════════"
+	@echo "  Setup complete"
+	@echo "══════════════════════════════════════"
 
 db-up: ## Start the database container (detached)
 	docker compose up -d db
