@@ -8,11 +8,11 @@ export function listGamePins(gameId: string): Promise<SessionPin[]> {
 export function createPin(data: SessionPinFormData): Promise<SessionPin> {
   return apiFetch<SessionPin>(`/sessions/${data.session_id}/pins`, {
     method: 'POST',
-    body: JSON.stringify({ label: data.label ?? '', x: data.x, y: data.y, pin_type_id: data.pin_type_id }),
+    body: JSON.stringify({ label: data.label ?? '', x: data.x, y: data.y, colour: data.colour, icon: data.icon }),
   })
 }
 
-export function updatePin(pinId: string, data: { x?: number; y?: number; label?: string; pin_type_id?: number }): Promise<SessionPin> {
+export function updatePin(pinId: string, data: { x?: number; y?: number; label?: string; colour?: string; icon?: string }): Promise<SessionPin> {
   return apiFetch<SessionPin>(`/pins/${pinId}`, {
     method: 'PATCH',
     body: JSON.stringify(data),

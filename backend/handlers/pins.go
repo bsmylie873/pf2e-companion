@@ -37,6 +37,19 @@ func (h *PinHandler) CreatePin(c echo.Context) error {
 		return ErrorResponse(c, http.StatusBadRequest, "invalid request body")
 	}
 
+	if pin.Colour == "" {
+		pin.Colour = "grey"
+	}
+	if pin.Icon == "" {
+		pin.Icon = "position-marker"
+	}
+	if err := ValidatePinColour(pin.Colour); err != nil {
+		return ErrorResponse(c, http.StatusBadRequest, err.Error())
+	}
+	if err := ValidatePinIcon(pin.Icon); err != nil {
+		return ErrorResponse(c, http.StatusBadRequest, err.Error())
+	}
+
 	resp, err := h.service.CreatePin(sessionID, authUserID, &pin)
 	if err != nil {
 		if errors.Is(err, services.ErrForbidden) {
@@ -115,6 +128,25 @@ func (h *PinHandler) UpdatePin(c echo.Context) error {
 	var updates map[string]interface{}
 	if err := c.Bind(&updates); err != nil {
 		return ErrorResponse(c, http.StatusBadRequest, "invalid request body")
+	}
+
+	if colourVal, ok := updates["colour"]; ok {
+		colour, ok := colourVal.(string)
+		if !ok {
+			return ErrorResponse(c, http.StatusBadRequest, "colour must be a string")
+		}
+		if err := ValidatePinColour(colour); err != nil {
+			return ErrorResponse(c, http.StatusBadRequest, err.Error())
+		}
+	}
+	if iconVal, ok := updates["icon"]; ok {
+		icon, ok := iconVal.(string)
+		if !ok {
+			return ErrorResponse(c, http.StatusBadRequest, "icon must be a string")
+		}
+		if err := ValidatePinIcon(icon); err != nil {
+			return ErrorResponse(c, http.StatusBadRequest, err.Error())
+		}
 	}
 
 	pin, err := h.service.UpdatePin(id, authUserID, updates)
