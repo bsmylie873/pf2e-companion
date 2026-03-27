@@ -21,8 +21,8 @@ import { listGamePinGroups, createPinGroup, addPinToGroup, removePinFromGroup, d
 import { GiPositionMarker, GiCastle, GiCrossedSwords, GiDeathSkull, GiTreasureMap, GiCampfire, GiForestCamp, GiMountainCave, GiVillage, GiTempleGate, GiSailboat, GiCrown, GiDragonHead, GiTombstone, GiBridge, GiGoldMine, GiTowerFlag, GiCauldron, GiWoodCabin, GiPortal } from 'react-icons/gi'
 import './MapView.css'
 
-/** Proximity threshold in map-percentage units (0–100). Two markers closer than this are considered overlapping. */
-const GROUP_PROXIMITY_PCT = 3
+/** Proximity threshold in map-percentage units (0–100). ~16px on a 1000px map. */
+const GROUP_PROXIMITY_PCT = 1.5
 
 const PIN_COLOURS = ['grey', 'red', 'orange', 'gold', 'green', 'blue', 'purple', 'brown'] as const
 const PIN_ICONS = ['position-marker', 'castle', 'crossed-swords', 'skull', 'treasure-map', 'campfire', 'forest-camp', 'mountain-cave', 'village', 'temple-gate', 'sailboat', 'crown', 'dragon-head', 'tombstone', 'bridge', 'mine-entrance', 'tower-flag', 'cauldron', 'wood-cabin', 'portal'] as const
@@ -141,6 +141,7 @@ export default function MapView() {
   const [pendingGroupPinIds, setPendingGroupPinIds] = useState<string[] | null>(null)
   const [pendingAddToGroupId, setPendingAddToGroupId] = useState<string | null>(null)
   const [dragGroupPrompt, setDragGroupPrompt] = useState<{ draggedPinId: string; nearbyPins: SessionPin[]; nearbyGroups: PinGroup[]; originalCoords: { x: number; y: number } } | null>(null)
+  const [dropTargetIds, setDropTargetIds] = useState<Set<string>>(new Set())
 
   const mapContainerRef = useRef<HTMLDivElement>(null)
   const viewportContainerRef = useRef<HTMLDivElement>(null)
@@ -350,13 +351,29 @@ export default function MapView() {
 
     const coords = clientToMapPct(e.clientX, e.clientY)
     setPins(prev => prev.map(p => p.id === dragging.pinId ? { ...p, x: coords.x, y: coords.y } : p))
-  }, [dragging, clientToMapPct])
+
+    // Compute which pins/groups are within drop range
+    const targets = new Set<string>()
+    pins.forEach(p => {
+      if (p.group_id !== null || p.id === dragging.pinId) return
+      const dx = p.x - coords.x
+      const dy = p.y - coords.y
+      if (Math.sqrt(dx * dx + dy * dy) <= GROUP_PROXIMITY_PCT) targets.add(p.id)
+    })
+    pinGroups.forEach(g => {
+      const dx = g.x - coords.x
+      const dy = g.y - coords.y
+      if (Math.sqrt(dx * dx + dy * dy) <= GROUP_PROXIMITY_PCT) targets.add(g.id)
+    })
+    setDropTargetIds(targets)
+  }, [dragging, clientToMapPct, pins, pinGroups])
 
   const handlePointerUp = useCallback(async (e: React.PointerEvent<HTMLDivElement>) => {
     if (!dragging || !mapContainerRef.current) return
     const pinId = dragging.pinId
     const draggedPin = pins.find(p => p.id === pinId)
     setDragging(null)
+    setDropTargetIds(new Set())
 
     // Only persist position if the pointer actually dragged
     if (!wasDragRef.current) return
@@ -574,7 +591,7 @@ export default function MapView() {
                     return (
                       <div
                         key={pin.id}
-                        className={`map-pin-wrapper${hoveredPinId === pin.id ? ' map-pin-wrapper--hovered' : ''}${dragging?.pinId === pin.id ? ' map-pin-wrapper--dragging' : ''}`}
+                        className={`map-pin-wrapper${hoveredPinId === pin.id ? ' map-pin-wrapper--hovered' : ''}${dragging?.pinId === pin.id ? ' map-pin-wrapper--dragging' : ''}${dropTargetIds.has(pin.id) ? ' map-pin-wrapper--drop-target' : ''}`}
                         style={{ left: `${pin.x}%`, top: `${pin.y}%` }}
                         onMouseEnter={() => setHoveredPinId(pin.id)}
                         onMouseLeave={() => setHoveredPinId(null)}
@@ -680,7 +697,7 @@ export default function MapView() {
                     return (
                       <div
                         key={group.id}
-                        className="map-pin-wrapper map-pin-wrapper--group"
+                        className={`map-pin-wrapper map-pin-wrapper--group${dropTargetIds.has(group.id) ? ' map-pin-wrapper--drop-target' : ''}`}
                         style={{ left: `${group.x}%`, top: `${group.y}%` }}
                         data-group-id={group.id}
                       >

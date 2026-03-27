@@ -355,6 +355,27 @@
   cursor: grabbing;
 }
 
+/* Drop target — pulsing glow when a dragged pin is nearby */
+@keyframes drop-target-pulse {
+  0%   { transform: rotate(225deg) scale(1);   box-shadow: 0 0 8px var(--pin-colour, var(--color-accent)), 0 2px 8px rgba(0, 0, 0, 0.35); }
+  50%  { transform: rotate(225deg) scale(1.35); box-shadow: 0 0 18px var(--pin-colour, var(--color-accent)), 0 0 28px rgba(139, 46, 46, 0.4), 0 2px 8px rgba(0, 0, 0, 0.35); }
+  100% { transform: rotate(225deg) scale(1);   box-shadow: 0 0 8px var(--pin-colour, var(--color-accent)), 0 2px 8px rgba(0, 0, 0, 0.35); }
+}
+
+.map-pin-wrapper--drop-target .map-pin {
+  animation: drop-target-pulse 800ms ease-in-out infinite;
+  border-color: rgba(255, 255, 255, 0.9);
+}
+
+.map-pin-wrapper--drop-target .map-pin-group-badge {
+  animation: drop-target-badge-pulse 800ms ease-in-out infinite;
+}
+
+@keyframes drop-target-badge-pulse {
+  0%, 100% { transform: scale(1); }
+  50%      { transform: scale(1.2); }
+}
+
 /* The pin itself: a teardrop marker shape */
 .map-pin {
   display: block;
