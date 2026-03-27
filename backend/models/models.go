@@ -71,16 +71,18 @@ func (Session) TableName() string { return "sessions" }
 
 // SessionPin represents a map pin associated with a session.
 type SessionPin struct {
-	ID          uuid.UUID `gorm:"type:uuid;default:gen_random_uuid();primaryKey" json:"id"`
-	SessionID   uuid.UUID `gorm:"type:uuid;not null;column:session_id"           json:"session_id"`
-	Label       string    `gorm:"not null"                                       json:"label"`
-	X           float64   `gorm:"type:numeric(6,4);not null"                     json:"x"`
-	Y           float64   `gorm:"type:numeric(6,4);not null"                     json:"y"`
-	Colour      string    `gorm:"not null;default:'grey'"                        json:"colour"`
-	Icon        string    `gorm:"not null;default:'position-marker'"             json:"icon"`
-	Description *string   `                                                       json:"description"`
-	CreatedAt   time.Time `gorm:"autoCreateTime"                                 json:"created_at"`
-	UpdatedAt   time.Time `gorm:"autoUpdateTime"                                 json:"updated_at"`
+	ID          uuid.UUID  `gorm:"type:uuid;default:gen_random_uuid();primaryKey" json:"id"`
+	GameID      uuid.UUID  `gorm:"type:uuid;not null;column:game_id"              json:"game_id"`
+	SessionID   *uuid.UUID `gorm:"type:uuid;column:session_id"                    json:"session_id"`
+	NoteID      *uuid.UUID `gorm:"type:uuid;column:note_id"                       json:"note_id"`
+	Label       string     `gorm:"not null"                                       json:"label"`
+	X           float64    `gorm:"type:numeric(6,4);not null"                     json:"x"`
+	Y           float64    `gorm:"type:numeric(6,4);not null"                     json:"y"`
+	Colour      string     `gorm:"not null;default:'grey'"                        json:"colour"`
+	Icon        string     `gorm:"not null;default:'position-marker'"             json:"icon"`
+	Description *string    `                                                       json:"description"`
+	CreatedAt   time.Time  `gorm:"autoCreateTime"                                 json:"created_at"`
+	UpdatedAt   time.Time  `gorm:"autoUpdateTime"                                 json:"updated_at"`
 }
 
 func (SessionPin) TableName() string { return "session_pins" }
@@ -88,10 +90,13 @@ func (SessionPin) TableName() string { return "session_pins" }
 // Note represents the notes table.
 type Note struct {
 	ID          uuid.UUID      `gorm:"type:uuid;default:gen_random_uuid();primaryKey" json:"id"`
-	GameID      *uuid.UUID     `gorm:"type:uuid;column:game_id"                       json:"game_id"`
-	UserID      *uuid.UUID     `gorm:"type:uuid;column:user_id"                       json:"user_id"`
+	GameID      uuid.UUID      `gorm:"type:uuid;not null;column:game_id"              json:"game_id"`
+	UserID      uuid.UUID      `gorm:"type:uuid;not null;column:user_id"              json:"user_id"`
+	SessionID   *uuid.UUID     `gorm:"type:uuid;column:session_id"                    json:"session_id"`
 	Title       string         `gorm:"not null"                                       json:"title"`
 	Content     datatypes.JSON `gorm:"column:content;type:jsonb"                      json:"content"`
+	Visibility  string         `gorm:"not null;default:'private'"                     json:"visibility"`
+	Version     int            `gorm:"not null;default:1"                             json:"version"`
 	FoundryData datatypes.JSON `gorm:"column:foundry_data;type:jsonb"                 json:"foundry_data"`
 	CreatedAt   time.Time      `gorm:"autoCreateTime"                                 json:"created_at"`
 	UpdatedAt   time.Time      `gorm:"autoUpdateTime"                                 json:"updated_at"`

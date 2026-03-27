@@ -5,9 +5,11 @@ import (
 	"net/http"
 	"strings"
 
+	"github.com/google/uuid"
 	"github.com/labstack/echo/v4"
 	"gorm.io/gorm"
 	"pf2e-companion/backend/models"
+	"pf2e-companion/backend/repositories"
 	"pf2e-companion/backend/services"
 )
 
@@ -25,15 +27,13 @@ func NewNoteHandler(service services.NoteService) *NoteHandler {
 func RegisterNoteRoutes(g *echo.Group, service services.NoteService) {
 	h := NewNoteHandler(service)
 	g.POST("/games/:id/notes", h.CreateGameNote)
-	g.POST("/users/:id/notes", h.CreateUserNote)
 	g.GET("/games/:id/notes", h.ListGameNotes)
-	g.GET("/users/:id/notes", h.ListUserNotes)
 	g.GET("/notes/:id", h.GetNote)
 	g.PATCH("/notes/:id", h.UpdateNote)
 	g.DELETE("/notes/:id", h.DeleteNote)
 }
 
-// CreateGameNote creates a shared note belonging to a game.
+// CreateGameNote creates a note belonging to a game.
 // POST /games/:id/notes
 func (h *NoteHandler) CreateGameNote(c echo.Context) error {
 	authUserID, err := GetAuthUserID(c)
@@ -56,7 +56,9 @@ func (h *NoteHandler) CreateGameNote(c echo.Context) error {
 		return ErrorResponse(c, http.StatusUnprocessableEntity, "missing required fields: "+strings.Join(missing, ", "))
 	}
 
-	resp, err := h.service.CreateGameNote(gameID, authUserID, &note)
+	note.UserID = authUserID
+
+	resp, err := h.service.CreateNote(gameID, authUserID, &note)
 	if err != nil {
 		if errors.Is(err, services.ErrForbidden) {
 			return ErrorResponse(c, http.StatusForbidden, "forbidden")
@@ -67,41 +69,7 @@ func (h *NoteHandler) CreateGameNote(c echo.Context) error {
 	return SuccessResponse(c, http.StatusCreated, resp)
 }
 
-// CreateUserNote creates a private note belonging to a user.
-// POST /users/:id/notes
-func (h *NoteHandler) CreateUserNote(c echo.Context) error {
-	authUserID, err := GetAuthUserID(c)
-	if err != nil {
-		return nil
-	}
-
-	pathUserID, err := ParseUUID(c, "id")
-	if err != nil {
-		return nil
-	}
-
-	var note models.Note
-	if err := c.Bind(&note); err != nil {
-		return ErrorResponse(c, http.StatusBadRequest, "invalid request body")
-	}
-
-	missing := ValidateRequired(map[string]interface{}{"title": note.Title})
-	if len(missing) > 0 {
-		return ErrorResponse(c, http.StatusUnprocessableEntity, "missing required fields: "+strings.Join(missing, ", "))
-	}
-
-	resp, err := h.service.CreateUserNote(pathUserID, authUserID, &note)
-	if err != nil {
-		if errors.Is(err, services.ErrForbidden) {
-			return ErrorResponse(c, http.StatusForbidden, "forbidden")
-		}
-		return ErrorResponse(c, http.StatusInternalServerError, "failed to create note")
-	}
-
-	return SuccessResponse(c, http.StatusCreated, resp)
-}
-
-// ListGameNotes returns all notes belonging to a game.
+// ListGameNotes returns notes belonging to a game, filtered by query params.
 // GET /games/:id/notes
 func (h *NoteHandler) ListGameNotes(c echo.Context) error {
 	authUserID, err := GetAuthUserID(c)
@@ -114,31 +82,20 @@ func (h *NoteHandler) ListGameNotes(c echo.Context) error {
 		return nil
 	}
 
-	notes, err := h.service.ListGameNotes(gameID, authUserID)
-	if err != nil {
-		if errors.Is(err, services.ErrForbidden) {
-			return ErrorResponse(c, http.StatusForbidden, "forbidden")
+	filters := repositories.NoteFilters{
+		Sort:     c.QueryParam("sort"),
+		Unlinked: c.QueryParam("unlinked") == "true",
+	}
+
+	if sessionIDStr := c.QueryParam("session_id"); sessionIDStr != "" {
+		parsed, err := uuid.Parse(sessionIDStr)
+		if err != nil {
+			return ErrorResponse(c, http.StatusBadRequest, "invalid session_id")
 		}
-		return ErrorResponse(c, http.StatusInternalServerError, "failed to fetch notes")
+		filters.SessionID = &parsed
 	}
 
-	return SuccessResponse(c, http.StatusOK, notes)
-}
-
-// ListUserNotes returns all notes belonging to a user.
-// GET /users/:id/notes
-func (h *NoteHandler) ListUserNotes(c echo.Context) error {
-	authUserID, err := GetAuthUserID(c)
-	if err != nil {
-		return nil
-	}
-
-	pathUserID, err := ParseUUID(c, "id")
-	if err != nil {
-		return nil
-	}
-
-	notes, err := h.service.ListUserNotes(pathUserID, authUserID)
+	notes, err := h.service.ListGameNotes(gameID, authUserID, filters)
 	if err != nil {
 		if errors.Is(err, services.ErrForbidden) {
 			return ErrorResponse(c, http.StatusForbidden, "forbidden")
@@ -201,6 +158,9 @@ func (h *NoteHandler) UpdateNote(c echo.Context) error {
 		}
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return ErrorResponse(c, http.StatusNotFound, "note not found")
+		}
+		if errors.Is(err, repositories.ErrVersionConflict) {
+			return ErrorResponse(c, http.StatusConflict, "note was modified by another user — please refresh and try again")
 		}
 		return ErrorResponse(c, http.StatusInternalServerError, "failed to update note")
 	}

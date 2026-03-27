@@ -1,6 +1,8 @@
 export interface SessionPin {
   id: string
-  session_id: string
+  game_id: string
+  session_id: string | null
+  note_id: string | null
   label: string
   x: number
   y: number
@@ -12,7 +14,7 @@ export interface SessionPin {
 }
 
 export interface SessionPinFormData {
-  session_id: string
+  session_id?: string
   x: number
   y: number
   label?: string

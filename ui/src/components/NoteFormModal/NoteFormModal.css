@@ -1,0 +1,168 @@
+/* ── NoteFormModal ──────────────────────────────────────────── */
+
+.note-form {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+  padding: 1.5rem 1.5rem 2rem;
+}
+
+.note-form-field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.note-form-label {
+  font-family: var(--font-heading);
+  font-size: 0.65rem;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+  color: var(--color-text-muted);
+}
+
+.note-form-input {
+  width: 100%;
+  padding: 0.7rem 0.9rem;
+  background: var(--color-bg);
+  border: 1px solid var(--color-border);
+  border-radius: 2px;
+  color: var(--color-text);
+  font-family: var(--font-body);
+  font-size: 1rem;
+  transition:
+    border-color var(--transition-fast),
+    box-shadow var(--transition-fast);
+  outline: none;
+  box-sizing: border-box;
+}
+
+.note-form-input::placeholder {
+  color: var(--color-text-muted);
+  opacity: 0.65;
+  font-style: italic;
+}
+
+.note-form-input:focus {
+  border-color: var(--color-accent);
+  box-shadow: 0 0 0 3px rgba(139, 46, 46, 0.12);
+}
+
+[data-theme='dark'] .note-form-input:focus {
+  box-shadow: 0 0 0 3px rgba(201, 76, 76, 0.18);
+}
+
+.note-form-select {
+  appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23999' stroke-width='2' stroke-linecap='round'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 0.75rem center;
+  background-size: 14px;
+  padding-right: 2rem;
+  cursor: pointer;
+}
+
+.note-form-visibility {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.note-form-vis-btn {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4rem;
+  padding: 0.6rem 1rem;
+  border: 1px solid var(--color-border);
+  border-radius: 2px;
+  background: transparent;
+  color: var(--color-text-muted);
+  font-family: var(--font-heading);
+  font-size: 0.65rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: color var(--transition-fast), background var(--transition-fast), border-color var(--transition-fast);
+}
+
+.note-form-vis-btn svg {
+  width: 14px;
+  height: 14px;
+}
+
+.note-form-vis-btn:hover {
+  color: var(--color-text);
+  border-color: var(--color-text-muted);
+}
+
+.note-form-vis-btn--active {
+  color: var(--color-accent);
+  border-color: var(--color-accent);
+  background: rgba(139, 46, 46, 0.08);
+}
+
+[data-theme='dark'] .note-form-vis-btn--active {
+  background: rgba(201, 76, 76, 0.12);
+}
+
+.note-form-error {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.75rem 1rem;
+  background: rgba(139, 46, 46, 0.1);
+  border: 1px solid rgba(139, 46, 46, 0.3);
+  border-left: 4px solid var(--color-accent);
+  border-radius: 2px;
+  color: var(--color-accent);
+  font-family: var(--font-body);
+  font-size: 0.9rem;
+}
+
+.note-form-error svg {
+  width: 18px;
+  height: 18px;
+  flex-shrink: 0;
+}
+
+.note-form-error p {
+  margin: 0;
+  color: var(--color-text);
+}
+
+.note-form-submit {
+  margin-top: 0.25rem;
+  width: 100%;
+  padding: 0.8rem 1.25rem;
+  background: var(--color-accent);
+  color: #f0e6d6;
+  border: 1px solid transparent;
+  border-radius: 2px;
+  font-family: var(--font-heading);
+  font-size: 0.75rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition:
+    background var(--transition-fast),
+    box-shadow var(--transition-fast),
+    transform var(--transition-fast),
+    opacity var(--transition-fast);
+}
+
+.note-form-submit:hover:not(:disabled) {
+  background: var(--color-accent-hover);
+  box-shadow: var(--glow-accent), 0 4px 12px rgba(139, 46, 46, 0.3);
+  transform: translateY(-1px);
+}
+
+.note-form-submit:active:not(:disabled) {
+  transform: translateY(0);
+  box-shadow: none;
+}
+
+.note-form-submit:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}

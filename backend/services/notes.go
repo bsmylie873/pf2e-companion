@@ -7,10 +7,8 @@ import (
 )
 
 type NoteService interface {
-	CreateGameNote(gameID, userID uuid.UUID, note *models.Note) (models.Note, error)
-	CreateUserNote(ownerID, callerID uuid.UUID, note *models.Note) (models.Note, error)
-	ListGameNotes(gameID, userID uuid.UUID) ([]models.Note, error)
-	ListUserNotes(ownerID, callerID uuid.UUID) ([]models.Note, error)
+	CreateNote(gameID, userID uuid.UUID, note *models.Note) (models.Note, error)
+	ListGameNotes(gameID, userID uuid.UUID, filters repositories.NoteFilters) ([]models.Note, error)
 	GetNote(id, userID uuid.UUID) (models.Note, error)
 	UpdateNote(id, userID uuid.UUID, updates map[string]interface{}) (models.Note, error)
 	DeleteNote(id, userID uuid.UUID) error
@@ -25,44 +23,28 @@ func NewNoteService(repo repositories.NoteRepository, membershipRepo repositorie
 	return &noteService{repo: repo, membershipRepo: membershipRepo}
 }
 
-func (s *noteService) CreateGameNote(gameID, userID uuid.UUID, note *models.Note) (models.Note, error) {
+func (s *noteService) CreateNote(gameID, userID uuid.UUID, note *models.Note) (models.Note, error) {
 	if _, err := s.membershipRepo.FindByUserAndGameID(userID, gameID); err != nil {
 		return models.Note{}, ErrForbidden
 	}
 	note.ID = uuid.Nil
-	note.GameID = &gameID
-	note.UserID = nil
+	note.GameID = gameID
+	note.UserID = userID
+	if note.Visibility == "" {
+		note.Visibility = "private"
+	}
 	if err := s.repo.Create(note); err != nil {
 		return models.Note{}, err
 	}
 	return *note, nil
 }
 
-func (s *noteService) CreateUserNote(ownerID, callerID uuid.UUID, note *models.Note) (models.Note, error) {
-	if ownerID != callerID {
-		return models.Note{}, ErrForbidden
-	}
-	note.ID = uuid.Nil
-	note.UserID = &ownerID
-	note.GameID = nil
-	if err := s.repo.Create(note); err != nil {
-		return models.Note{}, err
-	}
-	return *note, nil
-}
-
-func (s *noteService) ListGameNotes(gameID, userID uuid.UUID) ([]models.Note, error) {
-	if _, err := s.membershipRepo.FindByUserAndGameID(userID, gameID); err != nil {
+func (s *noteService) ListGameNotes(gameID, userID uuid.UUID, filters repositories.NoteFilters) ([]models.Note, error) {
+	membership, err := s.membershipRepo.FindByUserAndGameID(userID, gameID)
+	if err != nil {
 		return nil, ErrForbidden
 	}
-	return s.repo.FindByGameID(gameID)
-}
-
-func (s *noteService) ListUserNotes(ownerID, callerID uuid.UUID) ([]models.Note, error) {
-	if ownerID != callerID {
-		return nil, ErrForbidden
-	}
-	return s.repo.FindByUserID(ownerID)
+	return s.repo.FindByGameID(gameID, userID, membership.IsGM, filters)
 }
 
 func (s *noteService) GetNote(id, userID uuid.UUID) (models.Note, error) {
@@ -70,16 +52,20 @@ func (s *noteService) GetNote(id, userID uuid.UUID) (models.Note, error) {
 	if err != nil {
 		return models.Note{}, err
 	}
-	if note.UserID != nil {
-		if *note.UserID != userID {
-			return models.Note{}, ErrForbidden
-		}
-	} else if note.GameID != nil {
-		if _, err := s.membershipRepo.FindByUserAndGameID(userID, *note.GameID); err != nil {
-			return models.Note{}, ErrForbidden
-		}
+	membership, err := s.membershipRepo.FindByUserAndGameID(userID, note.GameID)
+	if err != nil {
+		return models.Note{}, ErrForbidden
 	}
-	return note, nil
+	if membership.IsGM {
+		return note, nil
+	}
+	if note.Visibility == "visible" || note.Visibility == "editable" {
+		return note, nil
+	}
+	if note.UserID == userID {
+		return note, nil
+	}
+	return models.Note{}, ErrForbidden
 }
 
 func (s *noteService) UpdateNote(id, userID uuid.UUID, updates map[string]interface{}) (models.Note, error) {
@@ -87,19 +73,49 @@ func (s *noteService) UpdateNote(id, userID uuid.UUID, updates map[string]interf
 	if err != nil {
 		return models.Note{}, err
 	}
-	if note.UserID != nil {
-		if *note.UserID != userID {
-			return models.Note{}, ErrForbidden
-		}
-	} else if note.GameID != nil {
-		if _, err := s.membershipRepo.FindByUserAndGameID(userID, *note.GameID); err != nil {
-			return models.Note{}, ErrForbidden
-		}
+	membership, err := s.membershipRepo.FindByUserAndGameID(userID, note.GameID)
+	if err != nil {
+		return models.Note{}, ErrForbidden
 	}
+
+	isAuthor := note.UserID == userID
+	isGM := membership.IsGM
+
+	if !isAuthor && !isGM {
+		// Non-author, non-GM players
+		if note.Visibility == "editable" {
+			// Can edit content, cannot change visibility
+			delete(updates, "visibility")
+		} else {
+			// private or visible — no edit access
+			return models.Note{}, ErrForbidden
+		}
+	} else if isGM && !isAuthor {
+		// GM can edit content but not change visibility
+		delete(updates, "visibility")
+	}
+
+	// Extract version for optimistic locking
+	var expectedVersion *int
+	if v, ok := updates["version"]; ok {
+		switch val := v.(type) {
+		case int:
+			expectedVersion = &val
+		case float64:
+			intVal := int(val)
+			expectedVersion = &intVal
+		}
+		delete(updates, "version")
+	}
+
+	// Strip immutable fields
 	delete(updates, "id")
 	delete(updates, "created_at")
 	delete(updates, "updated_at")
-	return s.repo.Update(id, updates)
+	delete(updates, "game_id")
+	delete(updates, "user_id")
+
+	return s.repo.Update(id, updates, expectedVersion)
 }
 
 func (s *noteService) DeleteNote(id, userID uuid.UUID) error {
@@ -107,14 +123,15 @@ func (s *noteService) DeleteNote(id, userID uuid.UUID) error {
 	if err != nil {
 		return err
 	}
-	if note.UserID != nil {
-		if *note.UserID != userID {
-			return ErrForbidden
-		}
-	} else if note.GameID != nil {
-		if _, err := s.membershipRepo.FindByUserAndGameID(userID, *note.GameID); err != nil {
-			return ErrForbidden
-		}
+	membership, err := s.membershipRepo.FindByUserAndGameID(userID, note.GameID)
+	if err != nil {
+		return ErrForbidden
+	}
+	if note.UserID != userID && !membership.IsGM {
+		return ErrForbidden
+	}
+	if err := s.repo.ClearNoteFromPins(id); err != nil {
+		return err
 	}
 	return s.repo.Delete(id)
 }

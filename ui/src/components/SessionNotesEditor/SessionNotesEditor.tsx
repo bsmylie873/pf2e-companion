@@ -13,7 +13,6 @@ import Image from '@tiptap/extension-image'
 import Link from '@tiptap/extension-link'
 import Underline from '@tiptap/extension-underline'
 import type { JSONContent } from '@tiptap/react'
-import type { Session } from '../../types/session'
 import { useAutosave } from '../../hooks/useAutosave'
 import './SessionNotesEditor.css'
 
@@ -42,7 +41,8 @@ interface SessionNotesEditorProps {
   initialContent: JSONContent | null
   version: number
   editable?: boolean
-  onSave?: (content: JSONContent, version: number) => Promise<Session>
+  onSave?: (content: JSONContent, version: number) => Promise<{ version: number }>
+  placeholder?: string
 }
 
 const IMAGE_URL_RE = /^https?:\/\/\S+\.(?:png|jpe?g|gif|webp|svg|bmp|ico|avif)(?:\?[^\s]*)?$/i
@@ -64,6 +64,7 @@ export default function SessionNotesEditor({
   version,
   editable = true,
   onSave,
+  placeholder = 'Begin your session chronicle…',
 }: SessionNotesEditorProps) {
   const { scheduleAutosave, status } = useAutosave(
     onSave ?? (() => Promise.reject(new Error('No onSave provided'))),
@@ -83,7 +84,7 @@ export default function SessionNotesEditor({
       Highlight,
       TaskList,
       TaskItem.configure({ nested: false }),
-      Placeholder.configure({ placeholder: 'Begin your session chronicle…' }),
+      Placeholder.configure({ placeholder }),
       TextAlign.configure({ types: ['heading', 'paragraph'] }),
       Image,
     ],
