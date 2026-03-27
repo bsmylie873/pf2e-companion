@@ -127,8 +127,9 @@ export default function MapView() {
   const [pendingIcon, setPendingIcon] = useState<PinIcon>('position-marker')
 
   // Picker tab state
-  type PickerTab = 'sessions' | 'notes'
+  type PickerTab = 'sessions' | 'notes' | 'marker'
   const [pickerTab, setPickerTab] = useState<PickerTab>('sessions')
+  const [pendingLabel, setPendingLabel] = useState('')
 
   // Edit pin popover (open/close only — changes save immediately)
   const [editingPinId, setEditingPinId] = useState<string | null>(null)
@@ -326,6 +327,36 @@ export default function MapView() {
       }
     } catch (err: unknown) {
       console.error('Failed to create pin', err)
+    }
+  }, [gameId, pendingCoords, pendingColour, pendingIcon, pendingGroupPinIds, pendingAddToGroupId, reloadPinGroups])
+
+  const handleCreateMarker = useCallback(async (label: string) => {
+    if (!gameId || !pendingCoords) return
+    const trimmed = label.trim()
+    if (!trimmed) return
+    try {
+      const pin = await createGamePin(gameId, {
+        x: pendingCoords.x,
+        y: pendingCoords.y,
+        label: trimmed,
+        colour: pendingColour,
+        icon: pendingIcon,
+      })
+      setPins(prev => [...prev, pin])
+      setPendingCoords(null)
+      setPendingLabel('')
+
+      if (pendingGroupPinIds) {
+        await createPinGroup(gameId, [...pendingGroupPinIds, pin.id])
+        await reloadPinGroups()
+        setPendingGroupPinIds(null)
+      } else if (pendingAddToGroupId) {
+        await addPinToGroup(pendingAddToGroupId, pin.id)
+        await reloadPinGroups()
+        setPendingAddToGroupId(null)
+      }
+    } catch (err: unknown) {
+      console.error('Failed to create marker', err)
     }
   }, [gameId, pendingCoords, pendingColour, pendingIcon, pendingGroupPinIds, pendingAddToGroupId, reloadPinGroups])
 
@@ -859,7 +890,7 @@ export default function MapView() {
 
       {/* Pin Picker Modal — portalled to body to avoid transform containing block issues */}
       {pendingCoords && createPortal(
-        <div className="map-overlay" onClick={() => setPendingCoords(null)}>
+        <div className="map-overlay" onClick={() => { setPendingCoords(null); setPendingLabel('') }}>
           <div className="map-session-picker" onClick={e => e.stopPropagation()}>
             <div className="map-picker-header">
               <span className="map-picker-rune" aria-hidden="true">⬡</span>
@@ -910,6 +941,12 @@ export default function MapView() {
                 onClick={() => setPickerTab('notes')}
               >
                 Notes
+              </button>
+              <button
+                className={`map-picker-tab${pickerTab === 'marker' ? ' map-picker-tab--active' : ''}`}
+                onClick={() => setPickerTab('marker')}
+              >
+                Marker
               </button>
             </div>
 
@@ -963,7 +1000,30 @@ export default function MapView() {
               </>
             )}
 
-            <button className="map-picker-cancel" onClick={() => setPendingCoords(null)}>
+            {pickerTab === 'marker' && (
+              <>
+                <p className="map-picker-sub">Place a standalone marker with a label:</p>
+                <form className="map-marker-form" onSubmit={e => { e.preventDefault(); handleCreateMarker(pendingLabel) }}>
+                  <input
+                    className="map-marker-input"
+                    type="text"
+                    placeholder="Marker label…"
+                    value={pendingLabel}
+                    onChange={e => setPendingLabel(e.target.value)}
+                    autoFocus
+                  />
+                  <button
+                    className="map-marker-submit"
+                    type="submit"
+                    disabled={!pendingLabel.trim()}
+                  >
+                    Place Marker
+                  </button>
+                </form>
+              </>
+            )}
+
+            <button className="map-picker-cancel" onClick={() => { setPendingCoords(null); setPendingLabel('') }}>
               Cancel
             </button>
           </div>
