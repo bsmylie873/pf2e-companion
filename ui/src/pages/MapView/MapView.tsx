@@ -288,7 +288,7 @@ export default function MapView() {
       setPendingCoords(null)
 
       if (pendingGroupPinIds) {
-        await createPinGroup(gameId, [pin.id, ...pendingGroupPinIds])
+        await createPinGroup(gameId, [...pendingGroupPinIds, pin.id])
         await reloadPinGroups()
         setPendingGroupPinIds(null)
       } else if (pendingAddToGroupId) {
@@ -316,7 +316,7 @@ export default function MapView() {
       setPendingCoords(null)
 
       if (pendingGroupPinIds) {
-        await createPinGroup(gameId, [pin.id, ...pendingGroupPinIds])
+        await createPinGroup(gameId, [...pendingGroupPinIds, pin.id])
         await reloadPinGroups()
         setPendingGroupPinIds(null)
       } else if (pendingAddToGroupId) {
@@ -1028,7 +1028,7 @@ export default function MapView() {
                   <button className="map-picker-item" onClick={async () => {
                     if (!gameId) return
                     try {
-                      await createPinGroup(gameId, [dragGroupPrompt.draggedPinId, ...dragGroupPrompt.nearbyPins.map(p => p.id)])
+                      await createPinGroup(gameId, [...dragGroupPrompt.nearbyPins.map(p => p.id), dragGroupPrompt.draggedPinId])
                       await reloadPinGroups()
                       // Reload pins so group_id is reflected
                       const updatedPins = await listGamePins(gameId)
