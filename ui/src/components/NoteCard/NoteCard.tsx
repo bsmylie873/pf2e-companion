@@ -1,0 +1,76 @@
+import type { Note } from '../../types/note'
+import './NoteCard.css'
+
+interface NoteCardProps {
+  note: Note
+  sessionTitle?: string
+  isGM: boolean
+  isAuthor: boolean
+  onEdit: (note: Note) => void
+  onDelete: (note: Note) => void
+  onOpen: (note: Note) => void
+}
+
+export default function NoteCard({ note, sessionTitle, isGM, isAuthor, onEdit, onDelete, onOpen }: NoteCardProps) {
+  const canEdit = isAuthor || isGM || note.visibility === 'shared'
+  const canDelete = isAuthor || isGM
+
+  const formattedDate = new Intl.DateTimeFormat(undefined, { dateStyle: 'medium' }).format(new Date(note.created_at))
+
+  return (
+    <article className="note-card">
+      <div className="note-card-body" onClick={() => onOpen(note)}>
+        <div className="note-card-meta">
+          <span className={`note-card-visibility note-card-visibility--${note.visibility}`}>
+            {note.visibility === 'private' ? (
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
+                <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
+                <path d="M7 11V7a5 5 0 0 1 10 0v4" />
+              </svg>
+            ) : (
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
+                <circle cx="12" cy="12" r="10" />
+                <line x1="2" y1="12" x2="22" y2="12" />
+                <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z" />
+              </svg>
+            )}
+            {note.visibility === 'private' ? 'Private' : 'Shared'}
+          </span>
+          {sessionTitle && (
+            <span className="note-card-session">{sessionTitle}</span>
+          )}
+        </div>
+        <h3 className="note-card-title">{note.title}</h3>
+        <time className="note-card-date">{formattedDate}</time>
+      </div>
+      <div className="note-card-actions">
+        {canEdit && (
+          <button
+            className="note-card-btn note-card-btn--edit"
+            onClick={(e) => { e.stopPropagation(); onEdit(note) }}
+            aria-label="Edit note"
+            title="Edit note"
+          >
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
+              <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
+            </svg>
+          </button>
+        )}
+        {canDelete && (
+          <button
+            className="note-card-btn note-card-btn--delete"
+            onClick={(e) => { e.stopPropagation(); onDelete(note) }}
+            aria-label="Delete note"
+            title="Delete note"
+          >
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
+              <polyline points="3 6 5 6 21 6" />
+              <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+            </svg>
+          </button>
+        )}
+      </div>
+    </article>
+  )
+}

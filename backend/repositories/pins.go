@@ -31,7 +31,7 @@ func (r *pinRepository) Create(pin *models.SessionPin) error {
 
 func (r *pinRepository) FindByGameID(gameID uuid.UUID) ([]models.SessionPin, error) {
 	var pins []models.SessionPin
-	err := r.db.Joins("JOIN sessions ON sessions.id = session_pins.session_id").Where("sessions.game_id = ?", gameID).Find(&pins).Error
+	err := r.db.Where("game_id = ?", gameID).Find(&pins).Error
 	return pins, err
 }
 

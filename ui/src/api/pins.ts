@@ -12,7 +12,14 @@ export function createPin(data: SessionPinFormData): Promise<SessionPin> {
   })
 }
 
-export function updatePin(pinId: string, data: { x?: number; y?: number; label?: string; colour?: string; icon?: string }): Promise<SessionPin> {
+export function createGamePin(gameId: string, data: { x: number; y: number; label?: string; colour?: string; icon?: string; note_id?: string }): Promise<SessionPin> {
+  return apiFetch<SessionPin>(`/games/${gameId}/pins`, {
+    method: 'POST',
+    body: JSON.stringify({ label: data.label ?? '', x: data.x, y: data.y, colour: data.colour, icon: data.icon, note_id: data.note_id }),
+  })
+}
+
+export function updatePin(pinId: string, data: { x?: number; y?: number; label?: string; colour?: string; icon?: string; note_id?: string | null }): Promise<SessionPin> {
   return apiFetch<SessionPin>(`/pins/${pinId}`, {
     method: 'PATCH',
     body: JSON.stringify(data),

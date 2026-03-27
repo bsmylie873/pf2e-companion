@@ -1,11 +1,10 @@
 import { useRef, useState, useCallback } from 'react'
 import type { JSONContent } from '@tiptap/react'
-import type { Session } from '../types/session'
 
 export type AutosaveStatus = 'idle' | 'saving' | 'saved' | 'conflict' | 'error'
 
-export function useAutosave(
-  onSave: (content: JSONContent, version: number) => Promise<Session>,
+export function useAutosave<T extends { version: number }>(
+  onSave: (content: JSONContent, version: number) => Promise<T>,
   initialVersion: number,
 ) {
   const [status, setStatus] = useState<AutosaveStatus>('idle')

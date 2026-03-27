@@ -4,6 +4,7 @@ import (
 	"errors"
 	"net/http"
 
+	"github.com/google/uuid"
 	"github.com/labstack/echo/v4"
 	"gorm.io/gorm"
 	"pf2e-companion/backend/models"
@@ -61,6 +62,42 @@ func (h *PinHandler) CreatePin(c echo.Context) error {
 		return ErrorResponse(c, http.StatusInternalServerError, "failed to create pin")
 	}
 
+	return SuccessResponse(c, http.StatusCreated, resp)
+}
+
+// CreateGamePin handles POST /games/:id/pins.
+func (h *PinHandler) CreateGamePin(c echo.Context) error {
+	authUserID, err := GetAuthUserID(c)
+	if err != nil {
+		return nil
+	}
+	gameID, err := ParseUUID(c, "id")
+	if err != nil {
+		return nil
+	}
+	var pin models.SessionPin
+	if err := c.Bind(&pin); err != nil {
+		return ErrorResponse(c, http.StatusBadRequest, "invalid request body")
+	}
+	if pin.Colour == "" {
+		pin.Colour = "grey"
+	}
+	if pin.Icon == "" {
+		pin.Icon = "position-marker"
+	}
+	if err := ValidatePinColour(pin.Colour); err != nil {
+		return ErrorResponse(c, http.StatusBadRequest, err.Error())
+	}
+	if err := ValidatePinIcon(pin.Icon); err != nil {
+		return ErrorResponse(c, http.StatusBadRequest, err.Error())
+	}
+	resp, err := h.service.CreateGamePin(gameID, authUserID, &pin)
+	if err != nil {
+		if errors.Is(err, services.ErrForbidden) {
+			return ErrorResponse(c, http.StatusForbidden, "forbidden")
+		}
+		return ErrorResponse(c, http.StatusInternalServerError, "failed to create pin")
+	}
 	return SuccessResponse(c, http.StatusCreated, resp)
 }
 
@@ -149,6 +186,16 @@ func (h *PinHandler) UpdatePin(c echo.Context) error {
 		}
 	}
 
+	if noteIDVal, ok := updates["note_id"]; ok && noteIDVal != nil {
+		noteIDStr, ok := noteIDVal.(string)
+		if !ok {
+			return ErrorResponse(c, http.StatusBadRequest, "note_id must be a UUID string or null")
+		}
+		if _, err := uuid.Parse(noteIDStr); err != nil {
+			return ErrorResponse(c, http.StatusBadRequest, "invalid note_id UUID")
+		}
+	}
+
 	pin, err := h.service.UpdatePin(id, authUserID, updates)
 	if err != nil {
 		if errors.Is(err, services.ErrForbidden) {
@@ -192,6 +239,7 @@ func (h *PinHandler) DeletePin(c echo.Context) error {
 func RegisterPinRoutes(g *echo.Group, service services.PinService) {
 	h := NewPinHandler(service)
 	g.POST("/sessions/:id/pins", h.CreatePin)
+	g.POST("/games/:id/pins", h.CreateGamePin)
 	g.GET("/games/:id/pins", h.ListGamePins)
 	g.GET("/pins/:id", h.GetPin)
 	g.PATCH("/pins/:id", h.UpdatePin)

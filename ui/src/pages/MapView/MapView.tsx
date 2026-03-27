@@ -5,7 +5,8 @@ import { TransformWrapper, TransformComponent } from 'react-zoom-pan-pinch'
 import type { ReactZoomPanPinchRef } from 'react-zoom-pan-pinch'
 import { apiFetch, BASE_URL } from '../../api/client'
 import { listGameSessions } from '../../api/sessions'
-import { listGamePins, createPin, updatePin, deletePin } from '../../api/pins'
+import { listGamePins, createPin, updatePin, deletePin, createGamePin } from '../../api/pins'
+import { listGameNotes } from '../../api/notes'
 import { uploadMapImage, deleteMapImage } from '../../api/mapImage'
 import { listMemberships } from '../../api/memberships'
 import { useAuth } from '../../context/AuthContext'
@@ -14,6 +15,7 @@ import type { Game } from '../../types/game'
 import type { Session } from '../../types/session'
 import type { SessionPin } from '../../types/pin'
 import type { GameMembership } from '../../types/membership'
+import type { Note } from '../../types/note'
 import { GiPositionMarker, GiCastle, GiCrossedSwords, GiDeathSkull, GiTreasureMap, GiCampfire, GiForestCamp, GiMountainCave, GiVillage, GiTempleGate, GiSailboat, GiCrown, GiDragonHead, GiTombstone, GiBridge, GiGoldMine, GiTowerFlag, GiCauldron, GiWoodCabin, GiPortal } from 'react-icons/gi'
 import './MapView.css'
 
@@ -99,6 +101,7 @@ export default function MapView() {
   const [game, setGame] = useState<Game | null>(null)
   const [sessions, setSessions] = useState<Session[]>([])
   const [pins, setPins] = useState<SessionPin[]>([])
+  const [notes, setNotes] = useState<Note[]>([])
   const [memberships, setMemberships] = useState<GameMembership[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -117,6 +120,10 @@ export default function MapView() {
   // Colour/icon picker state
   const [pendingColour, setPendingColour] = useState<PinColour>('grey')
   const [pendingIcon, setPendingIcon] = useState<PinIcon>('position-marker')
+
+  // Picker tab state
+  type PickerTab = 'sessions' | 'notes'
+  const [pickerTab, setPickerTab] = useState<PickerTab>('sessions')
 
   // Edit pin popover (open/close only — changes save immediately)
   const [editingPinId, setEditingPinId] = useState<string | null>(null)
@@ -148,13 +155,15 @@ export default function MapView() {
       listGameSessions(gameId),
       listGamePins(gameId),
       listMemberships(gameId),
+      listGameNotes(gameId),
     ])
-      .then(([gameData, sessionsData, pinsData, membershipsData]) => {
+      .then(([gameData, sessionsData, pinsData, membershipsData, notesData]) => {
         if (!cancelled) {
           setGame(gameData)
           setSessions(sessionsData)
           setPins(pinsData)
           setMemberships(membershipsData)
+          setNotes(notesData)
         }
       })
       .catch((err: unknown) => {
@@ -208,6 +217,7 @@ export default function MapView() {
     if ((e.target as HTMLElement).closest('.map-pin-wrapper')) return
     const coords = clientToMapPct(e.clientX, e.clientY)
     setPendingCoords(coords)
+    setPickerTab('sessions')
   }, [dragging, clientToMapPct])
 
   const handleSelectSession = useCallback(async (session: Session) => {
@@ -219,6 +229,24 @@ export default function MapView() {
         y: pendingCoords.y,
         colour: pendingColour,
         icon: pendingIcon,
+      })
+      setPins(prev => [...prev, pin])
+      setPendingCoords(null)
+    } catch (err: unknown) {
+      console.error('Failed to create pin', err)
+    }
+  }, [gameId, pendingCoords, pendingColour, pendingIcon])
+
+  const handleSelectNote = useCallback(async (note: Note) => {
+    if (!gameId || !pendingCoords) return
+    try {
+      const pin = await createGamePin(gameId, {
+        x: pendingCoords.x,
+        y: pendingCoords.y,
+        label: note.title,
+        colour: pendingColour,
+        icon: pendingIcon,
+        note_id: note.id,
       })
       setPins(prev => [...prev, pin])
       setPendingCoords(null)
@@ -314,6 +342,7 @@ export default function MapView() {
   }, [gameId])
 
   const sessionForPin = (pin: SessionPin) => sessions.find(s => s.id === pin.session_id)
+  const noteForPin = (pin: SessionPin) => notes.find(n => n.id === pin.note_id)
 
   return (
     <div className="map-view-page">
@@ -429,7 +458,9 @@ export default function MapView() {
 
                   {pins.map(pin => {
                     const session = sessionForPin(pin)
+                    const note = noteForPin(pin)
                     const pinColour = (pin.colour as PinColour) ?? 'grey'
+                    const pinLabel = note?.title ?? session?.title ?? pin.label ?? '?'
                     return (
                       <div
                         key={pin.id}
@@ -441,10 +472,16 @@ export default function MapView() {
                         <button
                           className="map-pin"
                           style={{ '--pin-colour': COLOUR_MAP[pinColour] ?? COLOUR_MAP.grey } as React.CSSProperties}
-                          title={session?.title ?? 'Session'}
+                          title={pinLabel}
                           onClick={e => {
                             e.stopPropagation()
-                            if (!wasDragRef.current) navigate(`/games/${gameId}/sessions/${pin.session_id}/notes`)
+                            if (!wasDragRef.current) {
+                              if (pin.note_id) {
+                                navigate(`/games/${gameId}/notes/${pin.note_id}`)
+                              } else if (pin.session_id) {
+                                navigate(`/games/${gameId}/sessions/${pin.session_id}/notes`)
+                              }
+                            }
                           }}
                           onPointerDown={e => handlePinPointerDown(e, pin)}
                         >
@@ -454,10 +491,21 @@ export default function MapView() {
                           })()}
                         </button>
                         <span className="map-pin__label">
-                          {session?.session_number != null && (
-                            <span className="map-pin__label-num">#{session.session_number}</span>
+                          {note ? (
+                            <>
+                              <span className="map-pin__label-type">Note</span>
+                              {note.title}
+                            </>
+                          ) : session ? (
+                            <>
+                              {session.session_number != null && (
+                                <span className="map-pin__label-num">#{session.session_number}</span>
+                              )}
+                              {session.title}
+                            </>
+                          ) : (
+                            pin.label || '?'
                           )}
-                          {session?.title ?? '?'}
                         </span>
                         <button
                           className="map-pin__edit"
@@ -573,7 +621,7 @@ export default function MapView() {
                 )}
 
                 <p className="map-gm-hint">
-                  Click anywhere on the map to place a session pin. Drag pins to reposition.
+                  Click anywhere on the map to place a pin. Drag pins to reposition.
                   Middle-click and drag to pan. Ctrl + scroll to zoom.
                 </p>
 
@@ -603,7 +651,7 @@ export default function MapView() {
         )}
       </div>
 
-      {/* Session Picker Modal — portalled to body to avoid transform containing block issues */}
+      {/* Pin Picker Modal — portalled to body to avoid transform containing block issues */}
       {pendingCoords && createPortal(
         <div className="map-overlay" onClick={() => setPendingCoords(null)}>
           <div className="map-session-picker" onClick={e => e.stopPropagation()}>
@@ -642,26 +690,73 @@ export default function MapView() {
                 })}
               </div>
             </div>
-            <p className="map-picker-sub">Choose the session to pin here:</p>
-            {unpinnedSessions.length === 0 ? (
-              <p className="map-picker-empty">All sessions already have pins on the map.</p>
-            ) : (
-              <ul className="map-picker-list">
-                {unpinnedSessions.map(session => (
-                  <li key={session.id}>
-                    <button
-                      className="map-picker-item"
-                      onClick={() => handleSelectSession(session)}
-                    >
-                      {session.session_number != null && (
-                        <span className="map-picker-num">#{session.session_number}</span>
-                      )}
-                      <span className="map-picker-name">{session.title}</span>
-                    </button>
-                  </li>
-                ))}
-              </ul>
+
+            {/* Picker tabs */}
+            <div className="map-picker-tabs">
+              <button
+                className={`map-picker-tab${pickerTab === 'sessions' ? ' map-picker-tab--active' : ''}`}
+                onClick={() => setPickerTab('sessions')}
+              >
+                Sessions
+              </button>
+              <button
+                className={`map-picker-tab${pickerTab === 'notes' ? ' map-picker-tab--active' : ''}`}
+                onClick={() => setPickerTab('notes')}
+              >
+                Notes
+              </button>
+            </div>
+
+            {pickerTab === 'sessions' && (
+              <>
+                <p className="map-picker-sub">Choose the session to pin here:</p>
+                {unpinnedSessions.length === 0 ? (
+                  <p className="map-picker-empty">All sessions already have pins on the map.</p>
+                ) : (
+                  <ul className="map-picker-list">
+                    {unpinnedSessions.map(session => (
+                      <li key={session.id}>
+                        <button
+                          className="map-picker-item"
+                          onClick={() => handleSelectSession(session)}
+                        >
+                          {session.session_number != null && (
+                            <span className="map-picker-num">#{session.session_number}</span>
+                          )}
+                          <span className="map-picker-name">{session.title}</span>
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </>
             )}
+
+            {pickerTab === 'notes' && (
+              <>
+                <p className="map-picker-sub">Choose the note to pin here:</p>
+                {notes.length === 0 ? (
+                  <p className="map-picker-empty">No notes available.</p>
+                ) : (
+                  <ul className="map-picker-list">
+                    {notes.map(note => (
+                      <li key={note.id}>
+                        <button
+                          className="map-picker-item"
+                          onClick={() => handleSelectNote(note)}
+                        >
+                          <span className={`map-picker-vis map-picker-vis--${note.visibility}`}>
+                            {note.visibility === 'private' ? '🔒' : '🌐'}
+                          </span>
+                          <span className="map-picker-name">{note.title}</span>
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </>
+            )}
+
             <button className="map-picker-cancel" onClick={() => setPendingCoords(null)}>
               Cancel
             </button>

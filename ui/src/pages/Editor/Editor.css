@@ -533,6 +533,115 @@
   margin: 0;
 }
 
+/* ── Editor Toolbar (shared controls above tabs) ─────────── */
+
+.editor-toolbar {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  padding-bottom: 0;
+  gap: 0.75rem;
+}
+
+.editor-toolbar-left {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-shrink: 0;
+}
+
+.editor-toolbar-right {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-shrink: 0;
+  margin-left: auto;
+}
+
+/* ── Editor Tabs ──────────────────────────────────────────── */
+
+.editor-tabs {
+  display: flex;
+  border-bottom: 1px solid var(--color-border);
+  gap: 0;
+  align-self: flex-end;
+}
+
+.editor-tab {
+  padding: 0.6rem 1.5rem 0.55rem;
+  background: transparent;
+  border: none;
+  border-bottom: 2px solid transparent;
+  margin-bottom: -1px;
+  font-family: var(--font-heading);
+  font-size: 0.7rem;
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--color-text-muted);
+  cursor: pointer;
+  transition: color var(--transition-fast), border-color var(--transition-fast);
+}
+
+.editor-tab:hover {
+  color: var(--color-text);
+}
+
+.editor-tab--active {
+  color: var(--color-accent);
+  border-bottom-color: var(--color-accent);
+}
+
+[data-theme='dark'] .editor-tab--active {
+  color: #c94c4c;
+  border-bottom-color: #c94c4c;
+}
+
+/* ── Notes Filter Bar ─────────────────────────────────────── */
+
+.notes-filter-bar {
+  display: flex;
+  align-items: flex-end;
+  gap: 1.5rem;
+  flex-wrap: wrap;
+  padding: 0.75rem 0 0.75rem;
+  margin-bottom: 0.5rem;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.notes-filter-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.notes-filter-select {
+  padding: 0.45rem 2rem 0.45rem 0.6rem;
+  background: var(--color-bg);
+  border: 1px solid var(--color-border);
+  border-radius: 2px;
+  color: var(--color-text);
+  font-family: var(--font-body);
+  font-size: 0.85rem;
+  outline: none;
+  cursor: pointer;
+  appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23999' stroke-width='2' stroke-linecap='round'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 0.5rem center;
+  background-size: 13px;
+  transition: border-color var(--transition-fast), box-shadow var(--transition-fast);
+}
+
+.notes-filter-select:focus {
+  border-color: var(--color-accent);
+  box-shadow: 0 0 0 2px rgba(139, 46, 46, 0.1);
+}
+
+[data-theme='dark'] .notes-filter-select:focus {
+  box-shadow: 0 0 0 2px rgba(201, 76, 76, 0.15);
+}
+
 /* Edit Campaign button */
 .editor-edit-btn {
   display: flex;
