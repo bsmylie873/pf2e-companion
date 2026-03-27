@@ -21,6 +21,9 @@ import { listGamePinGroups, createPinGroup, addPinToGroup, removePinFromGroup, d
 import { GiPositionMarker, GiCastle, GiCrossedSwords, GiDeathSkull, GiTreasureMap, GiCampfire, GiForestCamp, GiMountainCave, GiVillage, GiTempleGate, GiSailboat, GiCrown, GiDragonHead, GiTombstone, GiBridge, GiGoldMine, GiTowerFlag, GiCauldron, GiWoodCabin, GiPortal } from 'react-icons/gi'
 import './MapView.css'
 
+/** Proximity threshold in map-percentage units (0–100). Two markers closer than this are considered overlapping. */
+const GROUP_PROXIMITY_PCT = 3
+
 const PIN_COLOURS = ['grey', 'red', 'orange', 'gold', 'green', 'blue', 'purple', 'brown'] as const
 const PIN_ICONS = ['position-marker', 'castle', 'crossed-swords', 'skull', 'treasure-map', 'campfire', 'forest-camp', 'mountain-cave', 'village', 'temple-gate', 'sailboat', 'crown', 'dragon-head', 'tombstone', 'bridge', 'mine-entrance', 'tower-flag', 'cauldron', 'wood-cabin', 'portal'] as const
 type PinColour = typeof PIN_COLOURS[number]
@@ -232,25 +235,21 @@ export default function MapView() {
     const coords = clientToMapPct(e.clientX, e.clientY)
     setActiveGroupId(null)
 
-    const rect = mapContainerRef.current.getBoundingClientRect()
-    const currentScale = displayScale
-    const thresholdPx = 32
-
     const nearbyPins: SessionPin[] = []
     const nearbyGroups: PinGroup[] = []
 
     pins.filter(p => p.group_id === null).forEach(p => {
-      const screenDx = ((p.x - coords.x) / 100) * rect.width * currentScale
-      const screenDy = ((p.y - coords.y) / 100) * rect.height * currentScale
-      if (Math.sqrt(screenDx * screenDx + screenDy * screenDy) <= thresholdPx) {
+      const dx = p.x - coords.x
+      const dy = p.y - coords.y
+      if (Math.sqrt(dx * dx + dy * dy) <= GROUP_PROXIMITY_PCT) {
         nearbyPins.push(p)
       }
     })
 
     pinGroups.forEach(g => {
-      const screenDx = ((g.x - coords.x) / 100) * rect.width * currentScale
-      const screenDy = ((g.y - coords.y) / 100) * rect.height * currentScale
-      if (Math.sqrt(screenDx * screenDx + screenDy * screenDy) <= thresholdPx) {
+      const dx = g.x - coords.x
+      const dy = g.y - coords.y
+      if (Math.sqrt(dx * dx + dy * dy) <= GROUP_PROXIMITY_PCT) {
         nearbyGroups.push(g)
       }
     })
@@ -262,7 +261,7 @@ export default function MapView() {
 
     setPendingCoords(coords)
     setPickerTab('sessions')
-  }, [dragging, clientToMapPct, pins, pinGroups, displayScale])
+  }, [dragging, clientToMapPct, pins, pinGroups])
 
   const reloadPinGroups = useCallback(async () => {
     if (!gameId) return
@@ -363,26 +362,23 @@ export default function MapView() {
     if (!wasDragRef.current) return
 
     const coords = clientToMapPct(e.clientX, e.clientY)
-    const rect = mapContainerRef.current.getBoundingClientRect()
-    const currentScale = displayScale
-    const thresholdPx = 32
 
     // Check if dropped near other standalone pins or groups
     const nearbyPins: SessionPin[] = []
     const nearbyGroups: PinGroup[] = []
 
     pins.filter(p => p.group_id === null && p.id !== pinId).forEach(p => {
-      const screenDx = ((p.x - coords.x) / 100) * rect.width * currentScale
-      const screenDy = ((p.y - coords.y) / 100) * rect.height * currentScale
-      if (Math.sqrt(screenDx * screenDx + screenDy * screenDy) <= thresholdPx) {
+      const dx = p.x - coords.x
+      const dy = p.y - coords.y
+      if (Math.sqrt(dx * dx + dy * dy) <= GROUP_PROXIMITY_PCT) {
         nearbyPins.push(p)
       }
     })
 
     pinGroups.forEach(g => {
-      const screenDx = ((g.x - coords.x) / 100) * rect.width * currentScale
-      const screenDy = ((g.y - coords.y) / 100) * rect.height * currentScale
-      if (Math.sqrt(screenDx * screenDx + screenDy * screenDy) <= thresholdPx) {
+      const dx = g.x - coords.x
+      const dy = g.y - coords.y
+      if (Math.sqrt(dx * dx + dy * dy) <= GROUP_PROXIMITY_PCT) {
         nearbyGroups.push(g)
       }
     })
@@ -406,7 +402,7 @@ export default function MapView() {
     } catch (err: unknown) {
       console.error('Failed to update pin', err)
     }
-  }, [dragging, clientToMapPct, pins, pinGroups, displayScale])
+  }, [dragging, clientToMapPct, pins, pinGroups])
 
   const handleDeletePin = useCallback(async (pinId: string) => {
     try {
@@ -1071,12 +1067,9 @@ export default function MapView() {
         const mgmtColour = (group.colour as PinColour) ?? 'grey'
         const nearbyStandalonePins = pins.filter(p => {
           if (p.group_id !== null) return false
-          if (!mapContainerRef.current) return false
-          const rect = mapContainerRef.current.getBoundingClientRect()
-          const scale = displayScale
-          const dx = Math.abs(p.x - group.x) / 100 * rect.width * scale
-          const dy = Math.abs(p.y - group.y) / 100 * rect.height * scale
-          return Math.sqrt(dx * dx + dy * dy) <= 128
+          const dx = p.x - group.x
+          const dy = p.y - group.y
+          return Math.sqrt(dx * dx + dy * dy) <= GROUP_PROXIMITY_PCT * 4
         })
         return createPortal(
           <div className="map-overlay" onClick={() => setManagingGroupId(null)}>
