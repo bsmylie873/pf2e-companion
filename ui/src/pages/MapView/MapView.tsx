@@ -16,6 +16,8 @@ import type { Session } from '../../types/session'
 import type { SessionPin } from '../../types/pin'
 import type { GameMembership } from '../../types/membership'
 import type { Note } from '../../types/note'
+import type { PinGroup } from '../../types/pin'
+import { listGamePinGroups, createPinGroup, addPinToGroup, removePinFromGroup, disbandPinGroup, updatePinGroup } from '../../api/pinGroups'
 import { GiPositionMarker, GiCastle, GiCrossedSwords, GiDeathSkull, GiTreasureMap, GiCampfire, GiForestCamp, GiMountainCave, GiVillage, GiTempleGate, GiSailboat, GiCrown, GiDragonHead, GiTombstone, GiBridge, GiGoldMine, GiTowerFlag, GiCauldron, GiWoodCabin, GiPortal } from 'react-icons/gi'
 import './MapView.css'
 
@@ -128,7 +130,17 @@ export default function MapView() {
   // Edit pin popover (open/close only — changes save immediately)
   const [editingPinId, setEditingPinId] = useState<string | null>(null)
 
+  // Pin group state
+  const [pinGroups, setPinGroups] = useState<PinGroup[]>([])
+  const [activeGroupId, setActiveGroupId] = useState<string | null>(null)
+  const [managingGroupId, setManagingGroupId] = useState<string | null>(null)
+  const [groupingPrompt, setGroupingPrompt] = useState<{ coords: { x: number; y: number }; nearbyPins: SessionPin[]; nearbyGroups: PinGroup[] } | null>(null)
+  const [pendingGroupPinIds, setPendingGroupPinIds] = useState<string[] | null>(null)
+  const [pendingAddToGroupId, setPendingAddToGroupId] = useState<string | null>(null)
+  const [dragGroupPrompt, setDragGroupPrompt] = useState<{ draggedPinId: string; nearbyPins: SessionPin[]; nearbyGroups: PinGroup[]; originalCoords: { x: number; y: number } } | null>(null)
+
   const mapContainerRef = useRef<HTMLDivElement>(null)
+  const viewportContainerRef = useRef<HTMLDivElement>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
   const transformRef = useRef<ReactZoomPanPinchRef>(null)
   const wasDragRef = useRef(false)
@@ -156,14 +168,16 @@ export default function MapView() {
       listGamePins(gameId),
       listMemberships(gameId),
       listGameNotes(gameId),
+      listGamePinGroups(gameId),
     ])
-      .then(([gameData, sessionsData, pinsData, membershipsData, notesData]) => {
+      .then(([gameData, sessionsData, pinsData, membershipsData, notesData, pinGroupsData]) => {
         if (!cancelled) {
           setGame(gameData)
           setSessions(sessionsData)
           setPins(pinsData)
           setMemberships(membershipsData)
           setNotes(notesData)
+          setPinGroups(pinGroupsData)
         }
       })
       .catch((err: unknown) => {
@@ -216,9 +230,49 @@ export default function MapView() {
     if (!mapContainerRef.current || dragging) return
     if ((e.target as HTMLElement).closest('.map-pin-wrapper')) return
     const coords = clientToMapPct(e.clientX, e.clientY)
+    setActiveGroupId(null)
+
+    const rect = mapContainerRef.current.getBoundingClientRect()
+    const currentScale = displayScale
+    const thresholdPx = 32
+
+    const nearbyPins: SessionPin[] = []
+    const nearbyGroups: PinGroup[] = []
+
+    pins.filter(p => p.group_id === null).forEach(p => {
+      const screenDx = ((p.x - coords.x) / 100) * rect.width * currentScale
+      const screenDy = ((p.y - coords.y) / 100) * rect.height * currentScale
+      if (Math.sqrt(screenDx * screenDx + screenDy * screenDy) <= thresholdPx) {
+        nearbyPins.push(p)
+      }
+    })
+
+    pinGroups.forEach(g => {
+      const screenDx = ((g.x - coords.x) / 100) * rect.width * currentScale
+      const screenDy = ((g.y - coords.y) / 100) * rect.height * currentScale
+      if (Math.sqrt(screenDx * screenDx + screenDy * screenDy) <= thresholdPx) {
+        nearbyGroups.push(g)
+      }
+    })
+
+    if (nearbyPins.length > 0 || nearbyGroups.length > 0) {
+      setGroupingPrompt({ coords, nearbyPins, nearbyGroups })
+      return
+    }
+
     setPendingCoords(coords)
     setPickerTab('sessions')
-  }, [dragging, clientToMapPct])
+  }, [dragging, clientToMapPct, pins, pinGroups, displayScale])
+
+  const reloadPinGroups = useCallback(async () => {
+    if (!gameId) return
+    try {
+      const groups = await listGamePinGroups(gameId)
+      setPinGroups(groups)
+    } catch (err: unknown) {
+      console.error('Failed to reload pin groups', err)
+    }
+  }, [gameId])
 
   const handleSelectSession = useCallback(async (session: Session) => {
     if (!gameId || !pendingCoords) return
@@ -232,10 +286,20 @@ export default function MapView() {
       })
       setPins(prev => [...prev, pin])
       setPendingCoords(null)
+
+      if (pendingGroupPinIds) {
+        await createPinGroup(gameId, [pin.id, ...pendingGroupPinIds])
+        await reloadPinGroups()
+        setPendingGroupPinIds(null)
+      } else if (pendingAddToGroupId) {
+        await addPinToGroup(pendingAddToGroupId, pin.id)
+        await reloadPinGroups()
+        setPendingAddToGroupId(null)
+      }
     } catch (err: unknown) {
       console.error('Failed to create pin', err)
     }
-  }, [gameId, pendingCoords, pendingColour, pendingIcon])
+  }, [gameId, pendingCoords, pendingColour, pendingIcon, pendingGroupPinIds, pendingAddToGroupId, reloadPinGroups])
 
   const handleSelectNote = useCallback(async (note: Note) => {
     if (!gameId || !pendingCoords) return
@@ -250,12 +314,23 @@ export default function MapView() {
       })
       setPins(prev => [...prev, pin])
       setPendingCoords(null)
+
+      if (pendingGroupPinIds) {
+        await createPinGroup(gameId, [pin.id, ...pendingGroupPinIds])
+        await reloadPinGroups()
+        setPendingGroupPinIds(null)
+      } else if (pendingAddToGroupId) {
+        await addPinToGroup(pendingAddToGroupId, pin.id)
+        await reloadPinGroups()
+        setPendingAddToGroupId(null)
+      }
     } catch (err: unknown) {
       console.error('Failed to create pin', err)
     }
-  }, [gameId, pendingCoords, pendingColour, pendingIcon])
+  }, [gameId, pendingCoords, pendingColour, pendingIcon, pendingGroupPinIds, pendingAddToGroupId, reloadPinGroups])
 
   const handlePinPointerDown = useCallback((e: React.PointerEvent, pin: SessionPin) => {
+    if (pin.group_id !== null) return
     e.preventDefault()
     e.stopPropagation()
     ;(e.currentTarget as HTMLElement).setPointerCapture(e.pointerId)
@@ -281,18 +356,57 @@ export default function MapView() {
   const handlePointerUp = useCallback(async (e: React.PointerEvent<HTMLDivElement>) => {
     if (!dragging || !mapContainerRef.current) return
     const pinId = dragging.pinId
+    const draggedPin = pins.find(p => p.id === pinId)
     setDragging(null)
 
     // Only persist position if the pointer actually dragged
     if (!wasDragRef.current) return
 
     const coords = clientToMapPct(e.clientX, e.clientY)
+    const rect = mapContainerRef.current.getBoundingClientRect()
+    const currentScale = displayScale
+    const thresholdPx = 32
+
+    // Check if dropped near other standalone pins or groups
+    const nearbyPins: SessionPin[] = []
+    const nearbyGroups: PinGroup[] = []
+
+    pins.filter(p => p.group_id === null && p.id !== pinId).forEach(p => {
+      const screenDx = ((p.x - coords.x) / 100) * rect.width * currentScale
+      const screenDy = ((p.y - coords.y) / 100) * rect.height * currentScale
+      if (Math.sqrt(screenDx * screenDx + screenDy * screenDy) <= thresholdPx) {
+        nearbyPins.push(p)
+      }
+    })
+
+    pinGroups.forEach(g => {
+      const screenDx = ((g.x - coords.x) / 100) * rect.width * currentScale
+      const screenDy = ((g.y - coords.y) / 100) * rect.height * currentScale
+      if (Math.sqrt(screenDx * screenDx + screenDy * screenDy) <= thresholdPx) {
+        nearbyGroups.push(g)
+      }
+    })
+
+    if (nearbyPins.length > 0 || nearbyGroups.length > 0) {
+      // Revert pin to original position visually while the user decides
+      if (draggedPin) {
+        setPins(prev => prev.map(p => p.id === pinId ? { ...p, x: draggedPin.x, y: draggedPin.y } : p))
+      }
+      setDragGroupPrompt({
+        draggedPinId: pinId,
+        nearbyPins,
+        nearbyGroups,
+        originalCoords: draggedPin ? { x: draggedPin.x, y: draggedPin.y } : coords,
+      })
+      return
+    }
+
     try {
       await updatePin(pinId, { x: coords.x, y: coords.y })
     } catch (err: unknown) {
       console.error('Failed to update pin', err)
     }
-  }, [dragging, clientToMapPct])
+  }, [dragging, clientToMapPct, pins, pinGroups, displayScale])
 
   const handleDeletePin = useCallback(async (pinId: string) => {
     try {
@@ -414,7 +528,7 @@ export default function MapView() {
         )}
 
         {!loading && !error && game?.map_image_url && (
-          <div className="map-viewport-container">
+          <div className="map-viewport-container" ref={viewportContainerRef}>
             <TransformWrapper
               ref={transformRef}
               initialScale={viewState.scale}
@@ -456,7 +570,7 @@ export default function MapView() {
                     draggable={false}
                   />
 
-                  {pins.map(pin => {
+                  {pins.filter(p => p.group_id === null).map(pin => {
                     const session = sessionForPin(pin)
                     const note = noteForPin(pin)
                     const pinColour = (pin.colour as PinColour) ?? 'grey'
@@ -563,9 +677,88 @@ export default function MapView() {
                       </div>
                     )
                   })}
+
+                  {pinGroups.map(group => {
+                    const grpColour = (group.colour as PinColour) ?? 'grey'
+                    const GroupIconComp = PIN_ICON_COMPONENTS[group.icon] ?? PIN_ICON_COMPONENTS['position-marker']
+                    return (
+                      <div
+                        key={group.id}
+                        className="map-pin-wrapper map-pin-wrapper--group"
+                        style={{ left: `${group.x}%`, top: `${group.y}%` }}
+                        data-group-id={group.id}
+                      >
+                        <button
+                          className="map-pin"
+                          style={{ '--pin-colour': COLOUR_MAP[grpColour] ?? COLOUR_MAP.grey } as React.CSSProperties}
+                          title={`Group (${group.pin_count} pins)`}
+                          onClick={e => {
+                            e.stopPropagation()
+                            setActiveGroupId(activeGroupId === group.id ? null : group.id)
+                          }}
+                        >
+                          <span className="map-pin__icon"><GroupIconComp size={10} /></span>
+                        </button>
+                        <span className="map-pin-group-badge">{group.pin_count}</span>
+                      </div>
+                    )
+                  })}
                 </div>
               </TransformComponent>
             </TransformWrapper>
+
+            {/* Group popover — outside TransformWrapper so it's not affected by zoom/pan */}
+            {activeGroupId && (() => {
+              const group = pinGroups.find(g => g.id === activeGroupId)
+              if (!group || !viewportContainerRef.current) return null
+              const vpRect = viewportContainerRef.current.getBoundingClientRect()
+              const markerEl = viewportContainerRef.current.querySelector(`[data-group-id="${group.id}"]`)
+              if (!markerEl) return null
+              const markerRect = markerEl.getBoundingClientRect()
+              const popoverWidth = 180
+              const popoverMaxHeight = 200
+              // Position relative to viewport container
+              let left = markerRect.left - vpRect.left + markerRect.width / 2 - popoverWidth / 2
+              let top = markerRect.top - vpRect.top - popoverMaxHeight - 8
+              let flipBelow = false
+              // Clamp horizontal
+              if (left < 4) left = 4
+              if (left + popoverWidth > vpRect.width - 4) left = vpRect.width - popoverWidth - 4
+              // Flip below if not enough room above
+              if (top < 4) {
+                top = markerRect.top - vpRect.top + markerRect.height + 8
+                flipBelow = true
+              }
+              return (
+                <div
+                  className={`map-pin-group-popover${flipBelow ? ' map-pin-group-popover--below' : ''}`}
+                  style={{ left: `${left}px`, top: `${top}px`, width: `${popoverWidth}px`, maxHeight: `${popoverMaxHeight}px` }}
+                  onClick={e => e.stopPropagation()}
+                >
+                  <div className="map-pin-group-popover-header">
+                    <span>{group.pin_count} pin{group.pin_count !== 1 ? 's' : ''}</span>
+                    <button onClick={() => { setManagingGroupId(group.id); setActiveGroupId(null) }}>Manage</button>
+                  </div>
+                  <ul className="map-pin-group-popover-list">
+                    {group.pins.map(p => {
+                      const s = sessions.find(sess => sess.id === p.session_id)
+                      const n = notes.find(nt => nt.id === p.note_id)
+                      return (
+                        <li key={p.id}>
+                          <button onClick={() => {
+                            if (p.note_id) navigate(`/games/${gameId}/notes/${p.note_id}`)
+                            else if (p.session_id) navigate(`/games/${gameId}/sessions/${p.session_id}/notes`)
+                          }}>
+                            {n ? <span className="map-pin-group-popover-type">Note</span> : null}
+                            {n?.title ?? s?.title ?? p.label ?? '?'}
+                          </button>
+                        </li>
+                      )
+                    })}
+                  </ul>
+                </div>
+              )
+            })()}
 
             {/* Overlay panel — outside TransformWrapper, fixed to viewport container */}
             {!panelOpen && (
@@ -764,6 +957,237 @@ export default function MapView() {
         </div>,
         document.body,
       )}
+
+      {groupingPrompt && createPortal(
+        <div className="map-overlay" onClick={() => setGroupingPrompt(null)}>
+          <div className="map-grouping-prompt" onClick={e => e.stopPropagation()}>
+            <div className="map-picker-header">
+              <span className="map-picker-rune" aria-hidden="true">⬡</span>
+              <h3 className="map-picker-title">Nearby Markers Detected</h3>
+            </div>
+            <p className="map-picker-sub">There are pins or groups nearby. How would you like to place this pin?</p>
+            <ul className="map-picker-list">
+              <li>
+                <button className="map-picker-item" onClick={() => {
+                  setPendingCoords(groupingPrompt.coords)
+                  setPickerTab('sessions')
+                  setGroupingPrompt(null)
+                }}>Place as standalone pin</button>
+              </li>
+              {groupingPrompt.nearbyPins.length > 0 && (
+                <li>
+                  <button className="map-picker-item" onClick={() => {
+                    setPendingCoords(groupingPrompt.coords)
+                    setPickerTab('sessions')
+                    setPendingGroupPinIds(groupingPrompt.nearbyPins.map(p => p.id))
+                    setGroupingPrompt(null)
+                  }}>Create new group with {groupingPrompt.nearbyPins.length} nearby pin(s)</button>
+                </li>
+              )}
+              {groupingPrompt.nearbyGroups.map(g => (
+                <li key={g.id}>
+                  <button className="map-picker-item" onClick={() => {
+                    setPendingCoords(groupingPrompt.coords)
+                    setPickerTab('sessions')
+                    setPendingAddToGroupId(g.id)
+                    setGroupingPrompt(null)
+                  }}>Add to group ({g.pin_count} pins)</button>
+                </li>
+              ))}
+            </ul>
+            <button className="map-picker-cancel" onClick={() => setGroupingPrompt(null)}>Cancel</button>
+          </div>
+        </div>,
+        document.body,
+      )}
+
+      {dragGroupPrompt && createPortal(
+        <div className="map-overlay" onClick={() => setDragGroupPrompt(null)}>
+          <div className="map-grouping-prompt" onClick={e => e.stopPropagation()}>
+            <div className="map-picker-header">
+              <span className="map-picker-rune" aria-hidden="true">⬡</span>
+              <h3 className="map-picker-title">Group Pins</h3>
+            </div>
+            <p className="map-picker-sub">You dropped this pin near other markers. Would you like to group them?</p>
+            <ul className="map-picker-list">
+              {dragGroupPrompt.nearbyPins.length > 0 && (
+                <li>
+                  <button className="map-picker-item" onClick={async () => {
+                    if (!gameId) return
+                    try {
+                      await createPinGroup(gameId, [dragGroupPrompt.draggedPinId, ...dragGroupPrompt.nearbyPins.map(p => p.id)])
+                      await reloadPinGroups()
+                      // Reload pins so group_id is reflected
+                      const updatedPins = await listGamePins(gameId)
+                      setPins(updatedPins)
+                    } catch (err: unknown) {
+                      console.error('Failed to create group', err)
+                    }
+                    setDragGroupPrompt(null)
+                  }}>
+                    <span className="map-picker-name">
+                      Create new group with {dragGroupPrompt.nearbyPins.length} nearby pin{dragGroupPrompt.nearbyPins.length !== 1 ? 's' : ''}
+                    </span>
+                  </button>
+                </li>
+              )}
+              {dragGroupPrompt.nearbyGroups.map(g => (
+                <li key={g.id}>
+                  <button className="map-picker-item" onClick={async () => {
+                    try {
+                      await addPinToGroup(g.id, dragGroupPrompt.draggedPinId)
+                      await reloadPinGroups()
+                      if (gameId) {
+                        const updatedPins = await listGamePins(gameId)
+                        setPins(updatedPins)
+                      }
+                    } catch (err: unknown) {
+                      console.error('Failed to add pin to group', err)
+                    }
+                    setDragGroupPrompt(null)
+                  }}>
+                    <span className="map-picker-name">Add to existing group ({g.pin_count} pins)</span>
+                  </button>
+                </li>
+              ))}
+              <li>
+                <button className="map-picker-item" onClick={async () => {
+                  // Just move the pin to where it was dropped (no grouping)
+                  // We reverted visually, so we need to get the drop coords from the original drag
+                  setDragGroupPrompt(null)
+                }}>
+                  <span className="map-picker-name">Cancel — keep pin in place</span>
+                </button>
+              </li>
+            </ul>
+          </div>
+        </div>,
+        document.body,
+      )}
+
+      {managingGroupId && (() => {
+        const group = pinGroups.find(g => g.id === managingGroupId)
+        if (!group) return null
+        const mgmtColour = (group.colour as PinColour) ?? 'grey'
+        const nearbyStandalonePins = pins.filter(p => {
+          if (p.group_id !== null) return false
+          if (!mapContainerRef.current) return false
+          const rect = mapContainerRef.current.getBoundingClientRect()
+          const scale = displayScale
+          const dx = Math.abs(p.x - group.x) / 100 * rect.width * scale
+          const dy = Math.abs(p.y - group.y) / 100 * rect.height * scale
+          return Math.sqrt(dx * dx + dy * dy) <= 128
+        })
+        return createPortal(
+          <div className="map-overlay" onClick={() => setManagingGroupId(null)}>
+            <div className="map-pin-group-manage" onClick={e => e.stopPropagation()}>
+              <div className="map-picker-header">
+                <span className="map-picker-rune" aria-hidden="true">⬡</span>
+                <h3 className="map-picker-title">Manage Group</h3>
+              </div>
+
+              <span className="map-picker-customise-label">Group colour:</span>
+              <div className="pin-colour-palette">
+                {PIN_COLOURS.map(c => (
+                  <button
+                    key={c}
+                    className={`pin-colour-swatch${mgmtColour === c ? ' pin-colour-swatch--selected' : ''}`}
+                    style={{ '--swatch-colour': COLOUR_MAP[c] } as React.CSSProperties}
+                    onClick={async () => { await updatePinGroup(group.id, { colour: c }); await reloadPinGroups() }}
+                    title={c}
+                  />
+                ))}
+              </div>
+
+              <span className="map-picker-customise-label">Group icon:</span>
+              <div className="pin-colour-palette">
+                {PIN_ICONS.map(i => {
+                  const MgmtIconComp = PIN_ICON_COMPONENTS[i]
+                  return (
+                    <button
+                      key={i}
+                      className={`pin-icon-option${group.icon === i ? ' pin-icon-option--selected' : ''}`}
+                      onClick={async () => { await updatePinGroup(group.id, { icon: i }); await reloadPinGroups() }}
+                      title={PIN_ICON_LABELS[i]}
+                      aria-label={PIN_ICON_LABELS[i]}
+                    >
+                      <MgmtIconComp size={14} />
+                    </button>
+                  )
+                })}
+              </div>
+
+              <span className="map-picker-customise-label">Members ({group.pin_count}):</span>
+              <ul className="map-pin-group-popover-list">
+                {group.pins.map(p => {
+                  const s = sessions.find(sess => sess.id === p.session_id)
+                  const n = notes.find(nt => nt.id === p.note_id)
+                  return (
+                    <li key={p.id} className="map-pin-group-member-row">
+                      <span>{n?.title ?? s?.title ?? p.label ?? '?'}</span>
+                      <button
+                        className="map-pin-group-remove-btn"
+                        onClick={async () => {
+                          await removePinFromGroup(group.id, p.id)
+                          await reloadPinGroups()
+                          setPins(prev => prev.map(pin => pin.id === p.id ? { ...pin, group_id: null } : pin))
+                        }}
+                        title="Remove from group"
+                      >
+                        ✕
+                      </button>
+                    </li>
+                  )
+                })}
+              </ul>
+
+              {nearbyStandalonePins.length > 0 && (
+                <>
+                  <span className="map-picker-customise-label">Add nearby pin:</span>
+                  <ul className="map-picker-list">
+                    {nearbyStandalonePins.map(p => {
+                      const s = sessions.find(sess => sess.id === p.session_id)
+                      const n = notes.find(nt => nt.id === p.note_id)
+                      return (
+                        <li key={p.id}>
+                          <button
+                            className="map-picker-item"
+                            onClick={async () => {
+                              await addPinToGroup(group.id, p.id)
+                              await reloadPinGroups()
+                              setPins(prev => prev.map(pin => pin.id === p.id ? { ...pin, group_id: group.id } : pin))
+                            }}
+                          >
+                            {n?.title ?? s?.title ?? p.label ?? '?'}
+                          </button>
+                        </li>
+                      )
+                    })}
+                  </ul>
+                </>
+              )}
+
+              <button
+                className="map-delete-btn"
+                style={{ marginTop: '0.5rem' }}
+                onClick={async () => {
+                  if (!confirm('Disband this group? All pins will become standalone.')) return
+                  await disbandPinGroup(group.id)
+                  const memberIds = new Set(group.pins.map(p => p.id))
+                  setPins(prev => prev.map(p => memberIds.has(p.id) ? { ...p, group_id: null } : p))
+                  await reloadPinGroups()
+                  setManagingGroupId(null)
+                }}
+              >
+                Disband Group
+              </button>
+
+              <button className="map-picker-cancel" onClick={() => setManagingGroupId(null)}>Close</button>
+            </div>
+          </div>,
+          document.body,
+        )
+      })()}
     </div>
   )
 }

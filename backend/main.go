@@ -41,6 +41,7 @@ func main() {
 	characterRepo := repositories.NewCharacterRepository(db)
 	itemRepo := repositories.NewItemRepository(db)
 	pinRepo := repositories.NewPinRepository(db)
+	pinGroupRepo := repositories.NewPinGroupRepository(db)
 	refreshTokenRepo := repositories.NewRefreshTokenRepository(db)
 
 	// Services
@@ -52,7 +53,8 @@ func main() {
 	noteService := services.NewNoteService(noteRepo, membershipRepo)
 	characterService := services.NewCharacterService(characterRepo, membershipRepo)
 	itemService := services.NewItemService(itemRepo, membershipRepo, characterRepo)
-	pinService := services.NewPinService(pinRepo, sessionRepo, membershipRepo)
+	pinService := services.NewPinService(pinRepo, sessionRepo, membershipRepo, pinGroupRepo)
+	pinGroupService := services.NewPinGroupService(pinGroupRepo, pinRepo, noteRepo, membershipRepo)
 
 	e.Static("/uploads", "./uploads")
 
@@ -72,6 +74,7 @@ func main() {
 	handlers.RegisterCharacterRoutes(protected, characterService)
 	handlers.RegisterItemRoutes(protected, itemService)
 	handlers.RegisterPinRoutes(protected, pinService)
+	handlers.RegisterPinGroupRoutes(protected, pinGroupService)
 	handlers.RegisterMapImageRoutes(protected, gameRepo, membershipRepo)
 
 	port := os.Getenv("PORT")
