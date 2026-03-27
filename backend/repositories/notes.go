@@ -38,7 +38,7 @@ func (r *noteRepository) FindByGameID(gameID, userID uuid.UUID, isGM bool, filte
 	query := r.db.Where("game_id = ?", gameID)
 
 	if !isGM {
-		query = query.Where("visibility = 'shared' OR user_id = ?", userID)
+		query = query.Where("visibility IN ('visible', 'editable') OR user_id = ?", userID)
 	}
 
 	if filters.SessionID != nil {

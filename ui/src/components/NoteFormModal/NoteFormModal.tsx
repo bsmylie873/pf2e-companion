@@ -6,7 +6,7 @@ import './NoteFormModal.css'
 
 interface NoteFormModalProps {
   mode: 'create' | 'edit'
-  initial?: NoteFormData & { visibility?: 'private' | 'shared' }
+  initial?: NoteFormData & { visibility?: 'private' | 'visible' | 'editable' }
   sessions: Session[]
   error: string | null
   saving: boolean
@@ -18,7 +18,7 @@ interface NoteFormModalProps {
 export default function NoteFormModal({ mode, initial, sessions, error, saving, isAuthor = true, onSave, onClose }: NoteFormModalProps) {
   const [title, setTitle] = useState(initial?.title ?? '')
   const [sessionId, setSessionId] = useState<string>(initial?.session_id ?? '')
-  const [visibility, setVisibility] = useState<'private' | 'shared'>(initial?.visibility ?? 'private')
+  const [visibility, setVisibility] = useState<'private' | 'visible' | 'editable'>(initial?.visibility ?? 'private')
 
   useEffect(() => {
     setTitle(initial?.title ?? '')
@@ -101,15 +101,24 @@ export default function NoteFormModal({ mode, initial, sessions, error, saving, 
                 </button>
                 <button
                   type="button"
-                  className={`note-form-vis-btn${visibility === 'shared' ? ' note-form-vis-btn--active' : ''}`}
-                  onClick={() => setVisibility('shared')}
+                  className={`note-form-vis-btn${visibility === 'visible' ? ' note-form-vis-btn--active' : ''}`}
+                  onClick={() => setVisibility('visible')}
                 >
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
-                    <circle cx="12" cy="12" r="10" />
-                    <line x1="2" y1="12" x2="22" y2="12" />
-                    <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z" />
+                    <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
+                    <circle cx="12" cy="12" r="3" />
                   </svg>
-                  Shared
+                  View Only
+                </button>
+                <button
+                  type="button"
+                  className={`note-form-vis-btn${visibility === 'editable' ? ' note-form-vis-btn--active' : ''}`}
+                  onClick={() => setVisibility('editable')}
+                >
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z" />
+                  </svg>
+                  Editable
                 </button>
               </div>
             </div>

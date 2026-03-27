@@ -7,7 +7,7 @@ export interface Note {
   session_id: string | null
   title: string
   content: JSONContent | null
-  visibility: 'private' | 'shared'
+  visibility: 'private' | 'visible' | 'editable'
   version: number
   foundry_data: unknown
   created_at: string
@@ -17,5 +17,5 @@ export interface Note {
 export interface NoteFormData {
   title: string
   session_id?: string | null
-  visibility?: 'private' | 'shared'
+  visibility?: 'private' | 'visible' | 'editable'
 }

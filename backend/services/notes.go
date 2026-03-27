@@ -59,7 +59,7 @@ func (s *noteService) GetNote(id, userID uuid.UUID) (models.Note, error) {
 	if membership.IsGM {
 		return note, nil
 	}
-	if note.Visibility == "shared" {
+	if note.Visibility == "visible" || note.Visibility == "editable" {
 		return note, nil
 	}
 	if note.UserID == userID {
@@ -82,13 +82,16 @@ func (s *noteService) UpdateNote(id, userID uuid.UUID, updates map[string]interf
 	isGM := membership.IsGM
 
 	if !isAuthor && !isGM {
-		// Other players can only edit shared notes but cannot change visibility
-		if note.Visibility != "shared" {
+		// Non-author, non-GM players
+		if note.Visibility == "editable" {
+			// Can edit content, cannot change visibility
+			delete(updates, "visibility")
+		} else {
+			// private or visible — no edit access
 			return models.Note{}, ErrForbidden
 		}
-		delete(updates, "visibility")
 	} else if isGM && !isAuthor {
-		// GM can edit but not change visibility unless also the author
+		// GM can edit content but not change visibility
 		delete(updates, "visibility")
 	}
 

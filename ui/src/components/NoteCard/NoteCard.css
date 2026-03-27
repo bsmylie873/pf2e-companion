@@ -78,6 +78,29 @@
   border-color: rgba(201, 76, 76, 0.3);
 }
 
+.note-card-visibility--visible {
+  color: var(--color-accent);
+  background: rgba(139, 46, 46, 0.08);
+  border: 1px solid rgba(139, 46, 46, 0.25);
+}
+
+[data-theme='dark'] .note-card-visibility--visible {
+  background: rgba(201, 76, 76, 0.1);
+  border-color: rgba(201, 76, 76, 0.3);
+}
+
+.note-card-visibility--editable {
+  color: #4a8c5c;
+  background: rgba(74, 140, 92, 0.08);
+  border: 1px solid rgba(74, 140, 92, 0.3);
+}
+
+[data-theme='dark'] .note-card-visibility--editable {
+  color: #6ab87e;
+  background: rgba(106, 184, 126, 0.1);
+  border-color: rgba(106, 184, 126, 0.3);
+}
+
 .note-card-session {
   font-family: var(--font-heading);
   font-size: 0.55rem;

@@ -4,15 +4,20 @@ import type { Note } from '../../types/note'
 import type { JSONContent } from '@tiptap/react'
 import { getNote, updateNoteContent } from '../../api/notes'
 import SessionNotesEditor from '../../components/SessionNotesEditor/SessionNotesEditor'
+import { useAuth } from '../../context/AuthContext'
+import { listMemberships } from '../../api/memberships'
+import type { GameMembership } from '../../types/membership'
 import './NoteEditor.css'
 
 export default function NoteEditor() {
   const { gameId, noteId } = useParams<{ gameId: string; noteId: string }>()
   const navigate = useNavigate()
 
+  const { user } = useAuth()
   const [note, setNote] = useState<Note | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [memberships, setMemberships] = useState<GameMembership[]>([])
 
   useEffect(() => {
     if (!noteId) return
@@ -30,12 +35,25 @@ export default function NoteEditor() {
     return () => { cancelled = true }
   }, [noteId])
 
+  useEffect(() => {
+    if (!gameId) return
+    let cancelled = false
+    listMemberships(gameId)
+      .then(data => { if (!cancelled) setMemberships(data) })
+      .catch(() => {})
+    return () => { cancelled = true }
+  }, [gameId])
+
   const handleSave = async (content: JSONContent, version: number): Promise<Note> => {
     if (!noteId) throw new Error('No note ID')
     const updated = await updateNoteContent(noteId, { content, version })
     setNote(updated)
     return updated
   }
+
+  const isAuthor = note?.user_id === user?.id
+  const isGM = memberships.some(m => m.user_id === user?.id && m.is_gm)
+  const canEdit = isAuthor || isGM || note?.visibility === 'editable'
 
   return (
     <div className="note-editor-page">
@@ -73,7 +91,7 @@ export default function NoteEditor() {
               </div>
               <div className="nep-meta">
                 <span className={`nep-visibility nep-visibility--${note.visibility}`}>
-                  {note.visibility === 'private' ? '🔒 Private' : '🌐 Shared'}
+                  {note.visibility === 'private' ? '\uD83D\uDD12 Private' : note.visibility === 'visible' ? '\uD83D\uDC41 View Only' : '\u270F\uFE0F Editable'}
                 </span>
               </div>
               <h1 className="nep-title">{note.title}</h1>
@@ -87,7 +105,7 @@ export default function NoteEditor() {
               initialContent={note.content as JSONContent | null}
               version={note.version}
               onSave={handleSave}
-              editable={true}
+              editable={canEdit}
               placeholder="Begin your private chronicle…"
             />
           </>

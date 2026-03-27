@@ -12,7 +12,7 @@ interface NoteCardProps {
 }
 
 export default function NoteCard({ note, sessionTitle, isGM, isAuthor, onEdit, onDelete, onOpen }: NoteCardProps) {
-  const canEdit = isAuthor || isGM || note.visibility === 'shared'
+  const canEdit = isAuthor || isGM || note.visibility === 'editable'
   const canDelete = isAuthor || isGM
 
   const formattedDate = new Intl.DateTimeFormat(undefined, { dateStyle: 'medium' }).format(new Date(note.created_at))
@@ -27,14 +27,17 @@ export default function NoteCard({ note, sessionTitle, isGM, isAuthor, onEdit, o
                 <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
                 <path d="M7 11V7a5 5 0 0 1 10 0v4" />
               </svg>
+            ) : note.visibility === 'visible' ? (
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
+                <circle cx="12" cy="12" r="3" />
+              </svg>
             ) : (
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
-                <circle cx="12" cy="12" r="10" />
-                <line x1="2" y1="12" x2="22" y2="12" />
-                <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z" />
+                <path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z" />
               </svg>
             )}
-            {note.visibility === 'private' ? 'Private' : 'Shared'}
+            {note.visibility === 'private' ? 'Private' : note.visibility === 'visible' ? 'View Only' : 'Editable'}
           </span>
           {sessionTitle && (
             <span className="note-card-session">{sessionTitle}</span>

@@ -746,7 +746,7 @@ export default function MapView() {
                           onClick={() => handleSelectNote(note)}
                         >
                           <span className={`map-picker-vis map-picker-vis--${note.visibility}`}>
-                            {note.visibility === 'private' ? '🔒' : '🌐'}
+                            {note.visibility === 'private' ? '\uD83D\uDD12' : note.visibility === 'visible' ? '\uD83D\uDC41' : '\u270F\uFE0F'}
                           </span>
                           <span className="map-picker-name">{note.title}</span>
                         </button>
