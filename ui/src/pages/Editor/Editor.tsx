@@ -56,7 +56,6 @@ export default function Editor() {
   const [notes, setNotes] = useState<Note[]>([])
   const [memberships, setMemberships] = useState<GameMembership[]>([])
   const [game, setGame] = useState<Game | null>(null)
-  const [viewMode, setViewMode] = useState<'list' | 'map'>('list')
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 

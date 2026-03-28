@@ -19,10 +19,11 @@ type pinService struct {
 	repo           repositories.PinRepository
 	sessionRepo    repositories.SessionRepository
 	membershipRepo repositories.MembershipRepository
+	pinGroupRepo   repositories.PinGroupRepository
 }
 
-func NewPinService(repo repositories.PinRepository, sessionRepo repositories.SessionRepository, membershipRepo repositories.MembershipRepository) PinService {
-	return &pinService{repo: repo, sessionRepo: sessionRepo, membershipRepo: membershipRepo}
+func NewPinService(repo repositories.PinRepository, sessionRepo repositories.SessionRepository, membershipRepo repositories.MembershipRepository, pinGroupRepo repositories.PinGroupRepository) PinService {
+	return &pinService{repo: repo, sessionRepo: sessionRepo, membershipRepo: membershipRepo, pinGroupRepo: pinGroupRepo}
 }
 
 func (s *pinService) CreatePin(sessionID, userID uuid.UUID, pin *models.SessionPin) (models.SessionPin, error) {
@@ -81,6 +82,15 @@ func (s *pinService) UpdatePin(id, userID uuid.UUID, updates map[string]interfac
 	if _, err := s.membershipRepo.FindByUserAndGameID(userID, pin.GameID); err != nil {
 		return models.SessionPin{}, ErrForbidden
 	}
+	// Prevent repositioning pins that belong to a group
+	if pin.GroupID != nil {
+		if _, hasX := updates["x"]; hasX {
+			return models.SessionPin{}, ErrGroupedPinMove
+		}
+		if _, hasY := updates["y"]; hasY {
+			return models.SessionPin{}, ErrGroupedPinMove
+		}
+	}
 	delete(updates, "id")
 	delete(updates, "game_id")
 	delete(updates, "session_id")
@@ -97,5 +107,31 @@ func (s *pinService) DeletePin(id, userID uuid.UUID) error {
 	if _, err := s.membershipRepo.FindByUserAndGameID(userID, pin.GameID); err != nil {
 		return ErrForbidden
 	}
-	return s.repo.Delete(id)
+	if err := s.repo.Delete(id); err != nil {
+		return err
+	}
+	// Auto-dissolve group if this pin was the last/only other member
+	if pin.GroupID != nil {
+		count, err := s.pinGroupRepo.CountMembers(*pin.GroupID)
+		if err != nil {
+			return err
+		}
+		if count <= 1 {
+			if count == 1 {
+				remaining, err := s.repo.FindByGroupID(*pin.GroupID)
+				if err != nil {
+					return err
+				}
+				for _, p := range remaining {
+					if err := s.repo.ClearGroupID(p.ID); err != nil {
+						return err
+					}
+				}
+			}
+			if err := s.pinGroupRepo.Delete(*pin.GroupID); err != nil {
+				return err
+			}
+		}
+	}
+	return nil
 }

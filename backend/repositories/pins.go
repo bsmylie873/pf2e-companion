@@ -12,6 +12,10 @@ type PinRepository interface {
 	FindByID(id uuid.UUID) (models.SessionPin, error)
 	Update(id uuid.UUID, updates map[string]interface{}) (models.SessionPin, error)
 	Delete(id uuid.UUID) error
+	FindByGroupID(groupID uuid.UUID) ([]models.SessionPin, error)
+	ClearGroupID(pinID uuid.UUID) error
+	SetGroupID(pinID uuid.UUID, groupID uuid.UUID) error
+	FindStandaloneByGameID(gameID uuid.UUID) ([]models.SessionPin, error)
 }
 
 type pinRepository struct {
@@ -50,4 +54,24 @@ func (r *pinRepository) Update(id uuid.UUID, updates map[string]interface{}) (mo
 
 func (r *pinRepository) Delete(id uuid.UUID) error {
 	return r.db.Delete(&models.SessionPin{}, "id = ?", id).Error
+}
+
+func (r *pinRepository) FindByGroupID(groupID uuid.UUID) ([]models.SessionPin, error) {
+	var pins []models.SessionPin
+	err := r.db.Where("group_id = ?", groupID).Find(&pins).Error
+	return pins, err
+}
+
+func (r *pinRepository) ClearGroupID(pinID uuid.UUID) error {
+	return r.db.Model(&models.SessionPin{}).Where("id = ?", pinID).Update("group_id", nil).Error
+}
+
+func (r *pinRepository) SetGroupID(pinID uuid.UUID, groupID uuid.UUID) error {
+	return r.db.Model(&models.SessionPin{}).Where("id = ?", pinID).Update("group_id", groupID).Error
+}
+
+func (r *pinRepository) FindStandaloneByGameID(gameID uuid.UUID) ([]models.SessionPin, error) {
+	var pins []models.SessionPin
+	err := r.db.Where("game_id = ? AND group_id IS NULL", gameID).Find(&pins).Error
+	return pins, err
 }

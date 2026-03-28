@@ -65,3 +65,17 @@ type TokenPair struct {
 	AccessToken  string `json:"access_token"`
 	RefreshToken string `json:"refresh_token"`
 }
+
+// PinGroupResponse is the DTO returned for pin group endpoints.
+type PinGroupResponse struct {
+	ID        uuid.UUID    `json:"id"`
+	GameID    uuid.UUID    `json:"game_id"`
+	X         float64      `json:"x"`
+	Y         float64      `json:"y"`
+	Colour    string       `json:"colour"`
+	Icon      string       `json:"icon"`
+	PinCount  int          `json:"pin_count"`
+	Pins      []SessionPin `json:"pins"`
+	CreatedAt time.Time    `json:"created_at"`
+	UpdatedAt time.Time    `json:"updated_at"`
+}

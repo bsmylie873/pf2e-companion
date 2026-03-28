@@ -80,12 +80,27 @@ type SessionPin struct {
 	Y           float64    `gorm:"type:numeric(6,4);not null"                     json:"y"`
 	Colour      string     `gorm:"not null;default:'grey'"                        json:"colour"`
 	Icon        string     `gorm:"not null;default:'position-marker'"             json:"icon"`
+	GroupID     *uuid.UUID `gorm:"type:uuid;column:group_id"                      json:"group_id"`
 	Description *string    `                                                       json:"description"`
 	CreatedAt   time.Time  `gorm:"autoCreateTime"                                 json:"created_at"`
 	UpdatedAt   time.Time  `gorm:"autoUpdateTime"                                 json:"updated_at"`
 }
 
 func (SessionPin) TableName() string { return "session_pins" }
+
+// PinGroup represents a named cluster of session pins on the map.
+type PinGroup struct {
+	ID        uuid.UUID `gorm:"type:uuid;default:gen_random_uuid();primaryKey" json:"id"`
+	GameID    uuid.UUID `gorm:"type:uuid;not null;column:game_id"              json:"game_id"`
+	X         float64   `gorm:"type:numeric(6,4);not null"                     json:"x"`
+	Y         float64   `gorm:"type:numeric(6,4);not null"                     json:"y"`
+	Colour    string    `gorm:"not null;default:'grey'"                        json:"colour"`
+	Icon      string    `gorm:"not null;default:'position-marker'"             json:"icon"`
+	CreatedAt time.Time `gorm:"autoCreateTime"                                 json:"created_at"`
+	UpdatedAt time.Time `gorm:"autoUpdateTime"                                 json:"updated_at"`
+}
+
+func (PinGroup) TableName() string { return "pin_groups" }
 
 // Note represents the notes table.
 type Note struct {

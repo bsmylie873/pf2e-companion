@@ -198,6 +198,9 @@ func (h *PinHandler) UpdatePin(c echo.Context) error {
 
 	pin, err := h.service.UpdatePin(id, authUserID, updates)
 	if err != nil {
+		if errors.Is(err, services.ErrGroupedPinMove) {
+			return ErrorResponse(c, http.StatusUnprocessableEntity, err.Error())
+		}
 		if errors.Is(err, services.ErrForbidden) {
 			return ErrorResponse(c, http.StatusForbidden, "forbidden")
 		}
