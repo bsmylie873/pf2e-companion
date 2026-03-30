@@ -50,6 +50,12 @@ func (h *PinHandler) CreatePin(c echo.Context) error {
 	if err := ValidatePinIcon(pin.Icon); err != nil {
 		return ErrorResponse(c, http.StatusBadRequest, err.Error())
 	}
+	if len(pin.Label) > 100 {
+		return ErrorResponse(c, http.StatusBadRequest, "label must be 100 characters or fewer")
+	}
+	if pin.Description != nil && len(*pin.Description) > 1000 {
+		return ErrorResponse(c, http.StatusBadRequest, "description must be 1000 characters or fewer")
+	}
 
 	resp, err := h.service.CreatePin(sessionID, authUserID, &pin)
 	if err != nil {
@@ -90,6 +96,12 @@ func (h *PinHandler) CreateGamePin(c echo.Context) error {
 	}
 	if err := ValidatePinIcon(pin.Icon); err != nil {
 		return ErrorResponse(c, http.StatusBadRequest, err.Error())
+	}
+	if len(pin.Label) > 100 {
+		return ErrorResponse(c, http.StatusBadRequest, "label must be 100 characters or fewer")
+	}
+	if pin.Description != nil && len(*pin.Description) > 1000 {
+		return ErrorResponse(c, http.StatusBadRequest, "description must be 1000 characters or fewer")
 	}
 	resp, err := h.service.CreateGamePin(gameID, authUserID, &pin)
 	if err != nil {
@@ -193,6 +205,29 @@ func (h *PinHandler) UpdatePin(c echo.Context) error {
 		}
 		if _, err := uuid.Parse(noteIDStr); err != nil {
 			return ErrorResponse(c, http.StatusBadRequest, "invalid note_id UUID")
+		}
+	}
+	if sessionIDVal, ok := updates["session_id"]; ok && sessionIDVal != nil {
+		sessionIDStr, ok := sessionIDVal.(string)
+		if !ok {
+			return ErrorResponse(c, http.StatusBadRequest, "session_id must be a UUID string or null")
+		}
+		if _, err := uuid.Parse(sessionIDStr); err != nil {
+			return ErrorResponse(c, http.StatusBadRequest, "invalid session_id UUID")
+		}
+	}
+	if labelVal, ok := updates["label"]; ok {
+		if label, ok := labelVal.(string); ok {
+			if len(label) > 100 {
+				return ErrorResponse(c, http.StatusBadRequest, "label must be 100 characters or fewer")
+			}
+		}
+	}
+	if descVal, ok := updates["description"]; ok && descVal != nil {
+		if desc, ok := descVal.(string); ok {
+			if len(desc) > 1000 {
+				return ErrorResponse(c, http.StatusBadRequest, "description must be 1000 characters or fewer")
+			}
 		}
 	}
 
