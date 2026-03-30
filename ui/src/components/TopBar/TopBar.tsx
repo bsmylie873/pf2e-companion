@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { useDarkMode } from '../../hooks/useDarkMode'
 import { useAuth } from '../../context/AuthContext'
 import Modal from '../Modal/Modal'
+import Settings from '../../pages/Settings/Settings'
 import './TopBar.css'
 
 function SunIcon() {
@@ -123,7 +124,11 @@ export default function TopBar() {
         </nav>
       </header>
 
-      {settingsOpen && <Modal title="Settings" onClose={() => setSettingsOpen(false)}><p style={{ textAlign: 'center', color: 'var(--color-text-muted)', fontStyle: 'italic' }}>The scribes are still writing this chapter.</p></Modal>}
+      {settingsOpen && (
+        <Modal title="Sanctum" onClose={() => setSettingsOpen(false)}>
+          <Settings />
+        </Modal>
+      )}
     </>
   )
 }

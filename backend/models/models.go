@@ -180,3 +180,15 @@ type RefreshToken struct {
 }
 
 func (RefreshToken) TableName() string { return "refresh_tokens" }
+
+// UserPreference stores per-user default preferences.
+type UserPreference struct {
+	UserID           uuid.UUID  `gorm:"type:uuid;primaryKey" json:"user_id"`
+	DefaultGameID    *uuid.UUID `gorm:"type:uuid;column:default_game_id" json:"default_game_id"`
+	DefaultPinColour *string    `gorm:"column:default_pin_colour" json:"default_pin_colour"`
+	DefaultPinIcon   *string    `gorm:"column:default_pin_icon" json:"default_pin_icon"`
+	CreatedAt        time.Time  `gorm:"autoCreateTime" json:"created_at"`
+	UpdatedAt        time.Time  `gorm:"autoUpdateTime" json:"updated_at"`
+}
+
+func (UserPreference) TableName() string { return "user_preferences" }
