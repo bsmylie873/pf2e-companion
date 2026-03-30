@@ -15,11 +15,12 @@ type MembershipService interface {
 }
 
 type membershipService struct {
-	repo repositories.MembershipRepository
+	repo    repositories.MembershipRepository
+	prefSvc PreferenceService
 }
 
-func NewMembershipService(repo repositories.MembershipRepository) MembershipService {
-	return &membershipService{repo: repo}
+func NewMembershipService(repo repositories.MembershipRepository, prefSvc PreferenceService) MembershipService {
+	return &membershipService{repo: repo, prefSvc: prefSvc}
 }
 
 func (s *membershipService) CreateMembership(membership *models.GameMembership, callerID uuid.UUID) (models.GameMembership, error) {
@@ -72,5 +73,8 @@ func (s *membershipService) DeleteMembership(id, callerID uuid.UUID) error {
 	if _, err := s.repo.FindByUserAndGameID(callerID, m.GameID); err != nil {
 		return ErrForbidden
 	}
-	return s.repo.Delete(id)
+	if err := s.repo.Delete(id); err != nil {
+		return err
+	}
+	return s.prefSvc.ClearDefaultGameForMembership(m.UserID, m.GameID)
 }

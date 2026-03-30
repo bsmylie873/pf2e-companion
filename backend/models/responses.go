@@ -79,3 +79,19 @@ type PinGroupResponse struct {
 	CreatedAt time.Time    `json:"created_at"`
 	UpdatedAt time.Time    `json:"updated_at"`
 }
+
+// UserPreferenceResponse is the DTO returned for preference endpoints.
+type UserPreferenceResponse struct {
+	DefaultGameID    *uuid.UUID `json:"default_game_id"`
+	DefaultPinColour *string    `json:"default_pin_colour"`
+	DefaultPinIcon   *string    `json:"default_pin_icon"`
+}
+
+// FromUserPreference converts a UserPreference model to a UserPreferenceResponse.
+func FromUserPreference(pref UserPreference) UserPreferenceResponse {
+	return UserPreferenceResponse{
+		DefaultGameID:    pref.DefaultGameID,
+		DefaultPinColour: pref.DefaultPinColour,
+		DefaultPinIcon:   pref.DefaultPinIcon,
+	}
+}

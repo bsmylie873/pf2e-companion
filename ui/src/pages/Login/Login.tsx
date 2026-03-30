@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../../context/AuthContext'
+import { getPreferences } from '../../api/preferences'
 import './Login.css'
 
 type Mode = 'login' | 'register'
@@ -18,7 +19,17 @@ export default function Login() {
   const [isSubmitting, setIsSubmitting] = useState(false)
 
   useEffect(() => {
-    if (!isLoading && isAuthenticated) navigate('/games', { replace: true })
+    if (!isLoading && isAuthenticated) {
+      getPreferences()
+        .then(prefs => {
+          if (prefs.default_game_id) {
+            navigate(`/games/${prefs.default_game_id}`, { replace: true })
+          } else {
+            navigate('/games', { replace: true })
+          }
+        })
+        .catch(() => navigate('/games', { replace: true }))
+    }
   }, [isAuthenticated, isLoading, navigate])
 
   if (isLoading) return null
@@ -47,7 +58,16 @@ export default function Login() {
       } else {
         await register(username, email, password)
       }
-      navigate('/games', { replace: true })
+      try {
+        const prefs = await getPreferences()
+        if (prefs.default_game_id) {
+          navigate(`/games/${prefs.default_game_id}`, { replace: true })
+        } else {
+          navigate('/games', { replace: true })
+        }
+      } catch {
+        navigate('/games', { replace: true })
+      }
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : 'Something went wrong.')
     } finally {
