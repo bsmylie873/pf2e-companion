@@ -197,6 +197,14 @@ export default function MapView() {
   const handleMapClick = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
     if (!mapContainerRef.current || dragging) return
     if ((e.target as HTMLElement).closest('.map-pin-wrapper')) return
+
+    // If an edit popover is open, close it without placing a new pin
+    if (editingPinId) {
+      setEditingPinId(null)
+      setEditLinkSearch('')
+      return
+    }
+
     const coords = clientToMapPct(e.clientX, e.clientY)
     setActiveGroupId(null)
 
@@ -226,7 +234,7 @@ export default function MapView() {
 
     setPendingCoords(coords)
 
-  }, [dragging, clientToMapPct, pins, pinGroups])
+  }, [dragging, clientToMapPct, pins, pinGroups, editingPinId])
 
   const reloadPinGroups = useCallback(async () => {
     if (!gameId) return
@@ -652,23 +660,38 @@ export default function MapView() {
                             return <span className="map-pin__icon"><IconComp size={10} /></span>
                           })()}
                         </button>
-                        <span className="map-pin__label">
-                          {note ? (
-                            <>
-                              <span className="map-pin__label-type">Note</span>
-                              {note.title}
-                            </>
-                          ) : session ? (
-                            <>
-                              {session.session_number != null && (
-                                <span className="map-pin__label-num">#{session.session_number}</span>
-                              )}
-                              {session.title}
-                            </>
-                          ) : pin.label ? (
-                            pin.label
-                          ) : null}
-                        </span>
+                        {pinLabel && (
+                          <span
+                            className="map-pin__label"
+                            onClick={e => {
+                              e.stopPropagation()
+                              if (pin.note_id) {
+                                navigate(`/games/${gameId}/notes/${pin.note_id}`)
+                              } else if (pin.session_id) {
+                                navigate(`/games/${gameId}/sessions/${pin.session_id}/notes`)
+                              } else {
+                                setEditingPinId(editingPinId === pin.id ? null : pin.id)
+                                setEditLinkSearch('')
+                              }
+                            }}
+                          >
+                            {note ? (
+                              <>
+                                <span className="map-pin__label-type">Note</span>
+                                {note.title}
+                              </>
+                            ) : session ? (
+                              <>
+                                {session.session_number != null && (
+                                  <span className="map-pin__label-num">#{session.session_number}</span>
+                                )}
+                                {session.title}
+                              </>
+                            ) : (
+                              pin.label
+                            )}
+                          </span>
+                        )}
                         <button
                           className="map-pin__edit"
                           title="Edit pin"

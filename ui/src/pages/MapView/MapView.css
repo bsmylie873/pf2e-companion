@@ -458,6 +458,8 @@
 
 .map-pin-wrapper--hovered .map-pin__label {
   opacity: 1;
+  pointer-events: auto;
+  cursor: pointer;
 }
 
 .map-pin__label-num {
