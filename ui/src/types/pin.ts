@@ -21,6 +21,7 @@ export interface SessionPinFormData {
   label?: string
   colour?: string
   icon?: string
+  description?: string
 }
 
 export interface PinGroup {

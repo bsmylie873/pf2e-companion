@@ -1242,6 +1242,10 @@
   cursor: not-allowed;
 }
 
+.map-marker-submit--full {
+  width: 100%;
+}
+
 /* ── Pin Group Styles ───────────────────────────────────────── */
 
 @keyframes popover-appear {
@@ -1465,4 +1469,148 @@
   display: flex;
   flex-direction: column;
   gap: 0.5rem;
+}
+
+/* ── Marker Description Textarea ────────────────────────────────────── */
+
+.map-marker-textarea {
+  width: 100%;
+  padding: 0.5rem 0.75rem;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: 3px;
+  color: var(--color-text);
+  font-family: var(--font-body);
+  font-size: 0.82rem;
+  line-height: 1.5;
+  outline: none;
+  resize: vertical;
+  min-height: 4.5rem;
+  transition: border-color var(--transition-fast), box-shadow var(--transition-fast);
+  box-sizing: border-box;
+}
+
+.map-marker-textarea::placeholder {
+  color: var(--color-text-muted);
+  opacity: 0.6;
+}
+
+.map-marker-textarea:focus {
+  border-color: var(--color-accent);
+  box-shadow: 0 0 0 2px rgba(139, 46, 46, 0.15);
+}
+
+[data-theme='dark'] .map-marker-textarea:focus {
+  box-shadow: 0 0 0 2px rgba(201, 76, 76, 0.2);
+}
+
+/* ── Pin Link / Unlink Row ───────────────────────────────────────────── */
+
+.map-pin-link-row {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  justify-content: space-between;
+}
+
+.map-pin-link-name {
+  font-family: var(--font-body);
+  font-size: 0.75rem;
+  color: var(--color-text);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  flex: 1;
+  min-width: 0;
+}
+
+.map-pin-unlink-btn {
+  flex-shrink: 0;
+  padding: 0.15rem 0.45rem;
+  background: transparent;
+  border: 1px solid var(--color-border);
+  border-radius: 2px;
+  font-family: var(--font-heading);
+  font-size: 0.45rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--color-text-muted);
+  cursor: pointer;
+  transition: color var(--transition-fast), border-color var(--transition-fast), background var(--transition-fast);
+}
+
+.map-pin-unlink-btn:hover {
+  color: var(--color-accent);
+  border-color: var(--color-accent);
+  background: rgba(139, 46, 46, 0.06);
+}
+
+[data-theme='dark'] .map-pin-unlink-btn:hover {
+  background: rgba(201, 76, 76, 0.08);
+}
+
+.map-pin-link-none {
+  font-family: var(--font-body);
+  font-size: 0.7rem;
+  font-style: italic;
+  color: var(--color-text-muted);
+}
+
+.map-pin-link-select {
+  width: 100%;
+  padding: 0.3rem 0.5rem;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: 3px;
+  color: var(--color-text);
+  font-family: var(--font-body);
+  font-size: 0.7rem;
+  outline: none;
+  cursor: pointer;
+  transition: border-color var(--transition-fast);
+}
+
+.map-pin-link-select:focus {
+  border-color: var(--color-accent);
+}
+
+/* ── Pin Error Banner ────────────────────────────────────────────────── */
+
+@keyframes banner-slide-in {
+  from { opacity: 0; transform: translateX(-50%) translateY(-8px); }
+  to   { opacity: 1; transform: translateX(-50%) translateY(0); }
+}
+
+.map-pin-error-banner {
+  position: absolute;
+  top: 0.6rem;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 22;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.45rem 0.875rem;
+  background: var(--color-surface);
+  border: 1px solid rgba(139, 46, 46, 0.45);
+  border-left: 3px solid var(--color-accent);
+  border-radius: 3px;
+  font-family: var(--font-body);
+  font-size: 0.75rem;
+  color: var(--color-accent);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.2);
+  cursor: pointer;
+  white-space: nowrap;
+  animation: banner-slide-in 200ms ease forwards;
+  max-width: calc(100% - 220px);
+  pointer-events: all;
+}
+
+[data-theme='dark'] .map-pin-error-banner {
+  background: rgba(30, 20, 20, 0.92);
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.45);
+}
+
+.map-pin-error-banner:hover {
+  border-left-color: var(--color-accent-hover);
 }

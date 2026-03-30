@@ -127,9 +127,11 @@ export default function MapView() {
   const [pendingIcon, setPendingIcon] = useState<PinIcon>('position-marker')
 
   // Picker tab state
-  type PickerTab = 'sessions' | 'notes' | 'marker'
+  type PickerTab = 'sessions' | 'notes'
   const [pickerTab, setPickerTab] = useState<PickerTab>('sessions')
   const [pendingLabel, setPendingLabel] = useState('')
+  const [pendingDescription, setPendingDescription] = useState('')
+  const [pinError, setPinError] = useState<string | null>(null)
 
   // Edit pin popover (open/close only — changes save immediately)
   const [editingPinId, setEditingPinId] = useState<string | null>(null)
@@ -277,16 +279,22 @@ export default function MapView() {
 
   const handleSelectSession = useCallback(async (session: Session) => {
     if (!gameId || !pendingCoords) return
+    const label = pendingLabel.trim() || session.title
+    const desc = pendingDescription.trim() || undefined
     try {
       const pin = await createPin({
         session_id: session.id,
         x: pendingCoords.x,
         y: pendingCoords.y,
+        label,
         colour: pendingColour,
         icon: pendingIcon,
+        description: desc,
       })
       setPins(prev => [...prev, pin])
       setPendingCoords(null)
+      setPendingLabel('')
+      setPendingDescription('')
 
       if (pendingGroupPinIds) {
         await createPinGroup(gameId, [...pendingGroupPinIds, pin.id])
@@ -299,22 +307,29 @@ export default function MapView() {
       }
     } catch (err: unknown) {
       console.error('Failed to create pin', err)
+      setPinError(err instanceof Error ? err.message : 'Failed to create pin. Please try again.')
+      setPendingCoords(null)
     }
-  }, [gameId, pendingCoords, pendingColour, pendingIcon, pendingGroupPinIds, pendingAddToGroupId, reloadPinGroups])
+  }, [gameId, pendingCoords, pendingColour, pendingIcon, pendingLabel, pendingDescription, pendingGroupPinIds, pendingAddToGroupId, reloadPinGroups])
 
   const handleSelectNote = useCallback(async (note: Note) => {
     if (!gameId || !pendingCoords) return
+    const label = pendingLabel.trim() || note.title
+    const desc = pendingDescription.trim() || undefined
     try {
       const pin = await createGamePin(gameId, {
         x: pendingCoords.x,
         y: pendingCoords.y,
-        label: note.title,
+        label,
         colour: pendingColour,
         icon: pendingIcon,
         note_id: note.id,
+        description: desc,
       })
       setPins(prev => [...prev, pin])
       setPendingCoords(null)
+      setPendingLabel('')
+      setPendingDescription('')
 
       if (pendingGroupPinIds) {
         await createPinGroup(gameId, [...pendingGroupPinIds, pin.id])
@@ -327,13 +342,14 @@ export default function MapView() {
       }
     } catch (err: unknown) {
       console.error('Failed to create pin', err)
+      setPinError(err instanceof Error ? err.message : 'Failed to create pin. Please try again.')
+      setPendingCoords(null)
     }
-  }, [gameId, pendingCoords, pendingColour, pendingIcon, pendingGroupPinIds, pendingAddToGroupId, reloadPinGroups])
+  }, [gameId, pendingCoords, pendingColour, pendingIcon, pendingLabel, pendingDescription, pendingGroupPinIds, pendingAddToGroupId, reloadPinGroups])
 
-  const handleCreateMarker = useCallback(async (label: string) => {
+  const handleCreateMarker = useCallback(async (label: string, description: string) => {
     if (!gameId || !pendingCoords) return
     const trimmed = label.trim()
-    if (!trimmed) return
     try {
       const pin = await createGamePin(gameId, {
         x: pendingCoords.x,
@@ -341,10 +357,12 @@ export default function MapView() {
         label: trimmed,
         colour: pendingColour,
         icon: pendingIcon,
+        description: description || undefined,
       })
       setPins(prev => [...prev, pin])
       setPendingCoords(null)
       setPendingLabel('')
+      setPendingDescription('')
 
       if (pendingGroupPinIds) {
         await createPinGroup(gameId, [...pendingGroupPinIds, pin.id])
@@ -357,6 +375,7 @@ export default function MapView() {
       }
     } catch (err: unknown) {
       console.error('Failed to create marker', err)
+      setPinError(err instanceof Error ? err.message : 'Failed to place marker')
     }
   }, [gameId, pendingCoords, pendingColour, pendingIcon, pendingGroupPinIds, pendingAddToGroupId, reloadPinGroups])
 
@@ -461,15 +480,21 @@ export default function MapView() {
     }
   }, [])
 
-  const handleEditPinField = useCallback(async (pinId: string, field: { colour?: string; icon?: string }) => {
+  const handleEditPinField = useCallback(async (pinId: string, field: { colour?: string; icon?: string; label?: string; description?: string | null; session_id?: string | null; note_id?: string | null }) => {
     // Optimistically update local state, then persist
     setPins(prev => prev.map(p => p.id === pinId ? { ...p, ...field } : p))
     try {
       await updatePin(pinId, field)
     } catch (err: unknown) {
       console.error('Failed to update pin', err)
+      if (gameId) {
+        try {
+          const freshPins = await listGamePins(gameId)
+          setPins(freshPins)
+        } catch { /* ignore */ }
+      }
     }
-  }, [])
+  }, [gameId])
 
   const handleUploadClick = () => fileInputRef.current?.click()
 
@@ -573,6 +598,16 @@ export default function MapView() {
 
         {!loading && !error && game?.map_image_url && (
           <div className="map-viewport-container" ref={viewportContainerRef}>
+            {pinError && (
+              <div className="map-pin-error-banner" onClick={() => setPinError(null)}>
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" width="14" height="14">
+                  <circle cx="12" cy="12" r="10" />
+                  <line x1="12" y1="8" x2="12" y2="12" />
+                  <line x1="12" y1="16" x2="12.01" y2="16" />
+                </svg>
+                {pinError}
+              </div>
+            )}
             <TransformWrapper
               ref={transformRef}
               initialScale={viewState.scale}
@@ -618,7 +653,7 @@ export default function MapView() {
                     const session = sessionForPin(pin)
                     const note = noteForPin(pin)
                     const pinColour = (pin.colour as PinColour) ?? 'grey'
-                    const pinLabel = note?.title ?? session?.title ?? pin.label ?? '?'
+                    const pinLabel = note?.title ?? session?.title ?? (pin.label || '')
                     return (
                       <div
                         key={pin.id}
@@ -638,6 +673,8 @@ export default function MapView() {
                                 navigate(`/games/${gameId}/notes/${pin.note_id}`)
                               } else if (pin.session_id) {
                                 navigate(`/games/${gameId}/sessions/${pin.session_id}/notes`)
+                              } else {
+                                setEditingPinId(editingPinId === pin.id ? null : pin.id)
                               }
                             }
                           }}
@@ -661,9 +698,9 @@ export default function MapView() {
                               )}
                               {session.title}
                             </>
-                          ) : (
-                            pin.label || '?'
-                          )}
+                          ) : pin.label ? (
+                            pin.label
+                          ) : null}
                         </span>
                         <button
                           className="map-pin__edit"
@@ -687,6 +724,30 @@ export default function MapView() {
                         </button>
                         {editingPinId === pin.id && (
                           <div className="map-pin-edit-popover" onClick={e => e.stopPropagation()}>
+                            <span className="map-pin-edit-popover-label">Label</span>
+                            <input
+                              className="map-marker-input"
+                              type="text"
+                              placeholder="Pin label…"
+                              maxLength={100}
+                              defaultValue={pin.label ?? ''}
+                              onBlur={e => {
+                                const val = e.target.value
+                                if (val !== (pin.label ?? '')) handleEditPinField(pin.id, { label: val })
+                              }}
+                            />
+                            <span className="map-pin-edit-popover-label">Description</span>
+                            <textarea
+                              className="map-marker-textarea"
+                              placeholder="Optional description…"
+                              rows={2}
+                              maxLength={1000}
+                              defaultValue={pin.description ?? ''}
+                              onBlur={e => {
+                                const val = e.target.value
+                                if (val !== (pin.description ?? '')) handleEditPinField(pin.id, { description: val || null })
+                              }}
+                            />
                             <span className="map-pin-edit-popover-label">Colour</span>
                             <div className="map-pin-edit-popover-colours">
                               {PIN_COLOURS.map(c => (
@@ -716,6 +777,39 @@ export default function MapView() {
                                 )
                               })}
                             </div>
+                            <span className="map-pin-edit-popover-label">Link</span>
+                            {pin.session_id ? (
+                              <div className="map-pin-link-row">
+                                <span className="map-pin-link-name">{sessionForPin(pin)?.title ?? pin.session_id}</span>
+                                <button className="map-pin-unlink-btn" onClick={() => handleEditPinField(pin.id, { session_id: null })} title="Unlink session">Unlink</button>
+                              </div>
+                            ) : pin.note_id ? (
+                              <div className="map-pin-link-row">
+                                <span className="map-pin-link-name">{noteForPin(pin)?.title ?? pin.note_id}</span>
+                                <button className="map-pin-unlink-btn" onClick={() => handleEditPinField(pin.id, { note_id: null })} title="Unlink note">Unlink</button>
+                              </div>
+                            ) : (
+                              <div className="map-pin-link-row">
+                                <span className="map-pin-link-none">No link (standalone)</span>
+                                <select
+                                  className="map-pin-link-select"
+                                  defaultValue=""
+                                  onChange={e => {
+                                    const [type, id] = e.target.value.split(':')
+                                    if (type === 'session') handleEditPinField(pin.id, { session_id: id })
+                                    else if (type === 'note') handleEditPinField(pin.id, { note_id: id })
+                                  }}
+                                >
+                                  <option value="" disabled>Link to…</option>
+                                  <optgroup label="Sessions">
+                                    {sessions.map(s => <option key={s.id} value={`session:${s.id}`}>{s.title}</option>)}
+                                  </optgroup>
+                                  <optgroup label="Notes">
+                                    {notes.map(n => <option key={n.id} value={`note:${n.id}`}>{n.title}</option>)}
+                                  </optgroup>
+                                </select>
+                              </div>
+                            )}
                           </div>
                         )}
                       </div>
@@ -890,7 +984,7 @@ export default function MapView() {
 
       {/* Pin Picker Modal — portalled to body to avoid transform containing block issues */}
       {pendingCoords && createPortal(
-        <div className="map-overlay" onClick={() => { setPendingCoords(null); setPendingLabel('') }}>
+        <div className="map-overlay" onClick={() => { setPendingCoords(null); setPendingLabel(''); setPendingDescription('') }}>
           <div className="map-session-picker" onClick={e => e.stopPropagation()}>
             <div className="map-picker-header">
               <span className="map-picker-rune" aria-hidden="true">⬡</span>
@@ -928,6 +1022,27 @@ export default function MapView() {
               </div>
             </div>
 
+            <div className="map-picker-customise">
+              <span className="map-picker-customise-label">Label (optional):</span>
+              <input
+                className="map-marker-input"
+                type="text"
+                placeholder="Pin label…"
+                value={pendingLabel}
+                onChange={e => setPendingLabel(e.target.value)}
+                maxLength={100}
+              />
+              <span className="map-picker-customise-label">Description (optional):</span>
+              <textarea
+                className="map-marker-textarea"
+                placeholder="Description…"
+                rows={2}
+                value={pendingDescription}
+                onChange={e => setPendingDescription(e.target.value)}
+                maxLength={1000}
+              />
+            </div>
+
             {/* Picker tabs */}
             <div className="map-picker-tabs">
               <button
@@ -941,12 +1056,6 @@ export default function MapView() {
                 onClick={() => setPickerTab('notes')}
               >
                 Notes
-              </button>
-              <button
-                className={`map-picker-tab${pickerTab === 'marker' ? ' map-picker-tab--active' : ''}`}
-                onClick={() => setPickerTab('marker')}
-              >
-                Marker
               </button>
             </div>
 
@@ -1000,30 +1109,14 @@ export default function MapView() {
               </>
             )}
 
-            {pickerTab === 'marker' && (
-              <>
-                <p className="map-picker-sub">Place a standalone marker with a label:</p>
-                <form className="map-marker-form" onSubmit={e => { e.preventDefault(); handleCreateMarker(pendingLabel) }}>
-                  <input
-                    className="map-marker-input"
-                    type="text"
-                    placeholder="Marker label…"
-                    value={pendingLabel}
-                    onChange={e => setPendingLabel(e.target.value)}
-                    autoFocus
-                  />
-                  <button
-                    className="map-marker-submit"
-                    type="submit"
-                    disabled={!pendingLabel.trim()}
-                  >
-                    Place Marker
-                  </button>
-                </form>
-              </>
-            )}
+            <button
+              className="map-marker-submit map-marker-submit--full"
+              onClick={() => handleCreateMarker(pendingLabel, pendingDescription)}
+            >
+              Place as Standalone Marker
+            </button>
 
-            <button className="map-picker-cancel" onClick={() => { setPendingCoords(null); setPendingLabel('') }}>
+            <button className="map-picker-cancel" onClick={() => { setPendingCoords(null); setPendingLabel(''); setPendingDescription('') }}>
               Cancel
             </button>
           </div>
