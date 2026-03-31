@@ -98,13 +98,89 @@ export default function MapView() {
   const transformRef = useRef<ReactZoomPanPinchRef>(null)
   const wasDragRef = useRef(false)
   const sidebarStateRef = useRef<Record<string, GameSidebarState>>({})
+  const isFirstOpenRef = useRef(!window.localStorage.getItem(`pf2e-map-view-${gameId}`))
+  const imageLoadedRef = useRef(false)
+
+  /** Compute custom pan bounds so that any edge pixel can be centred in the viewport. */
+  const computeBounds = useCallback((scale: number) => {
+    const wrapper = transformRef.current?.instance?.wrapperComponent
+    const content = mapContainerRef.current
+    if (!wrapper || !content || content.offsetHeight === 0) return null
+
+    const vpW = wrapper.offsetWidth
+    const vpH = wrapper.offsetHeight
+    const cW = content.offsetWidth
+    const cH = content.offsetHeight
+
+    return {
+      minPosX: vpW / 2 - cW * scale,
+      maxPosX: vpW / 2,
+      minPosY: vpH / 2 - cH * scale,
+      maxPosY: vpH / 2,
+    }
+  }, [])
+
+  /** Clamp a pan position to the custom bounds. */
+  const clampPosition = useCallback((positionX: number, positionY: number, scale: number) => {
+    const bounds = computeBounds(scale)
+    if (!bounds) return { positionX, positionY }
+    return {
+      positionX: Math.min(bounds.maxPosX, Math.max(bounds.minPosX, positionX)),
+      positionY: Math.min(bounds.maxPosY, Math.max(bounds.minPosY, positionY)),
+    }
+  }, [computeBounds])
+
+  /** Enforce custom pan bounds on every transform change (pan, zoom). */
+  const handleTransformed = useCallback(
+    (ref: ReactZoomPanPinchRef, state: { scale: number; positionX: number; positionY: number }) => {
+      const { scale, positionX, positionY } = state
+      const clamped = clampPosition(positionX, positionY, scale)
+      if (
+        Math.abs(clamped.positionX - positionX) > 0.5 ||
+        Math.abs(clamped.positionY - positionY) > 0.5
+      ) {
+        ref.setTransform(clamped.positionX, clamped.positionY, scale, 0)
+      }
+    },
+    [clampPosition],
+  )
+
+  /** After the map image loads, centre (first open) or clamp (returning user). */
+  const handleImageLoad = useCallback(() => {
+    imageLoadedRef.current = true
+    const ref = transformRef.current
+    if (!ref) return
+
+    if (isFirstOpenRef.current) {
+      ref.centerView(1, 0)
+      isFirstOpenRef.current = false
+      const { scale, positionX, positionY } = ref.state
+      setViewState({ scale, positionX, positionY })
+    } else {
+      const { scale, positionX, positionY } = ref.state
+      const clamped = clampPosition(positionX, positionY, scale)
+      if (
+        Math.abs(clamped.positionX - positionX) > 0.5 ||
+        Math.abs(clamped.positionY - positionY) > 0.5
+      ) {
+        ref.setTransform(clamped.positionX, clamped.positionY, scale, 0)
+        setViewState({ scale, positionX: clamped.positionX, positionY: clamped.positionY })
+      }
+    }
+  }, [clampPosition, setViewState])
 
   /** Persist transform to localStorage — called only when an interaction ends. */
   const handleTransformEnd = useCallback((ref: ReactZoomPanPinchRef) => {
     const { scale, positionX, positionY } = ref.state
     setDisplayScale(scale)
-    setViewState(prev => ({ ...prev, scale, positionX, positionY }))
-  }, [setViewState])
+    const clamped = clampPosition(positionX, positionY, scale)
+    setViewState(prev => ({
+      ...prev,
+      scale,
+      positionX: clamped.positionX,
+      positionY: clamped.positionY,
+    }))
+  }, [setViewState, clampPosition])
 
   const isGM = memberships.some(m => m.user_id === user?.id && m.is_gm)
   const pinnedSessionIds = new Set(pins.map(p => p.session_id))
@@ -194,6 +270,28 @@ export default function MapView() {
       })
       .catch(() => { /* silently ignore */ })
   }, [])
+
+  /** Re-clamp position when the viewport is resized. */
+  useEffect(() => {
+    const container = viewportContainerRef.current
+    if (!container) return
+
+    const observer = new ResizeObserver(() => {
+      if (!imageLoadedRef.current || !transformRef.current) return
+      const ref = transformRef.current
+      const { scale, positionX, positionY } = ref.state
+      const clamped = clampPosition(positionX, positionY, scale)
+      if (
+        Math.abs(clamped.positionX - positionX) > 0.5 ||
+        Math.abs(clamped.positionY - positionY) > 0.5
+      ) {
+        ref.setTransform(clamped.positionX, clamped.positionY, scale, 0)
+      }
+    })
+
+    observer.observe(container)
+    return () => observer.disconnect()
+  }, [clampPosition])
 
   /** Convert a client-space point to percentage coords on the map. */
   const clientToMapPct = useCallback((clientX: number, clientY: number): { x: number; y: number } => {
@@ -659,10 +757,12 @@ export default function MapView() {
               initialScale={viewState.scale}
               initialPositionX={viewState.positionX}
               initialPositionY={viewState.positionY}
-              minScale={1}
+              minScale={0.25}
               maxScale={5}
-              limitToBounds={true}
+              limitToBounds={false}
+              disablePadding={true}
               centerOnInit={false}
+              alignmentAnimation={{ disabled: true }}
               panning={{
                 allowLeftClickPan: false,
                 allowMiddleClickPan: true,
@@ -673,6 +773,7 @@ export default function MapView() {
                 step: 0.25,
               }}
               doubleClick={{ disabled: true }}
+              onTransformed={handleTransformed}
               onPanningStop={handleTransformEnd}
               onZoomStop={handleTransformEnd}
               onZoom={(ref) => setDisplayScale(ref.state.scale)}
@@ -693,6 +794,7 @@ export default function MapView() {
                     src={`${BASE_URL}${game.map_image_url}`}
                     alt="Campaign map"
                     draggable={false}
+                    onLoad={handleImageLoad}
                   />
 
                   {pins.filter(p => p.group_id === null).map(pin => {
