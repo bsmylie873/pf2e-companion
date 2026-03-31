@@ -13,6 +13,7 @@ node_modules/
 *.log
 
 # Go
+backend/bin/
 backend/tmp/
 
 # UI
