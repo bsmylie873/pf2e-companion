@@ -25,6 +25,10 @@ var validPinIcons = map[string]bool{
 	"wood-cabin": true, "portal": true,
 }
 
+var validMapEditorModes = map[string]bool{
+	"modal": true, "navigate": true,
+}
+
 type PreferenceService interface {
 	GetPreferences(userID uuid.UUID) (models.UserPreferenceResponse, error)
 	UpdatePreferences(userID uuid.UUID, updates map[string]interface{}) (models.UserPreferenceResponse, error)
@@ -119,6 +123,14 @@ func (s *preferenceService) UpdatePreferences(userID uuid.UUID, updates map[stri
 			}
 			pref.SidebarState = datatypes.JSON(raw)
 		}
+	}
+
+	if v, ok := updates["map_editor_mode"]; ok {
+		mode, ok2 := v.(string)
+		if !ok2 || !validMapEditorModes[mode] {
+			return models.UserPreferenceResponse{}, fmt.Errorf("%w: invalid map_editor_mode, must be 'modal' or 'navigate'", ErrValidation)
+		}
+		pref.MapEditorMode = mode
 	}
 
 	if err := s.repo.Upsert(&pref); err != nil {

@@ -27,6 +27,14 @@
   /* Accent glow for dark mode */
   --glow-accent: 0 0 20px rgba(139, 46, 46, 0.3);
 
+  /* Overlays — semi-transparent tints for hover states, panels, inputs */
+  --overlay-hover:      rgba(44, 36, 24, 0.06);
+  --overlay-hover-menu: rgba(44, 36, 24, 0.08);
+  --overlay-input:      rgba(44, 36, 24, 0.06);
+  --overlay-panel:      rgba(240, 234, 222, 0.98);
+  --shadow-dropdown:    0 4px 16px rgba(44, 36, 24, 0.18);
+  --shadow-context:     0 6px 24px rgba(44, 36, 24, 0.22);
+
   /* Transitions */
   --transition-fast: 150ms ease;
   --transition-base: 250ms ease;
@@ -42,6 +50,13 @@
   --color-accent:       #c94c4c;
   --color-accent-hover: #e05555;
   --color-border:       #4a3f32;
+
+  --overlay-hover:      rgba(255, 255, 255, 0.04);
+  --overlay-hover-menu: rgba(255, 255, 255, 0.06);
+  --overlay-input:      rgba(255, 255, 255, 0.06);
+  --overlay-panel:      rgba(12, 8, 4, 0.93);
+  --shadow-dropdown:    0 4px 16px rgba(0, 0, 0, 0.5);
+  --shadow-context:     0 6px 24px rgba(0, 0, 0, 0.6);
 
   --shadow-sm:  0 1px 3px rgba(0, 0, 0, 0.40), 0 1px 2px rgba(0, 0, 0, 0.30);
   --shadow-md:  0 4px 12px rgba(0, 0, 0, 0.50), 0 2px 6px rgba(0, 0, 0, 0.35);

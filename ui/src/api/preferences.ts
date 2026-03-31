@@ -11,6 +11,7 @@ export interface UserPreferences {
   default_pin_colour: string | null
   default_pin_icon: string | null
   sidebar_state: Record<string, GameSidebarState> | null
+  map_editor_mode: 'modal' | 'navigate'
 }
 
 export async function getPreferences(): Promise<UserPreferences> {
