@@ -4,9 +4,9 @@ import { useParams, useNavigate } from 'react-router-dom'
 import { TransformWrapper, TransformComponent } from 'react-zoom-pan-pinch'
 import type { ReactZoomPanPinchRef } from 'react-zoom-pan-pinch'
 import { apiFetch, BASE_URL } from '../../api/client'
-import { listGameSessions } from '../../api/sessions'
+import { listGameSessions, updateSession, createSession } from '../../api/sessions'
 import { listGamePins, createPin, updatePin, deletePin, createGamePin } from '../../api/pins'
-import { listGameNotes } from '../../api/notes'
+import { listGameNotes, updateNote, createNote } from '../../api/notes'
 import { uploadMapImage, deleteMapImage } from '../../api/mapImage'
 import { listMemberships } from '../../api/memberships'
 import { useAuth } from '../../context/AuthContext'
@@ -20,7 +20,9 @@ import type { PinGroup } from '../../types/pin'
 import { listGamePinGroups, createPinGroup, addPinToGroup, removePinFromGroup, disbandPinGroup, updatePinGroup } from '../../api/pinGroups'
 import { PIN_COLOURS, PIN_ICONS, COLOUR_MAP, PIN_ICON_COMPONENTS, PIN_ICON_LABELS } from '../../constants/pins'
 import type { PinColour, PinIcon } from '../../constants/pins'
-import { getPreferences } from '../../api/preferences'
+import { getPreferences, updatePreferences } from '../../api/preferences'
+import type { GameSidebarState } from '../../api/preferences'
+import FolderSidebar from '../../components/FolderSidebar/FolderSidebar'
 import './MapView.css'
 
 /** Proximity threshold in map-percentage units (0–100). ~16px on a 1000px map. */
@@ -88,12 +90,14 @@ export default function MapView() {
   const [pendingAddToGroupId, setPendingAddToGroupId] = useState<string | null>(null)
   const [dragGroupPrompt, setDragGroupPrompt] = useState<{ draggedPinId: string; nearbyPins: SessionPin[]; nearbyGroups: PinGroup[]; originalCoords: { x: number; y: number } } | null>(null)
   const [dropTargetIds, setDropTargetIds] = useState<Set<string>>(new Set())
+  const [sidebarOpen, setSidebarOpen] = useState(false)
 
   const mapContainerRef = useRef<HTMLDivElement>(null)
   const viewportContainerRef = useRef<HTMLDivElement>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
   const transformRef = useRef<ReactZoomPanPinchRef>(null)
   const wasDragRef = useRef(false)
+  const sidebarStateRef = useRef<Record<string, GameSidebarState>>({})
   const isFirstOpenRef = useRef(!window.localStorage.getItem(`pf2e-map-view-${gameId}`))
   const imageLoadedRef = useRef(false)
 
@@ -214,6 +218,15 @@ export default function MapView() {
       })
 
     return () => { cancelled = true }
+  }, [gameId])
+
+  useEffect(() => {
+    if (!gameId) return
+    getPreferences().then(prefs => {
+      sidebarStateRef.current = prefs.sidebar_state ?? {}
+      const gameState = sidebarStateRef.current[gameId]
+      if (gameState?.panelOpen) setSidebarOpen(true)
+    }).catch(() => {})
   }, [gameId])
 
   useEffect(() => {
@@ -594,6 +607,64 @@ export default function MapView() {
       setGame(prev => prev ? { ...prev, map_image_url: null } : prev)
     } catch (err: unknown) {
       console.error('Failed to delete map', err)
+    }
+  }, [gameId])
+
+  const handleSidebarToggle = useCallback(() => {
+    const newOpen = !sidebarOpen
+    setSidebarOpen(newOpen)
+    const current = sidebarStateRef.current
+    const gameState: GameSidebarState = { ...(current[gameId!] ?? { panelOpen: false }), panelOpen: newOpen }
+    const merged = { ...current, [gameId!]: gameState }
+    sidebarStateRef.current = merged
+    updatePreferences({ sidebar_state: merged }).catch(() => {})
+  }, [gameId, sidebarOpen])
+
+  const handleSessionUpdate = useCallback(async (sessionId: string, data: Record<string, unknown>) => {
+    const updated = await updateSession(sessionId, data)
+    setSessions(prev => prev.map(s => s.id === sessionId ? updated : s))
+  }, [])
+
+  const handleNoteUpdate = useCallback(async (noteId: string, data: Record<string, unknown>) => {
+    const updated = await updateNote(noteId, data)
+    setNotes(prev => prev.map(n => n.id === noteId ? updated : n))
+  }, [])
+
+  const handleCreateSession = useCallback(async (folderId: string | null) => {
+    if (!gameId) return
+    try {
+      const title = `Session ${sessions.length + 1}`
+      const created = await createSession(gameId, {
+        title,
+        session_number: sessions.length + 1,
+        scheduled_at: null,
+        runtime_start: null,
+        runtime_end: null,
+      })
+      // Assign to folder if specified
+      if (folderId) {
+        const updated = await updateSession(created.id, { folder_id: folderId })
+        setSessions(prev => [...prev, updated])
+      } else {
+        setSessions(prev => [...prev, created])
+      }
+    } catch (err) {
+      console.error('Failed to create session from sidebar', err)
+    }
+  }, [gameId, sessions.length])
+
+  const handleCreateNote = useCallback(async (folderId: string | null) => {
+    if (!gameId) return
+    try {
+      const created = await createNote(gameId, { title: 'Untitled Note' })
+      if (folderId) {
+        const updated = await updateNote(created.id, { folder_id: folderId })
+        setNotes(prev => [...prev, updated])
+      } else {
+        setNotes(prev => [...prev, created])
+      }
+    } catch (err) {
+      console.error('Failed to create note from sidebar', err)
     }
   }, [gameId])
 
@@ -1087,6 +1158,32 @@ export default function MapView() {
                   <p className="map-all-pinned">✦ All sessions are pinned on the map.</p>
                 )}
               </div>
+            )}
+
+            <button
+              className="map-sidebar-toggle-btn"
+              onClick={handleSidebarToggle}
+              title={sidebarOpen ? 'Hide folders' : 'Show folders'}
+            >
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round">
+                <path d="M3 7h18M3 12h12M3 17h9" />
+              </svg>
+            </button>
+
+            {sidebarOpen && (
+              <FolderSidebar
+                gameId={gameId!}
+                isGM={isGM}
+                userId={user?.id ?? ''}
+                sessions={sessions}
+                notes={notes}
+                onSessionClick={(id) => navigate(`/games/${gameId}/sessions/${id}/notes`)}
+                onNoteClick={(id) => navigate(`/games/${gameId}/notes/${id}`)}
+                onSessionUpdate={handleSessionUpdate}
+                onNoteUpdate={handleNoteUpdate}
+                onCreateSession={handleCreateSession}
+                onCreateNote={handleCreateNote}
+              />
             )}
           </div>
         )}

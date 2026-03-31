@@ -10,3 +10,9 @@ var ErrGroupedPinMove = errors.New("pin belongs to a group; remove it from the g
 
 // ErrValidation is returned when input fails business-rule validation.
 var ErrValidation = errors.New("validation error")
+
+// ErrConflict is returned when a unique constraint would be violated.
+var ErrConflict = errors.New("conflict")
+
+// ErrSessionFoldersReadOnly is returned when a player tries to modify session folders.
+var ErrSessionFoldersReadOnly = errors.New("session_folders_read_only")

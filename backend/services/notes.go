@@ -1,6 +1,8 @@
 package services
 
 import (
+	"fmt"
+
 	"github.com/google/uuid"
 	"pf2e-companion/backend/models"
 	"pf2e-companion/backend/repositories"
@@ -17,10 +19,11 @@ type NoteService interface {
 type noteService struct {
 	repo           repositories.NoteRepository
 	membershipRepo repositories.MembershipRepository
+	folderRepo     repositories.FolderRepository
 }
 
-func NewNoteService(repo repositories.NoteRepository, membershipRepo repositories.MembershipRepository) NoteService {
-	return &noteService{repo: repo, membershipRepo: membershipRepo}
+func NewNoteService(repo repositories.NoteRepository, membershipRepo repositories.MembershipRepository, folderRepo repositories.FolderRepository) NoteService {
+	return &noteService{repo: repo, membershipRepo: membershipRepo, folderRepo: folderRepo}
 }
 
 func (s *noteService) CreateNote(gameID, userID uuid.UUID, note *models.Note) (models.Note, error) {
@@ -114,6 +117,34 @@ func (s *noteService) UpdateNote(id, userID uuid.UUID, updates map[string]interf
 	delete(updates, "updated_at")
 	delete(updates, "game_id")
 	delete(updates, "user_id")
+
+	// Folder-visibility validation
+	if newVis, ok := updates["visibility"]; ok {
+		visStr, _ := newVis.(string)
+		if visStr == "editable" || visStr == "gm-only" {
+			if note.FolderID != nil {
+				folder, ferr := s.folderRepo.FindByID(*note.FolderID)
+				if ferr == nil && folder.Visibility == "private" {
+					return models.Note{}, fmt.Errorf("%w: cannot change visibility while note is in a private folder", ErrValidation)
+				}
+			}
+		}
+	}
+	if newFolderID, ok := updates["folder_id"]; ok && newFolderID != nil {
+		var fid uuid.UUID
+		switch v := newFolderID.(type) {
+		case string:
+			fid, _ = uuid.Parse(v)
+		case uuid.UUID:
+			fid = v
+		}
+		if fid != uuid.Nil {
+			folder, ferr := s.folderRepo.FindByID(fid)
+			if ferr == nil && folder.Visibility == "private" && note.Visibility != "private" {
+				return models.Note{}, fmt.Errorf("%w: only private notes can be placed in a private folder", ErrValidation)
+			}
+		}
+	}
 
 	return s.repo.Update(id, updates, expectedVersion)
 }

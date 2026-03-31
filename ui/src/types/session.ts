@@ -8,6 +8,7 @@ export interface Session {
   scheduled_at: string | null
   runtime_start: string | null
   runtime_end: string | null
+  folder_id: string | null
   notes: JSONContent | null
   version: number
   foundry_data: unknown
