@@ -60,6 +60,7 @@ type Session struct {
 	ScheduledAt   *time.Time     `gorm:"column:scheduled_at"                            json:"scheduled_at"`
 	RuntimeStart  *time.Time     `gorm:"column:runtime_start"                           json:"runtime_start"`
 	RuntimeEnd    *time.Time     `gorm:"column:runtime_end"                             json:"runtime_end"`
+	FolderID      *uuid.UUID     `gorm:"type:uuid;column:folder_id"                    json:"folder_id"`
 	Notes         datatypes.JSON `gorm:"column:notes;type:jsonb"                        json:"notes"`
 	Version       int            `gorm:"not null;default:1"                             json:"version"`
 	FoundryData   datatypes.JSON `gorm:"column:foundry_data;type:jsonb"                 json:"foundry_data"`
@@ -102,12 +103,28 @@ type PinGroup struct {
 
 func (PinGroup) TableName() string { return "pin_groups" }
 
+// Folder represents the folders table.
+type Folder struct {
+	ID         uuid.UUID  `gorm:"type:uuid;default:gen_random_uuid();primaryKey" json:"id"`
+	GameID     uuid.UUID  `gorm:"type:uuid;not null;column:game_id"              json:"game_id"`
+	UserID     *uuid.UUID `gorm:"type:uuid;column:user_id"                       json:"user_id"`
+	Name       string     `gorm:"not null"                                       json:"name"`
+	FolderType string     `gorm:"column:folder_type;not null"                    json:"folder_type"`
+	Visibility string     `gorm:"not null;default:'game-wide'"                   json:"visibility"`
+	Position   int        `gorm:"not null;default:0"                             json:"position"`
+	CreatedAt  time.Time  `gorm:"autoCreateTime"                                 json:"created_at"`
+	UpdatedAt  time.Time  `gorm:"autoUpdateTime"                                 json:"updated_at"`
+}
+
+func (Folder) TableName() string { return "folders" }
+
 // Note represents the notes table.
 type Note struct {
 	ID          uuid.UUID      `gorm:"type:uuid;default:gen_random_uuid();primaryKey" json:"id"`
 	GameID      uuid.UUID      `gorm:"type:uuid;not null;column:game_id"              json:"game_id"`
 	UserID      uuid.UUID      `gorm:"type:uuid;not null;column:user_id"              json:"user_id"`
 	SessionID   *uuid.UUID     `gorm:"type:uuid;column:session_id"                    json:"session_id"`
+	FolderID    *uuid.UUID     `gorm:"type:uuid;column:folder_id"                     json:"folder_id"`
 	Title       string         `gorm:"not null"                                       json:"title"`
 	Content     datatypes.JSON `gorm:"column:content;type:jsonb"                      json:"content"`
 	Visibility  string         `gorm:"not null;default:'private'"                     json:"visibility"`
@@ -183,12 +200,13 @@ func (RefreshToken) TableName() string { return "refresh_tokens" }
 
 // UserPreference stores per-user default preferences.
 type UserPreference struct {
-	UserID           uuid.UUID  `gorm:"type:uuid;primaryKey" json:"user_id"`
-	DefaultGameID    *uuid.UUID `gorm:"type:uuid;column:default_game_id" json:"default_game_id"`
-	DefaultPinColour *string    `gorm:"column:default_pin_colour" json:"default_pin_colour"`
-	DefaultPinIcon   *string    `gorm:"column:default_pin_icon" json:"default_pin_icon"`
-	CreatedAt        time.Time  `gorm:"autoCreateTime" json:"created_at"`
-	UpdatedAt        time.Time  `gorm:"autoUpdateTime" json:"updated_at"`
+	UserID           uuid.UUID      `gorm:"type:uuid;primaryKey"                          json:"user_id"`
+	DefaultGameID    *uuid.UUID     `gorm:"type:uuid;column:default_game_id"              json:"default_game_id"`
+	DefaultPinColour *string        `gorm:"column:default_pin_colour"                     json:"default_pin_colour"`
+	DefaultPinIcon   *string        `gorm:"column:default_pin_icon"                       json:"default_pin_icon"`
+	SidebarState     datatypes.JSON `gorm:"column:sidebar_state;type:jsonb"               json:"sidebar_state"`
+	CreatedAt        time.Time      `gorm:"autoCreateTime"                                json:"created_at"`
+	UpdatedAt        time.Time      `gorm:"autoUpdateTime"                                json:"updated_at"`
 }
 
 func (UserPreference) TableName() string { return "user_preferences" }

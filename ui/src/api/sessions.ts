@@ -17,7 +17,7 @@ export function createSession(gameId: string, data: SessionFormData): Promise<Se
   })
 }
 
-export function updateSession(sessionId: string, data: Partial<SessionFormData>): Promise<Session> {
+export function updateSession(sessionId: string, data: Record<string, unknown>): Promise<Session> {
   return apiFetch<Session>(`/sessions/${sessionId}`, {
     method: 'PATCH',
     body: JSON.stringify(data),

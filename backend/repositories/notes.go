@@ -9,6 +9,7 @@ import (
 type NoteFilters struct {
 	Sort      string
 	SessionID *uuid.UUID
+	FolderID  *uuid.UUID
 	Unlinked  bool
 }
 
@@ -45,6 +46,10 @@ func (r *noteRepository) FindByGameID(gameID, userID uuid.UUID, isGM bool, filte
 		query = query.Where("session_id = ?", *filters.SessionID)
 	} else if filters.Unlinked {
 		query = query.Where("session_id IS NULL")
+	}
+
+	if filters.FolderID != nil {
+		query = query.Where("folder_id = ?", *filters.FolderID)
 	}
 
 	if filters.Sort == "title" {

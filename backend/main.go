@@ -27,7 +27,7 @@ func main() {
 	}
 	e.Use(echomw.CORSWithConfig(echomw.CORSConfig{
 		AllowOrigins:     []string{corsOrigin},
-		AllowMethods:     []string{http.MethodGet, http.MethodPost, http.MethodPatch, http.MethodDelete, http.MethodOptions},
+		AllowMethods:     []string{http.MethodGet, http.MethodPost, http.MethodPatch, http.MethodPut, http.MethodDelete, http.MethodOptions},
 		AllowHeaders:     []string{echo.HeaderContentType, echo.HeaderAccept, "X-CSRF-Token"},
 		AllowCredentials: true,
 	}))
@@ -44,6 +44,7 @@ func main() {
 	pinGroupRepo := repositories.NewPinGroupRepository(db)
 	refreshTokenRepo := repositories.NewRefreshTokenRepository(db)
 	preferenceRepo := repositories.NewPreferenceRepository(db)
+	folderRepo := repositories.NewFolderRepository(db)
 
 	// Services
 	authService := services.NewAuthService(userRepo, refreshTokenRepo)
@@ -52,7 +53,8 @@ func main() {
 	preferenceService := services.NewPreferenceService(preferenceRepo, membershipRepo)
 	membershipService := services.NewMembershipService(membershipRepo, preferenceService)
 	sessionService := services.NewSessionService(sessionRepo, membershipRepo)
-	noteService := services.NewNoteService(noteRepo, membershipRepo)
+	noteService := services.NewNoteService(noteRepo, membershipRepo, folderRepo)
+	folderService := services.NewFolderService(folderRepo, membershipRepo)
 	characterService := services.NewCharacterService(characterRepo, membershipRepo)
 	itemService := services.NewItemService(itemRepo, membershipRepo, characterRepo)
 	pinService := services.NewPinService(pinRepo, sessionRepo, membershipRepo, pinGroupRepo)
@@ -73,6 +75,7 @@ func main() {
 	handlers.RegisterMembershipRoutes(protected, membershipService)
 	handlers.RegisterSessionRoutes(protected, sessionService)
 	handlers.RegisterNoteRoutes(protected, noteService)
+	handlers.RegisterFolderRoutes(protected, folderService)
 	handlers.RegisterCharacterRoutes(protected, characterService)
 	handlers.RegisterItemRoutes(protected, itemService)
 	handlers.RegisterPinRoutes(protected, pinService)

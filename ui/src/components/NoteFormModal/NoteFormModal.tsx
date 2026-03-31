@@ -6,7 +6,7 @@ import './NoteFormModal.css'
 
 interface NoteFormModalProps {
   mode: 'create' | 'edit'
-  initial?: NoteFormData & { visibility?: 'private' | 'visible' | 'editable' }
+  initial?: NoteFormData & { visibility?: 'private' | 'visible' | 'editable' | 'gm-only' }
   sessions: Session[]
   error: string | null
   saving: boolean
@@ -18,7 +18,7 @@ interface NoteFormModalProps {
 export default function NoteFormModal({ mode, initial, sessions, error, saving, isAuthor = true, onSave, onClose }: NoteFormModalProps) {
   const [title, setTitle] = useState(initial?.title ?? '')
   const [sessionId, setSessionId] = useState<string>(initial?.session_id ?? '')
-  const [visibility, setVisibility] = useState<'private' | 'visible' | 'editable'>(initial?.visibility ?? 'private')
+  const [visibility, setVisibility] = useState<'private' | 'visible' | 'editable' | 'gm-only'>(initial?.visibility ?? 'private')
 
   useEffect(() => {
     setTitle(initial?.title ?? '')

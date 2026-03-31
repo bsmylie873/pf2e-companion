@@ -82,9 +82,10 @@ type PinGroupResponse struct {
 
 // UserPreferenceResponse is the DTO returned for preference endpoints.
 type UserPreferenceResponse struct {
-	DefaultGameID    *uuid.UUID `json:"default_game_id"`
-	DefaultPinColour *string    `json:"default_pin_colour"`
-	DefaultPinIcon   *string    `json:"default_pin_icon"`
+	DefaultGameID    *uuid.UUID     `json:"default_game_id"`
+	DefaultPinColour *string        `json:"default_pin_colour"`
+	DefaultPinIcon   *string        `json:"default_pin_icon"`
+	SidebarState     datatypes.JSON `json:"sidebar_state"`
 }
 
 // FromUserPreference converts a UserPreference model to a UserPreferenceResponse.
@@ -93,5 +94,6 @@ func FromUserPreference(pref UserPreference) UserPreferenceResponse {
 		DefaultGameID:    pref.DefaultGameID,
 		DefaultPinColour: pref.DefaultPinColour,
 		DefaultPinIcon:   pref.DefaultPinIcon,
+		SidebarState:     pref.SidebarState,
 	}
 }

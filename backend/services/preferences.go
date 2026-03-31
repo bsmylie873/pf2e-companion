@@ -1,9 +1,11 @@
 package services
 
 import (
+	"encoding/json"
 	"fmt"
 
 	"github.com/google/uuid"
+	"gorm.io/datatypes"
 	"gorm.io/gorm"
 	"pf2e-companion/backend/models"
 	"pf2e-companion/backend/repositories"
@@ -104,6 +106,18 @@ func (s *preferenceService) UpdatePreferences(userID uuid.UUID, updates map[stri
 				return models.UserPreferenceResponse{}, fmt.Errorf("%w: invalid default_pin_icon", ErrValidation)
 			}
 			pref.DefaultPinIcon = &icon
+		}
+	}
+
+	if v, ok := updates["sidebar_state"]; ok {
+		if v == nil {
+			pref.SidebarState = nil
+		} else {
+			raw, err := json.Marshal(v)
+			if err != nil {
+				return models.UserPreferenceResponse{}, fmt.Errorf("%w: invalid sidebar_state", ErrValidation)
+			}
+			pref.SidebarState = datatypes.JSON(raw)
 		}
 	}
 

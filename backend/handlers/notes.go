@@ -156,6 +156,9 @@ func (h *NoteHandler) UpdateNote(c echo.Context) error {
 		if errors.Is(err, services.ErrForbidden) {
 			return ErrorResponse(c, http.StatusForbidden, "forbidden")
 		}
+		if errors.Is(err, services.ErrValidation) {
+			return ErrorResponse(c, http.StatusUnprocessableEntity, err.Error())
+		}
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return ErrorResponse(c, http.StatusNotFound, "note not found")
 		}

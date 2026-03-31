@@ -5,9 +5,10 @@ export interface Note {
   game_id: string
   user_id: string
   session_id: string | null
+  folder_id: string | null
   title: string
   content: JSONContent | null
-  visibility: 'private' | 'visible' | 'editable'
+  visibility: 'private' | 'visible' | 'editable' | 'gm-only'
   version: number
   foundry_data: unknown
   created_at: string
@@ -17,5 +18,5 @@ export interface Note {
 export interface NoteFormData {
   title: string
   session_id?: string | null
-  visibility?: 'private' | 'visible' | 'editable'
+  visibility?: 'private' | 'visible' | 'editable' | 'gm-only'
 }

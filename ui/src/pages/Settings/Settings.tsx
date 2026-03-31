@@ -16,6 +16,7 @@ export default function Settings() {
     default_game_id: null,
     default_pin_colour: null,
     default_pin_icon: null,
+    sidebar_state: null,
   })
   const [prefsError, setPrefsError] = useState(false)
   const [loading, setLoading] = useState(true)

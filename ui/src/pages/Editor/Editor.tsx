@@ -231,7 +231,7 @@ export default function Editor() {
     setMutationError(null)
     setSaving(true)
     try {
-      const updated = await updateSession(editingSession.id, data)
+      const updated = await updateSession(editingSession.id, { ...data })
       setSessions(prev => prev.map(s => s.id === updated.id ? updated : s))
       setEditingSession(null)
     } catch (err: unknown) {
