@@ -1,0 +1,113 @@
+/* ── EditorModalManager ──────────────────────────────────── */
+
+.emm-root {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 1200;
+  pointer-events: none;
+}
+
+.emm-tab-strip {
+  display: flex;
+  align-items: stretch;
+  gap: 2px;
+  padding: 0.4rem 1rem;
+  background: rgba(12, 10, 7, 0.94);
+  border-bottom: 1px solid var(--color-border);
+  overflow-x: auto;
+  scrollbar-width: none;
+  pointer-events: all;
+  backdrop-filter: blur(6px);
+  position: relative;
+  z-index: 1201;
+}
+
+.emm-tab-strip::-webkit-scrollbar { display: none; }
+
+.emm-tab {
+  display: flex;
+  align-items: center;
+  border-radius: 2px 2px 0 0;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid transparent;
+  border-bottom: none;
+  transition: background var(--transition-fast), border-color var(--transition-fast);
+  max-width: 200px;
+  flex-shrink: 0;
+}
+
+.emm-tab--active {
+  background: var(--color-surface);
+  border-color: var(--color-border);
+}
+
+.emm-tab-btn {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.3rem 0.6rem;
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: var(--color-text-muted);
+  font-size: 0.78rem;
+  font-family: var(--font-heading);
+  letter-spacing: 0.04em;
+  min-width: 0;
+  transition: color var(--transition-fast);
+}
+
+.emm-tab--active .emm-tab-btn { color: var(--color-text); }
+.emm-tab-btn:hover { color: var(--color-text); }
+
+.emm-tab-type { font-size: 0.75rem; flex-shrink: 0; }
+
+.emm-tab-label {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 130px;
+}
+
+.emm-tab-close {
+  padding: 0.3rem 0.4rem;
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: var(--color-text-muted);
+  display: flex;
+  align-items: center;
+  border-radius: 2px;
+  transition: color var(--transition-fast), background var(--transition-fast);
+  flex-shrink: 0;
+}
+
+.emm-tab-close svg { width: 10px; height: 10px; }
+
+.emm-tab-close:hover {
+  color: var(--color-accent);
+  background: rgba(139, 46, 46, 0.15);
+}
+
+.emm-close-all {
+  margin-left: auto;
+  padding: 0.25rem 0.7rem;
+  background: none;
+  border: 1px solid var(--color-border);
+  border-radius: 2px;
+  cursor: pointer;
+  color: var(--color-text-muted);
+  font-size: 0.72rem;
+  font-family: var(--font-heading);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  flex-shrink: 0;
+  transition: color var(--transition-fast), border-color var(--transition-fast);
+}
+
+.emm-close-all:hover {
+  color: var(--color-accent);
+  border-color: var(--color-accent);
+}

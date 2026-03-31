@@ -1,0 +1,175 @@
+/* ── EditorModal ─────────────────────────────────────────── */
+
+@keyframes editor-modal-backdrop-in {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+@keyframes editor-modal-rise {
+  from {
+    opacity: 0;
+    transform: translateY(32px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.editor-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(6, 5, 3, 0.82);
+  backdrop-filter: blur(4px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1100;
+  animation: editor-modal-backdrop-in 180ms ease forwards;
+  padding: 2rem;
+}
+
+.editor-modal-panel {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  box-shadow: var(--shadow-lg), var(--glow-accent);
+  border-radius: 3px;
+  width: 90vw;
+  max-width: 1100px;
+  height: 88vh;
+  max-height: 900px;
+  display: flex;
+  flex-direction: column;
+  animation: editor-modal-rise 300ms cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+
+/* ── Header ── */
+
+.editor-modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 1rem 1.5rem;
+  border-bottom: 1px solid var(--color-border);
+  flex-shrink: 0;
+  gap: 1rem;
+}
+
+.editor-modal-title-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  min-width: 0;
+}
+
+.editor-modal-session-num {
+  font-family: var(--font-heading);
+  font-size: 0.7rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--color-accent);
+  opacity: 0.85;
+}
+
+.editor-modal-visibility {
+  font-size: 0.72rem;
+  letter-spacing: 0.06em;
+  color: var(--color-text-muted);
+}
+
+.editor-modal-title {
+  font-family: var(--font-heading);
+  font-size: 1.15rem;
+  font-weight: 600;
+  color: var(--color-text);
+  letter-spacing: 0.05em;
+  margin: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.editor-modal-close {
+  width: 34px;
+  height: 34px;
+  flex-shrink: 0;
+  border-radius: 2px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--color-text-muted);
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  transition: color var(--transition-fast), background var(--transition-fast);
+}
+
+.editor-modal-close svg {
+  width: 18px;
+  height: 18px;
+}
+
+.editor-modal-close:hover {
+  color: var(--color-accent);
+  background: rgba(139, 46, 46, 0.1);
+}
+
+/* ── Body ── */
+
+.editor-modal-body {
+  flex: 1;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.editor-modal-loading,
+.editor-modal-error {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 1rem;
+  color: var(--color-text-muted);
+  padding: 2rem;
+}
+
+.editor-modal-error svg {
+  opacity: 0.6;
+}
+
+/* ── SessionNotesEditor height fill ── */
+/*
+ * SessionNotesEditor renders a .session-notes-editor root with a .sne-toolbar
+ * and a .sne-content (wrapping .tiptap). Inside the modal we want the editor
+ * to fill the remaining panel height and scroll within it.
+ */
+
+.editor-modal-body .session-notes-editor {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  overflow: hidden;
+  height: 100%;
+  border: none;
+  box-shadow: none;
+}
+
+.editor-modal-body .sne-content {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.editor-modal-body .session-notes-editor .tiptap {
+  flex: 1;
+  overflow-y: auto;
+  /* Override the default min-height: 420px from SessionNotesEditor.css
+     so the editor shrinks to fit the modal and becomes scrollable */
+  min-height: 0 !important;
+}

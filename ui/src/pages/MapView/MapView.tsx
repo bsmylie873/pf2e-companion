@@ -23,6 +23,7 @@ import type { PinColour, PinIcon } from '../../constants/pins'
 import { getPreferences, updatePreferences } from '../../api/preferences'
 import type { GameSidebarState } from '../../api/preferences'
 import FolderSidebar from '../../components/FolderSidebar/FolderSidebar'
+import EditorModalManager from '../../components/EditorModalManager/EditorModalManager'
 import './MapView.css'
 
 /** Proximity threshold in map-percentage units (0–100). ~16px on a 1000px map. */
@@ -91,6 +92,8 @@ export default function MapView() {
   const [dragGroupPrompt, setDragGroupPrompt] = useState<{ draggedPinId: string; nearbyPins: SessionPin[]; nearbyGroups: PinGroup[]; originalCoords: { x: number; y: number } } | null>(null)
   const [dropTargetIds, setDropTargetIds] = useState<Set<string>>(new Set())
   const [sidebarOpen, setSidebarOpen] = useState(false)
+  const [openItems, setOpenItems] = useState<Array<{ type: 'session' | 'note'; itemId: string; label: string }>>([])
+  const [mapEditorMode, setMapEditorMode] = useState(false)
 
   const mapContainerRef = useRef<HTMLDivElement>(null)
   const viewportContainerRef = useRef<HTMLDivElement>(null)
@@ -220,13 +223,21 @@ export default function MapView() {
     return () => { cancelled = true }
   }, [gameId])
 
+  // Fetch preferences on mount and whenever the window regains focus
+  // (so changes made in Settings take effect without a full refresh).
   useEffect(() => {
     if (!gameId) return
-    getPreferences().then(prefs => {
-      sidebarStateRef.current = prefs.sidebar_state ?? {}
-      const gameState = sidebarStateRef.current[gameId]
-      if (gameState?.panelOpen) setSidebarOpen(true)
-    }).catch(() => {})
+    const fetchPrefs = () => {
+      getPreferences().then(prefs => {
+        sidebarStateRef.current = prefs.sidebar_state ?? {}
+        const gameState = sidebarStateRef.current[gameId]
+        if (gameState?.panelOpen) setSidebarOpen(true)
+        setMapEditorMode(prefs.map_editor_mode === 'modal')
+      }).catch(() => {})
+    }
+    fetchPrefs()
+    window.addEventListener('focus', fetchPrefs)
+    return () => window.removeEventListener('focus', fetchPrefs)
   }, [gameId])
 
   useEffect(() => {
@@ -668,6 +679,18 @@ export default function MapView() {
     }
   }, [gameId])
 
+  const openItem = useCallback((type: 'session' | 'note', itemId: string, label: string) => {
+    if (!mapEditorMode) {
+      if (type === 'note') navigate(`/games/${gameId}/notes/${itemId}`)
+      else navigate(`/games/${gameId}/sessions/${itemId}/notes`)
+      return
+    }
+    setOpenItems(prev => {
+      if (prev.some(i => i.itemId === itemId)) return prev
+      return [...prev, { type, itemId, label }]
+    })
+  }, [mapEditorMode, navigate, gameId])
+
   const sessionForPin = (pin: SessionPin) => sessions.find(s => s.id === pin.session_id)
   const noteForPin = (pin: SessionPin) => notes.find(n => n.id === pin.note_id)
 
@@ -818,9 +841,9 @@ export default function MapView() {
                             e.stopPropagation()
                             if (!wasDragRef.current) {
                               if (pin.note_id) {
-                                navigate(`/games/${gameId}/notes/${pin.note_id}`)
+                                openItem('note', pin.note_id, noteForPin(pin)?.title ?? pin.label ?? 'Note')
                               } else if (pin.session_id) {
-                                navigate(`/games/${gameId}/sessions/${pin.session_id}/notes`)
+                                openItem('session', pin.session_id, sessionForPin(pin)?.title ?? 'Session')
                               } else {
                                 { setEditingPinId(editingPinId === pin.id ? null : pin.id); setEditLinkSearch('') }
                               }
@@ -839,9 +862,9 @@ export default function MapView() {
                             onClick={e => {
                               e.stopPropagation()
                               if (pin.note_id) {
-                                navigate(`/games/${gameId}/notes/${pin.note_id}`)
+                                openItem('note', pin.note_id, noteForPin(pin)?.title ?? pin.label ?? 'Note')
                               } else if (pin.session_id) {
-                                navigate(`/games/${gameId}/sessions/${pin.session_id}/notes`)
+                                openItem('session', pin.session_id, sessionForPin(pin)?.title ?? 'Session')
                               } else {
                                 setEditingPinId(editingPinId === pin.id ? null : pin.id)
                                 setEditLinkSearch('')
@@ -1065,8 +1088,8 @@ export default function MapView() {
                       return (
                         <li key={p.id}>
                           <button onClick={() => {
-                            if (p.note_id) navigate(`/games/${gameId}/notes/${p.note_id}`)
-                            else if (p.session_id) navigate(`/games/${gameId}/sessions/${p.session_id}/notes`)
+                            if (p.note_id) openItem('note', p.note_id, notes.find(n => n.id === p.note_id)?.title ?? p.label ?? '?')
+                            else if (p.session_id) openItem('session', p.session_id, sessions.find(s => s.id === p.session_id)?.title ?? '?')
                           }}>
                             {n ? <span className="map-pin-group-popover-type">Note</span> : null}
                             {n?.title ?? s?.title ?? p.label ?? '?'}
@@ -1177,8 +1200,8 @@ export default function MapView() {
                 userId={user?.id ?? ''}
                 sessions={sessions}
                 notes={notes}
-                onSessionClick={(id) => navigate(`/games/${gameId}/sessions/${id}/notes`)}
-                onNoteClick={(id) => navigate(`/games/${gameId}/notes/${id}`)}
+                onSessionClick={(id) => { const s = sessions.find(x => x.id === id); openItem('session', id, s?.title ?? 'Session') }}
+                onNoteClick={(id) => { const n = notes.find(x => x.id === id); openItem('note', id, n?.title ?? 'Note') }}
                 onSessionUpdate={handleSessionUpdate}
                 onNoteUpdate={handleNoteUpdate}
                 onCreateSession={handleCreateSession}
@@ -1545,6 +1568,15 @@ export default function MapView() {
           document.body,
         )
       })()}
+
+      {openItems.length > 0 && (
+        <EditorModalManager
+          items={openItems}
+          gameId={gameId!}
+          onClose={(itemId) => setOpenItems(prev => prev.filter(i => i.itemId !== itemId))}
+          onCloseAll={() => setOpenItems([])}
+        />
+      )}
     </div>
   )
 }
