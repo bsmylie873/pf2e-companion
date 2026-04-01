@@ -999,6 +999,7 @@ export default function MapView() {
                 allowLeftClickPan: false,
                 allowMiddleClickPan: true,
                 allowRightClickPan: false,
+                velocityDisabled: true,
               }}
               wheel={{
                 activationKeys: ['Control', 'Meta'],
