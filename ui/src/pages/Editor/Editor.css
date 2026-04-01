@@ -178,13 +178,18 @@
   background: var(--color-accent);
 }
 
-/* ── View Toggle ──────────────────────────────────────────── */
+/* ── Segmented View Toggle (list / grid) ─────────────────── */
 .sessions-view-toggle {
   display: flex;
   align-items: center;
   border: 1px solid var(--color-border);
-  border-radius: 4px;
+  border-radius: 100px;
   overflow: hidden;
+  background: rgba(0, 0, 0, 0.03);
+}
+
+[data-theme='dark'] .sessions-view-toggle {
+  background: rgba(255, 255, 255, 0.04);
 }
 
 .sessions-view-btn {
@@ -192,45 +197,79 @@
   align-items: center;
   justify-content: center;
   width: 34px;
-  height: 34px;
+  height: 30px;
   background: transparent;
   border: none;
   color: var(--color-text-muted);
   cursor: pointer;
-  transition: color var(--transition-fast), background var(--transition-fast);
+  transition: color var(--transition-fast), background var(--transition-fast), box-shadow var(--transition-fast);
   padding: 0;
+  border-radius: 100px;
+  margin: 2px;
 }
 
 .sessions-view-btn svg {
-  width: 15px;
-  height: 15px;
+  width: 14px;
+  height: 14px;
 }
 
 .sessions-view-btn:hover {
   color: var(--color-accent);
-  background: rgba(139, 46, 46, 0.08);
 }
 
 .sessions-view-btn--active {
   color: var(--color-accent);
-  background: rgba(139, 46, 46, 0.12);
-}
-
-[data-theme='dark'] .sessions-view-btn:hover {
-  background: rgba(201, 76, 76, 0.12);
+  background: var(--color-surface);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.12);
 }
 
 [data-theme='dark'] .sessions-view-btn--active {
-  background: rgba(201, 76, 76, 0.15);
+  background: rgba(201, 76, 76, 0.18);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
 }
 
-.sessions-view-btn--disabled {
+/* ── Standalone Map Button ───────────────────────────────── */
+.editor-map-btn {
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+  padding: 0.3rem 0.65rem 0.3rem 0.5rem;
+  border: 1px solid var(--color-border);
+  border-radius: 4px;
+  background: transparent;
+  color: var(--color-text-muted);
+  font-family: var(--font-heading);
+  font-size: 0.6rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: color var(--transition-fast), border-color var(--transition-fast), background var(--transition-fast);
+}
+
+.editor-map-btn svg {
+  width: 14px;
+  height: 14px;
+}
+
+.editor-map-btn:hover {
+  color: var(--color-accent);
+  border-color: var(--color-accent);
+  background: rgba(139, 46, 46, 0.06);
+}
+
+[data-theme='dark'] .editor-map-btn:hover {
+  background: rgba(201, 76, 76, 0.1);
+}
+
+.editor-map-btn--disabled {
   opacity: 0.35;
   cursor: not-allowed;
 }
 
-.sessions-view-btn--disabled:hover {
+.editor-map-btn--disabled:hover {
   color: var(--color-text-muted);
+  border-color: var(--color-border);
   background: transparent;
 }
 
