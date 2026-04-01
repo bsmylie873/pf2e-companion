@@ -462,6 +462,12 @@
   background: var(--color-surface);
 }
 
+.sessions-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 1rem;
+}
+
 /* ── Sessions Loading ── */
 .sessions-loading {
   display: flex;
@@ -667,4 +673,65 @@
 
 .editor-edit-btn:hover {
   color: var(--color-accent);
+}
+
+/* ── Folder Groups ── */
+.editor-folder-groups {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+  width: 100%;
+}
+
+.editor-folder-group {
+  display: flex;
+  flex-direction: column;
+}
+
+.editor-folder-header {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.5rem 0.25rem;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  transition: color var(--transition-fast);
+  color: var(--color-text-muted);
+}
+
+.editor-folder-header:hover {
+  color: var(--color-text);
+}
+
+.editor-folder-chevron {
+  width: 14px;
+  height: 14px;
+  transform: rotate(0deg);
+  transition: transform 0.15s;
+  flex-shrink: 0;
+}
+
+.editor-folder-chevron--open {
+  transform: rotate(90deg);
+}
+
+.editor-folder-icon {
+  font-size: 0.85rem;
+}
+
+.editor-folder-name {
+  font-family: var(--font-heading);
+  font-size: 0.7rem;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.editor-folder-count {
+  font-family: var(--font-body);
+  font-size: 0.62rem;
+  color: var(--color-text-muted);
+  opacity: 0.5;
+  margin-left: 0.25rem;
 }

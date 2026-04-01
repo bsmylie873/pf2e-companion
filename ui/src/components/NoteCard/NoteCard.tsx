@@ -1,4 +1,5 @@
 import type { Note } from '../../types/note'
+import { extractPreviewText } from '../../utils/contentPreview'
 import './NoteCard.css'
 
 interface NoteCardProps {
@@ -6,12 +7,52 @@ interface NoteCardProps {
   sessionTitle?: string
   isGM: boolean
   isAuthor: boolean
+  mode?: 'list' | 'grid'
   onEdit: (note: Note) => void
   onDelete: (note: Note) => void
   onOpen: (note: Note) => void
 }
 
-export default function NoteCard({ note, sessionTitle, isGM, isAuthor, onEdit, onDelete, onOpen }: NoteCardProps) {
+export default function NoteCard({ note, sessionTitle, isGM, isAuthor, mode = 'list', onEdit, onDelete, onOpen }: NoteCardProps) {
+  if (mode === 'grid') {
+    const canEdit = isAuthor || isGM || note.visibility === 'editable'
+    const canDelete = isAuthor || isGM
+    return (
+      <article className="note-card note-card--grid">
+        <div className="note-card-grid-body" onClick={() => onOpen(note)}>
+          <span className="note-card-grid-icon" aria-hidden>📄</span>
+          <h3 className="note-card-grid-title">{note.title}</h3>
+          <time className="note-card-grid-date">
+            {new Date(note.created_at).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })}
+          </time>
+          <p className="note-card-grid-preview">{extractPreviewText(note.content)}</p>
+        </div>
+        <div className="note-card-grid-actions">
+          {canEdit && (
+            <button className="note-card-btn note-card-btn--edit"
+              onClick={(e) => { e.stopPropagation(); onEdit(note) }}
+              aria-label="Edit note" title="Edit note">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
+                <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
+              </svg>
+            </button>
+          )}
+          {canDelete && (
+            <button className="note-card-btn note-card-btn--delete"
+              onClick={(e) => { e.stopPropagation(); onDelete(note) }}
+              aria-label="Delete note" title="Delete note">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
+                <polyline points="3 6 5 6 21 6" />
+                <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+              </svg>
+            </button>
+          )}
+        </div>
+      </article>
+    )
+  }
+
   const canEdit = isAuthor || isGM || note.visibility === 'editable'
   const canDelete = isAuthor || isGM
 

@@ -121,6 +121,18 @@ func (s *preferenceService) UpdatePreferences(userID uuid.UUID, updates map[stri
 		}
 	}
 
+	if v, ok := updates["default_view_mode"]; ok {
+		if v == nil {
+			pref.DefaultViewMode = nil
+		} else {
+			raw, err := json.Marshal(v)
+			if err != nil {
+				return models.UserPreferenceResponse{}, fmt.Errorf("%w: invalid default_view_mode", ErrValidation)
+			}
+			pref.DefaultViewMode = datatypes.JSON(raw)
+		}
+	}
+
 	if err := s.repo.Upsert(&pref); err != nil {
 		return models.UserPreferenceResponse{}, err
 	}

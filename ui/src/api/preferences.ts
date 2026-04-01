@@ -11,6 +11,7 @@ export interface UserPreferences {
   default_pin_colour: string | null
   default_pin_icon: string | null
   sidebar_state: Record<string, GameSidebarState> | null
+  default_view_mode: Record<string, 'list' | 'grid'> | null
 }
 
 export async function getPreferences(): Promise<UserPreferences> {

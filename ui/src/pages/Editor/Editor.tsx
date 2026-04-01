@@ -8,6 +8,9 @@ import { listGameSessions, createSession, updateSession, deleteSession } from '.
 import { listMemberships } from '../../api/memberships'
 import { listGameNotes, createNote, updateNote as updateNoteApi, deleteNote } from '../../api/notes'
 import { apiFetch } from '../../api/client'
+import { getPreferences, updatePreferences } from '../../api/preferences'
+import { listFolders } from '../../api/folders'
+import type { Folder } from '../../types/folder'
 import { useAuth } from '../../context/AuthContext'
 import SessionCard from '../../components/SessionCard/SessionCard'
 import SessionFormModal from '../../components/SessionFormModal/SessionFormModal'
@@ -51,6 +54,7 @@ export default function Editor() {
 
   // Tab state
   const [activeTab, setActiveTab] = useState<'sessions' | 'notes'>('sessions')
+  const [viewMode, setViewMode] = useState<'list' | 'grid'>('list')
 
   const [sessions, setSessions] = useState<Session[]>([])
   const [notes, setNotes] = useState<Note[]>([])
@@ -58,6 +62,9 @@ export default function Editor() {
   const [game, setGame] = useState<Game | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [sessionFolders, setSessionFolders] = useState<Folder[]>([])
+  const [noteFolders, setNoteFolders] = useState<Folder[]>([])
+  const [collapsedFolders, setCollapsedFolders] = useState<Record<string, boolean>>({})
 
   // Shared filter panel toggle (one panel at a time, context-aware per tab)
   const [filtersOpen, setFiltersOpen] = useState(false)
@@ -126,13 +133,17 @@ export default function Editor() {
       listMemberships(gameId),
       apiFetch<Game>(`/games/${gameId}`),
       listGameNotes(gameId),
+      listFolders(gameId, 'session'),
+      listFolders(gameId, 'note'),
     ])
-      .then(([sessionsData, membershipsData, gameData, notesData]) => {
+      .then(([sessionsData, membershipsData, gameData, notesData, sFolders, nFolders]) => {
         if (!cancelled) {
           setSessions(sessionsData)
           setMemberships(membershipsData)
           setGame(gameData)
           setNotes(notesData)
+          setSessionFolders(sFolders)
+          setNoteFolders(nFolders)
         }
       })
       .catch((err: unknown) => {
@@ -145,6 +156,15 @@ export default function Editor() {
       })
 
     return () => { cancelled = true }
+  }, [gameId])
+
+  useEffect(() => {
+    if (!gameId) return
+    getPreferences().then(prefs => {
+      if (prefs.default_view_mode && prefs.default_view_mode[gameId]) {
+        setViewMode(prefs.default_view_mode[gameId])
+      }
+    }).catch(() => {})
   }, [gameId])
 
   const isGM = memberships.some(m => m.user_id === user?.id && m.is_gm)
@@ -208,6 +228,18 @@ export default function Editor() {
       if (noteSort === 'title') return a.title.localeCompare(b.title)
       return new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
     })
+
+  const unfiledSessions = filteredSessions.filter(s => !s.folder_id)
+  const sessionsByFolder = sessionFolders.map(folder => ({
+    folder,
+    items: filteredSessions.filter(s => s.folder_id === folder.id),
+  }))
+
+  const unfiledNotes = filteredNotes.filter(n => !n.folder_id)
+  const notesByFolder = noteFolders.map(folder => ({
+    folder,
+    items: filteredNotes.filter(n => n.folder_id === folder.id),
+  }))
 
   // ── Session handlers ──────────────────────────────────────────
 
@@ -341,6 +373,20 @@ export default function Editor() {
     navigate(`/games/${gameId}/notes/${note.id}`)
   }
 
+  const handleViewModeChange = useCallback((mode: 'list' | 'grid') => {
+    setViewMode(mode)
+    if (!gameId) return
+    getPreferences().then(prefs => {
+      updatePreferences({
+        default_view_mode: { ...(prefs.default_view_mode ?? {}), [gameId]: mode },
+      }).catch(() => {})
+    }).catch(() => {})
+  }, [gameId])
+
+  const toggleFolder = useCallback((folderId: string) => {
+    setCollapsedFolders(prev => ({ ...prev, [folderId]: !prev[folderId] }))
+  }, [])
+
   return (
     <div className="editor-page">
       <div className="editor-inner">
@@ -377,7 +423,8 @@ export default function Editor() {
           <div className="editor-toolbar-left">
             <div className="sessions-view-toggle">
               <button
-                className="sessions-view-btn sessions-view-btn--active"
+                className={`sessions-view-btn${viewMode === 'list' ? ' sessions-view-btn--active' : ''}`}
+                onClick={() => handleViewModeChange('list')}
                 title="List view"
               >
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
@@ -387,6 +434,18 @@ export default function Editor() {
                   <line x1="3" y1="6" x2="3.01" y2="6" />
                   <line x1="3" y1="12" x2="3.01" y2="12" />
                   <line x1="3" y1="18" x2="3.01" y2="18" />
+                </svg>
+              </button>
+              <button
+                className={`sessions-view-btn${viewMode === 'grid' ? ' sessions-view-btn--active' : ''}`}
+                onClick={() => handleViewModeChange('grid')}
+                title="Grid view"
+              >
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round">
+                  <rect x="3" y="3" width="7" height="7" rx="1" />
+                  <rect x="14" y="3" width="7" height="7" rx="1" />
+                  <rect x="3" y="14" width="7" height="7" rx="1" />
+                  <rect x="14" y="14" width="7" height="7" rx="1" />
                 </svg>
               </button>
               <button
@@ -581,16 +640,39 @@ export default function Editor() {
             )}
 
             {!loading && !error && filteredSessions.length > 0 && (
-              <div className="sessions-list">
-                {filteredSessions.map(session => (
-                  <SessionCard
-                    key={session.id}
-                    session={session}
-                    isGM={isGM}
-                    onEdit={openEdit}
-                    onDelete={openDelete}
-                    onOpen={openNotes}
-                  />
+              <div className="editor-folder-groups">
+                {unfiledSessions.length > 0 && (
+                  <div className="editor-folder-group">
+                    <div className={viewMode === 'grid' ? 'sessions-grid' : 'sessions-list'}>
+                      {unfiledSessions.map(session => (
+                        <SessionCard key={session.id} session={session} isGM={isGM} mode={viewMode}
+                          onEdit={openEdit} onDelete={openDelete} onOpen={openNotes} />
+                      ))}
+                    </div>
+                  </div>
+                )}
+                {sessionsByFolder.map(({ folder, items }) => (
+                  items.length > 0 && (
+                    <div key={folder.id} className="editor-folder-group">
+                      <button className="editor-folder-header" onClick={() => toggleFolder(folder.id)}>
+                        <svg className={`editor-folder-chevron${collapsedFolders[folder.id] ? '' : ' editor-folder-chevron--open'}`}
+                          viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+                          <path d="M9 18l6-6-6-6" />
+                        </svg>
+                        <span className="editor-folder-icon" aria-hidden>📁</span>
+                        <span className="editor-folder-name">{folder.name}</span>
+                        <span className="editor-folder-count">{items.length}</span>
+                      </button>
+                      {!collapsedFolders[folder.id] && (
+                        <div className={viewMode === 'grid' ? 'sessions-grid' : 'sessions-list'}>
+                          {items.map(session => (
+                            <SessionCard key={session.id} session={session} isGM={isGM} mode={viewMode}
+                              onEdit={openEdit} onDelete={openDelete} onOpen={openNotes} />
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  )
                 ))}
               </div>
             )}
@@ -675,18 +757,43 @@ export default function Editor() {
             )}
 
             {!loading && !error && filteredNotes.length > 0 && (
-              <div className="sessions-list">
-                {filteredNotes.map(note => (
-                  <NoteCard
-                    key={note.id}
-                    note={note}
-                    sessionTitle={note.session_id ? sessionMap[note.session_id]?.title : undefined}
-                    isGM={isGM}
-                    isAuthor={note.user_id === user?.id}
-                    onEdit={openNoteEdit}
-                    onDelete={openNoteDelete}
-                    onOpen={openNoteEditor}
-                  />
+              <div className="editor-folder-groups">
+                {unfiledNotes.length > 0 && (
+                  <div className="editor-folder-group">
+                    <div className={viewMode === 'grid' ? 'sessions-grid' : 'sessions-list'}>
+                      {unfiledNotes.map(note => (
+                        <NoteCard key={note.id} note={note}
+                          sessionTitle={note.session_id ? sessionMap[note.session_id]?.title : undefined}
+                          isGM={isGM} isAuthor={note.user_id === user?.id} mode={viewMode}
+                          onEdit={openNoteEdit} onDelete={openNoteDelete} onOpen={openNoteEditor} />
+                      ))}
+                    </div>
+                  </div>
+                )}
+                {notesByFolder.map(({ folder, items }) => (
+                  items.length > 0 && (
+                    <div key={folder.id} className="editor-folder-group">
+                      <button className="editor-folder-header" onClick={() => toggleFolder(folder.id)}>
+                        <svg className={`editor-folder-chevron${collapsedFolders[folder.id] ? '' : ' editor-folder-chevron--open'}`}
+                          viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+                          <path d="M9 18l6-6-6-6" />
+                        </svg>
+                        <span className="editor-folder-icon" aria-hidden>📁</span>
+                        <span className="editor-folder-name">{folder.name}</span>
+                        <span className="editor-folder-count">{items.length}</span>
+                      </button>
+                      {!collapsedFolders[folder.id] && (
+                        <div className={viewMode === 'grid' ? 'sessions-grid' : 'sessions-list'}>
+                          {items.map(note => (
+                            <NoteCard key={note.id} note={note}
+                              sessionTitle={note.session_id ? sessionMap[note.session_id]?.title : undefined}
+                              isGM={isGM} isAuthor={note.user_id === user?.id} mode={viewMode}
+                              onEdit={openNoteEdit} onDelete={openNoteDelete} onOpen={openNoteEditor} />
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  )
                 ))}
               </div>
             )}
