@@ -1,0 +1,333 @@
+/* ── Map Selector ────────────────────────────────────────────── */
+
+.map-selector {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+
+/* ── Tab Row ─────────────────────────────────────────────────── */
+
+.map-selector-tabs {
+  display: flex;
+  flex-wrap: nowrap;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+/* ── Individual Tab ──────────────────────────────────────────── */
+
+.map-tab {
+  display: flex;
+  align-items: center;
+  position: relative;
+  border: 1px solid rgba(139, 46, 46, 0.1);
+  border-radius: 3px;
+  background: rgba(139, 46, 46, 0.04);
+  transition:
+    border-color var(--transition-fast),
+    background var(--transition-fast),
+    box-shadow var(--transition-fast);
+}
+
+.map-tab:hover {
+  border-color: rgba(139, 46, 46, 0.2);
+  background: rgba(139, 46, 46, 0.1);
+}
+
+.map-tab--active {
+  border-color: var(--color-accent);
+  background: rgba(139, 46, 46, 0.12);
+  box-shadow: 0 0 8px rgba(139, 46, 46, 0.15);
+}
+
+[data-theme='dark'] .map-tab {
+  border-color: rgba(201, 76, 76, 0.12);
+  background: rgba(201, 76, 76, 0.05);
+}
+
+[data-theme='dark'] .map-tab:hover {
+  border-color: rgba(201, 76, 76, 0.25);
+  background: rgba(201, 76, 76, 0.12);
+}
+
+[data-theme='dark'] .map-tab--active {
+  border-color: var(--color-accent);
+  background: rgba(201, 76, 76, 0.15);
+  box-shadow: 0 0 8px rgba(201, 76, 76, 0.2);
+}
+
+/* Drag-over indicator — left accent stripe */
+.map-tab--drag-over {
+  border-left: 2px solid var(--color-accent);
+  box-shadow: inset 3px 0 0 rgba(139, 46, 46, 0.15);
+}
+
+[data-theme='dark'] .map-tab--drag-over {
+  box-shadow: inset 3px 0 0 rgba(201, 76, 76, 0.2);
+}
+
+/* ── Tab Button ──────────────────────────────────────────────── */
+
+.map-tab-btn {
+  font-family: var(--font-heading);
+  font-size: 0.62rem;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--color-text-muted);
+  background: transparent;
+  border: none;
+  padding: 0.4rem 0.875rem;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: color var(--transition-fast);
+}
+
+.map-tab-btn:hover {
+  color: var(--color-text);
+}
+
+.map-tab--active .map-tab-btn {
+  color: var(--color-accent);
+}
+
+/* ── Tab Rename Input ────────────────────────────────────────── */
+
+.map-tab-rename-input {
+  font-family: var(--font-heading);
+  font-size: 0.62rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--color-text);
+  background: var(--color-surface);
+  border: 1px solid var(--color-accent);
+  border-radius: 2px;
+  padding: 0.35rem 0.75rem;
+  outline: none;
+  min-width: 6rem;
+  box-shadow: 0 0 0 2px rgba(139, 46, 46, 0.12);
+}
+
+[data-theme='dark'] .map-tab-rename-input {
+  box-shadow: 0 0 0 2px rgba(201, 76, 76, 0.15);
+}
+
+.map-tab-rename-input::placeholder {
+  color: var(--color-text-muted);
+  opacity: 0.6;
+}
+
+/* ── Tab Action Buttons (rename / archive) ───────────────────── */
+
+.map-tab-actions {
+  display: none;
+  align-items: center;
+  gap: 0.15rem;
+  padding-right: 0.35rem;
+}
+
+.map-tab:hover .map-tab-actions {
+  display: flex;
+}
+
+.map-tab-action-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  background: transparent;
+  border: none;
+  border-radius: 2px;
+  color: var(--color-text-muted);
+  cursor: pointer;
+  transition:
+    color var(--transition-fast),
+    background var(--transition-fast);
+  flex-shrink: 0;
+}
+
+.map-tab-action-btn:hover {
+  color: var(--color-accent);
+  background: var(--overlay-hover);
+}
+
+.map-tab-action-btn--danger:hover {
+  color: #b34040;
+  background: rgba(139, 46, 46, 0.1);
+}
+
+[data-theme='dark'] .map-tab-action-btn--danger:hover {
+  color: #e06060;
+  background: rgba(201, 76, 76, 0.12);
+}
+
+/* ── Add New Map Button ──────────────────────────────────────── */
+
+.map-selector-add-btn {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.4rem 0.875rem;
+  background: rgba(139, 46, 46, 0.12);
+  color: var(--color-accent);
+  border: 1px solid rgba(139, 46, 46, 0.2);
+  border-radius: 3px;
+  font-family: var(--font-heading);
+  font-size: 0.6rem;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  cursor: pointer;
+  white-space: nowrap;
+  transition:
+    background var(--transition-fast),
+    box-shadow var(--transition-fast),
+    border-color var(--transition-fast),
+    transform var(--transition-fast);
+  margin-left: 0.25rem;
+}
+
+.map-selector-add-btn:hover {
+  background: rgba(139, 46, 46, 0.2);
+  border-color: var(--color-accent);
+  box-shadow: 0 0 12px rgba(139, 46, 46, 0.2);
+  transform: translateY(-1px);
+}
+
+.map-selector-add-btn:active {
+  transform: translateY(0);
+  box-shadow: none;
+}
+
+[data-theme='dark'] .map-selector-add-btn {
+  background: rgba(201, 76, 76, 0.12);
+  border-color: rgba(201, 76, 76, 0.25);
+  color: var(--color-accent);
+}
+
+[data-theme='dark'] .map-selector-add-btn:hover {
+  background: rgba(201, 76, 76, 0.22);
+  border-color: var(--color-accent);
+  box-shadow: 0 0 12px rgba(201, 76, 76, 0.25);
+}
+
+/* ── Archived Section ────────────────────────────────────────── */
+
+.map-archived-section {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  z-index: 200;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: 4px;
+  box-shadow: 0 8px 24px rgba(0,0,0,0.15);
+  padding: 0.5rem;
+  min-width: 240px;
+  margin-top: 0.35rem;
+}
+
+.map-archived-toggle {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  font-family: var(--font-heading);
+  font-size: 0.58rem;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--color-text-muted);
+  padding: 0.25rem 0;
+  opacity: 0.75;
+  transition:
+    color var(--transition-fast),
+    opacity var(--transition-fast);
+}
+
+.map-archived-toggle:hover {
+  color: var(--color-text);
+  opacity: 1;
+}
+
+.map-archived-ornament {
+  color: var(--color-accent);
+  font-size: 0.55rem;
+  opacity: 0.5;
+}
+
+/* ── Archived Map List ───────────────────────────────────────── */
+
+.map-archived-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  padding: 0.5rem 0 0.25rem;
+}
+
+.map-archived-item {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.35rem 0.625rem;
+  background: var(--overlay-hover);
+  border: 1px solid var(--color-border);
+  border-radius: 2px;
+  border-left: 2px solid var(--color-border);
+}
+
+.map-archived-name {
+  font-family: var(--font-heading);
+  font-size: 0.6rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--color-text-muted);
+  flex: 1;
+}
+
+.map-archived-time {
+  font-family: var(--font-body);
+  font-size: 0.75rem;
+  font-style: italic;
+  color: var(--color-text-muted);
+  opacity: 0.65;
+  white-space: nowrap;
+}
+
+.map-archived-restore-btn {
+  display: flex;
+  align-items: center;
+  padding: 0.25rem 0.625rem;
+  background: transparent;
+  border: 1px solid var(--color-border);
+  border-radius: 2px;
+  font-family: var(--font-heading);
+  font-size: 0.55rem;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--color-text-muted);
+  cursor: pointer;
+  white-space: nowrap;
+  transition:
+    color var(--transition-fast),
+    border-color var(--transition-fast),
+    background var(--transition-fast);
+}
+
+.map-archived-restore-btn:hover {
+  color: var(--color-accent);
+  border-color: var(--color-accent);
+  background: rgba(139, 46, 46, 0.06);
+}
+
+[data-theme='dark'] .map-archived-restore-btn:hover {
+  background: rgba(201, 76, 76, 0.08);
+}

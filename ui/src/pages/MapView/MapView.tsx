@@ -5,9 +5,9 @@ import { TransformWrapper, TransformComponent } from 'react-zoom-pan-pinch'
 import type { ReactZoomPanPinchRef } from 'react-zoom-pan-pinch'
 import { apiFetch, BASE_URL } from '../../api/client'
 import { listGameSessions, updateSession, createSession } from '../../api/sessions'
-import { listGamePins, createPin, updatePin, deletePin, createGamePin } from '../../api/pins'
+import { listMapPins, createMapPin, createPin, updatePin, deletePin } from '../../api/pins'
 import { listGameNotes, updateNote, createNote } from '../../api/notes'
-import { uploadMapImage, deleteMapImage } from '../../api/mapImage'
+import { listMaps, listArchivedMaps, uploadMapImage, archiveMap, createMap, renameMap, restoreMap, reorderMaps } from '../../api/maps'
 import { listMemberships } from '../../api/memberships'
 import { useAuth } from '../../context/AuthContext'
 import { useLocalStorage } from '../../hooks/useLocalStorage'
@@ -17,13 +17,15 @@ import type { SessionPin } from '../../types/pin'
 import type { GameMembership } from '../../types/membership'
 import type { Note } from '../../types/note'
 import type { PinGroup } from '../../types/pin'
-import { listGamePinGroups, createPinGroup, addPinToGroup, removePinFromGroup, disbandPinGroup, updatePinGroup } from '../../api/pinGroups'
+import type { GameMap } from '../../types/map'
+import { listMapPinGroups, createMapPinGroup, addPinToGroup, removePinFromGroup, disbandPinGroup, updatePinGroup } from '../../api/pinGroups'
 import { PIN_COLOURS, PIN_ICONS, COLOUR_MAP, PIN_ICON_COMPONENTS, PIN_ICON_LABELS } from '../../constants/pins'
 import type { PinColour, PinIcon } from '../../constants/pins'
 import { getPreferences, updatePreferences } from '../../api/preferences'
 import type { GameSidebarState } from '../../api/preferences'
 import FolderSidebar from '../../components/FolderSidebar/FolderSidebar'
 import EditorModalManager from '../../components/EditorModalManager/EditorModalManager'
+import MapSelector from '../../components/MapSelector/MapSelector'
 import './MapView.css'
 
 /** Proximity threshold in map-percentage units (0–100). ~16px on a 1000px map. */
@@ -65,6 +67,13 @@ export default function MapView() {
   const [panelOpen, setPanelOpen] = useState(true)
   const [displayScale, setDisplayScale] = useState(viewState.scale)
 
+  const [maps, setMaps] = useState<GameMap[]>([])
+  const [activeMapId, setActiveMapId] = useLocalStorage<string | null>(
+    `pf2e-map-${gameId}-last-map`,
+    null,
+  )
+  const [archivedMaps, setArchivedMaps] = useState<GameMap[]>([])
+
   // Colour/icon picker state
   const [pendingColour, setPendingColour] = useState<PinColour>('grey')
   const [pendingIcon, setPendingIcon] = useState<PinIcon>('position-marker')
@@ -94,6 +103,7 @@ export default function MapView() {
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const [openItems, setOpenItems] = useState<Array<{ type: 'session' | 'note'; itemId: string; label: string }>>([])
   const [mapEditorMode, setMapEditorMode] = useState(false)
+  const [mapNavExpanded, setMapNavExpanded] = useState(false)
 
   const mapContainerRef = useRef<HTMLDivElement>(null)
   const viewportContainerRef = useRef<HTMLDivElement>(null)
@@ -186,6 +196,7 @@ export default function MapView() {
   }, [setViewState, clampPosition])
 
   const isGM = memberships.some(m => m.user_id === user?.id && m.is_gm)
+  const activeMap = maps.find(m => m.id === activeMapId)
   const pinnedSessionIds = new Set(pins.map(p => p.session_id))
   const unpinnedSessions = sessions.filter(s => !pinnedSessionIds.has(s.id))
 
@@ -198,19 +209,21 @@ export default function MapView() {
     Promise.all([
       apiFetch<Game>(`/games/${gameId}`),
       listGameSessions(gameId),
-      listGamePins(gameId),
       listMemberships(gameId),
       listGameNotes(gameId),
-      listGamePinGroups(gameId),
+      listMaps(gameId),
     ])
-      .then(([gameData, sessionsData, pinsData, membershipsData, notesData, pinGroupsData]) => {
+      .then(([gameData, sessionsData, membershipsData, notesData, mapsData]) => {
         if (!cancelled) {
           setGame(gameData)
           setSessions(sessionsData)
-          setPins(pinsData)
           setMemberships(membershipsData)
           setNotes(notesData)
-          setPinGroups(pinGroupsData)
+          setMaps(mapsData)
+          setActiveMapId((prev: string | null) => {
+            if (prev && mapsData.some((m: GameMap) => m.id === prev)) return prev
+            return mapsData[0]?.id ?? null
+          })
         }
       })
       .catch((err: unknown) => {
@@ -222,6 +235,32 @@ export default function MapView() {
 
     return () => { cancelled = true }
   }, [gameId])
+
+  // Per-map data loading: reload pins + pin groups whenever the active map changes
+  // Fetch archived maps for GM users
+  useEffect(() => {
+    if (!gameId || !isGM) return
+    listArchivedMaps(gameId).then(setArchivedMaps).catch(() => {})
+  }, [gameId, isGM])
+
+  useEffect(() => {
+    if (!gameId || !activeMapId) {
+      setPins([])
+      setPinGroups([])
+      return
+    }
+    let cancelled = false
+    Promise.all([
+      listMapPins(gameId, activeMapId),
+      listMapPinGroups(gameId, activeMapId),
+    ]).then(([pinsData, pinGroupsData]) => {
+      if (!cancelled) {
+        setPins(pinsData)
+        setPinGroups(pinGroupsData)
+      }
+    }).catch((err: unknown) => console.error('Failed to load map data', err))
+    return () => { cancelled = true }
+  }, [gameId, activeMapId])
 
   // Fetch preferences on mount and whenever the window regains focus
   // (so changes made in Settings take effect without a full refresh).
@@ -238,6 +277,58 @@ export default function MapView() {
     fetchPrefs()
     window.addEventListener('focus', fetchPrefs)
     return () => window.removeEventListener('focus', fetchPrefs)
+  }, [gameId])
+
+  // WebSocket for real-time map updates
+  useEffect(() => {
+    if (!gameId) return
+    const wsUrl = BASE_URL.replace(/^http/, 'ws') + `/games/${gameId}/maps/ws`
+    let ws: WebSocket | null = null
+    let retryDelay = 1000
+    let closed = false
+
+    function connect() {
+      ws = new WebSocket(wsUrl)
+      ws.onmessage = (event: MessageEvent) => {
+        try {
+          const msg = JSON.parse(event.data as string) as { type: string; data: GameMap | GameMap[] }
+          if (msg.type === 'map_created') {
+            setMaps(prev => [...prev, msg.data as GameMap])
+          } else if (msg.type === 'map_updated') {
+            setMaps(prev => prev.map(m => m.id === (msg.data as GameMap).id ? msg.data as GameMap : m))
+          } else if (msg.type === 'map_archived') {
+            const archivedId = (msg.data as GameMap).id
+            setMaps(prev => {
+              const remaining = prev.filter(m => m.id !== archivedId)
+              setActiveMapId((current: string | null) => {
+                if (current === archivedId) return remaining[0]?.id ?? null
+                return current
+              })
+              return remaining
+            })
+            setArchivedMaps(prev => [...prev, msg.data as GameMap])
+          } else if (msg.type === 'map_unarchived') {
+            setArchivedMaps(prev => prev.filter(m => m.id !== (msg.data as GameMap).id))
+            setMaps(prev => [...prev, msg.data as GameMap].sort((a, b) => a.sort_order - b.sort_order))
+          } else if (msg.type === 'map_reordered') {
+            // Re-fetch maps to get updated sort order
+            if (gameId) listMaps(gameId).then(setMaps).catch(() => {})
+          }
+        } catch { /* ignore parse errors */ }
+      }
+      ws.onclose = () => {
+        if (!closed) {
+          setTimeout(() => { connect(); retryDelay = Math.min(retryDelay * 2, 30000) }, retryDelay)
+        }
+      }
+      ws.onerror = () => ws?.close()
+    }
+
+    connect()
+    return () => {
+      closed = true
+      ws?.close()
+    }
   }, [gameId])
 
   useEffect(() => {
@@ -262,7 +353,7 @@ export default function MapView() {
     }
     vp.addEventListener('mousedown', onMouseDown)
     return () => vp.removeEventListener('mousedown', onMouseDown)
-  }, [game?.map_image_url, loading])
+  }, [activeMapId, loading])
 
   // Pre-fill pin colour/icon from account preferences
   useEffect(() => {
@@ -359,14 +450,14 @@ export default function MapView() {
   }, [dragging, clientToMapPct, pins, pinGroups, editingPinId])
 
   const reloadPinGroups = useCallback(async () => {
-    if (!gameId) return
+    if (!gameId || !activeMapId) return
     try {
-      const groups = await listGamePinGroups(gameId)
+      const groups = await listMapPinGroups(gameId, activeMapId)
       setPinGroups(groups)
     } catch (err: unknown) {
       console.error('Failed to reload pin groups', err)
     }
-  }, [gameId])
+  }, [gameId, activeMapId])
 
   const handleSelectSession = useCallback(async (session: Session) => {
     if (!gameId || !pendingCoords) return
@@ -390,7 +481,7 @@ export default function MapView() {
       setPendingIcon(defaultPinIcon)
 
       if (pendingGroupPinIds) {
-        await createPinGroup(gameId, [...pendingGroupPinIds, pin.id])
+        await createMapPinGroup(gameId, activeMapId!, [...pendingGroupPinIds, pin.id])
         await reloadPinGroups()
         setPendingGroupPinIds(null)
       } else if (pendingAddToGroupId) {
@@ -403,14 +494,14 @@ export default function MapView() {
       setPinError(err instanceof Error ? err.message : 'Failed to create pin. Please try again.')
       setPendingCoords(null)
     }
-  }, [gameId, pendingCoords, pendingColour, pendingIcon, pendingLabel, pendingDescription, pendingGroupPinIds, pendingAddToGroupId, reloadPinGroups, defaultPinColour, defaultPinIcon])
+  }, [gameId, activeMapId, pendingCoords, pendingColour, pendingIcon, pendingLabel, pendingDescription, pendingGroupPinIds, pendingAddToGroupId, reloadPinGroups, defaultPinColour, defaultPinIcon])
 
   const handleSelectNote = useCallback(async (note: Note) => {
     if (!gameId || !pendingCoords) return
     const label = pendingLabel.trim() || note.title
     const desc = pendingDescription.trim() || undefined
     try {
-      const pin = await createGamePin(gameId, {
+      const pin = await createMapPin(gameId, activeMapId!, {
         x: pendingCoords.x,
         y: pendingCoords.y,
         label,
@@ -427,7 +518,7 @@ export default function MapView() {
       setPendingIcon(defaultPinIcon)
 
       if (pendingGroupPinIds) {
-        await createPinGroup(gameId, [...pendingGroupPinIds, pin.id])
+        await createMapPinGroup(gameId, activeMapId!, [...pendingGroupPinIds, pin.id])
         await reloadPinGroups()
         setPendingGroupPinIds(null)
       } else if (pendingAddToGroupId) {
@@ -440,13 +531,13 @@ export default function MapView() {
       setPinError(err instanceof Error ? err.message : 'Failed to create pin. Please try again.')
       setPendingCoords(null)
     }
-  }, [gameId, pendingCoords, pendingColour, pendingIcon, pendingLabel, pendingDescription, pendingGroupPinIds, pendingAddToGroupId, reloadPinGroups, defaultPinColour, defaultPinIcon])
+  }, [gameId, activeMapId, pendingCoords, pendingColour, pendingIcon, pendingLabel, pendingDescription, pendingGroupPinIds, pendingAddToGroupId, reloadPinGroups, defaultPinColour, defaultPinIcon])
 
   const handleCreateMarker = useCallback(async (label: string, description: string) => {
     if (!gameId || !pendingCoords) return
     const trimmed = label.trim()
     try {
-      const pin = await createGamePin(gameId, {
+      const pin = await createMapPin(gameId, activeMapId!, {
         x: pendingCoords.x,
         y: pendingCoords.y,
         label: trimmed,
@@ -462,7 +553,7 @@ export default function MapView() {
       setPendingIcon(defaultPinIcon)
 
       if (pendingGroupPinIds) {
-        await createPinGroup(gameId, [...pendingGroupPinIds, pin.id])
+        await createMapPinGroup(gameId, activeMapId!, [...pendingGroupPinIds, pin.id])
         await reloadPinGroups()
         setPendingGroupPinIds(null)
       } else if (pendingAddToGroupId) {
@@ -474,7 +565,7 @@ export default function MapView() {
       console.error('Failed to create marker', err)
       setPinError(err instanceof Error ? err.message : 'Failed to place marker')
     }
-  }, [gameId, pendingCoords, pendingColour, pendingIcon, pendingGroupPinIds, pendingAddToGroupId, reloadPinGroups, defaultPinColour, defaultPinIcon])
+  }, [gameId, activeMapId, pendingCoords, pendingColour, pendingIcon, pendingGroupPinIds, pendingAddToGroupId, reloadPinGroups, defaultPinColour, defaultPinIcon])
 
   const handlePinPointerDown = useCallback((e: React.PointerEvent, pin: SessionPin) => {
     if (pin.group_id !== null) return
@@ -584,42 +675,48 @@ export default function MapView() {
       await updatePin(pinId, field)
     } catch (err: unknown) {
       console.error('Failed to update pin', err)
-      if (gameId) {
+      if (gameId && activeMapId) {
         try {
-          const freshPins = await listGamePins(gameId)
+          const freshPins = await listMapPins(gameId, activeMapId)
           setPins(freshPins)
         } catch { /* ignore */ }
       }
     }
-  }, [gameId])
+  }, [gameId, activeMapId])
 
   const handleUploadClick = () => fileInputRef.current?.click()
 
   const handleFileChange = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
-    if (!file || !gameId) return
+    if (!file || !gameId || !activeMapId) return
     setUploading(true)
     setUploadError(null)
     try {
-      const updatedGame = await uploadMapImage(gameId, file)
-      setGame(updatedGame)
+      const updatedMap = await uploadMapImage(gameId, activeMapId, file)
+      setMaps(prev => prev.map(m => m.id === activeMapId ? updatedMap : m))
     } catch (err: unknown) {
       setUploadError(err instanceof Error ? err.message : 'Upload failed')
     } finally {
       setUploading(false)
       if (fileInputRef.current) fileInputRef.current.value = ''
     }
-  }, [gameId])
+  }, [gameId, activeMapId])
 
   const handleDeleteMap = useCallback(async () => {
-    if (!gameId || !confirm('Remove the map image? All pins will remain.')) return
+    if (!gameId || !activeMapId || !confirm('Archive this map? All session pins and pin groups on this map will be archived. You have 24 hours to restore.')) return
     try {
-      await deleteMapImage(gameId)
-      setGame(prev => prev ? { ...prev, map_image_url: null } : prev)
+      const archivedMap = maps.find(m => m.id === activeMapId)
+      await archiveMap(gameId, activeMapId)
+      setMaps(prev => {
+        const remaining = prev.filter(m => m.id !== activeMapId)
+        setActiveMapId(remaining[0]?.id ?? null)
+        return remaining
+      })
+      if (archivedMap) setArchivedMaps(prev => [...prev, { ...archivedMap, archived_at: new Date().toISOString() }])
     } catch (err: unknown) {
-      console.error('Failed to delete map', err)
+      console.error('Failed to archive map', err)
     }
-  }, [gameId])
+  }, [gameId, activeMapId, maps])
 
   const handleSidebarToggle = useCallback(() => {
     const newOpen = !sidebarOpen
@@ -691,33 +788,111 @@ export default function MapView() {
     })
   }, [mapEditorMode, navigate, gameId])
 
+  const handleCreateMap = useCallback(async (name: string) => {
+    if (!gameId) return
+    try {
+      const newMap = await createMap(gameId, { name })
+      setMaps(prev => [...prev, newMap])
+      setActiveMapId(newMap.id)
+    } catch (err) { console.error('Failed to create map', err) }
+  }, [gameId])
+
+  const handleRenameMap = useCallback(async (mapId: string, name: string) => {
+    if (!gameId) return
+    try {
+      const updated = await renameMap(gameId, mapId, { name })
+      setMaps(prev => prev.map(m => m.id === mapId ? updated : m))
+    } catch (err) { console.error('Failed to rename map', err) }
+  }, [gameId])
+
+  const handleArchiveMap = useCallback(async (mapId: string) => {
+    if (!gameId) return
+    try {
+      await archiveMap(gameId, mapId)
+      const archivedMap = maps.find(m => m.id === mapId)
+      setMaps(prev => {
+        const remaining = prev.filter(m => m.id !== mapId)
+        if (activeMapId === mapId) {
+          setActiveMapId(remaining[0]?.id ?? null)
+        }
+        return remaining
+      })
+      if (archivedMap) setArchivedMaps(prev => [...prev, { ...archivedMap, archived_at: new Date().toISOString() }])
+    } catch (err) { console.error('Failed to archive map', err) }
+  }, [gameId, activeMapId, maps])
+
+  const handleRestoreMap = useCallback(async (mapId: string) => {
+    if (!gameId) return
+    try {
+      const restored = await restoreMap(gameId, mapId)
+      setArchivedMaps(prev => prev.filter(m => m.id !== mapId))
+      setMaps(prev => [...prev, restored].sort((a, b) => a.sort_order - b.sort_order))
+    } catch (err) {
+      console.error('Failed to restore map', err)
+      if (err instanceof Error && err.message.includes('not found')) {
+        setArchivedMaps(prev => prev.filter(m => m.id !== mapId))
+      }
+    }
+  }, [gameId])
+
+  const handleReorderMaps = useCallback(async (ids: string[]) => {
+    if (!gameId) return
+    setMaps(prev => ids.map(id => prev.find(m => m.id === id)!).filter(Boolean))
+    try {
+      await reorderMaps(gameId, ids)
+    } catch (err) { console.error('Failed to reorder maps', err) }
+  }, [gameId])
+
   const sessionForPin = (pin: SessionPin) => sessions.find(s => s.id === pin.session_id)
   const noteForPin = (pin: SessionPin) => notes.find(n => n.id === pin.note_id)
 
   return (
     <div className="map-view-page">
       <div className="map-view-inner">
-        {(!game?.map_image_url || loading || !!error) && (
-          <>
-            <button className="map-back-btn" onClick={() => navigate(`/games/${gameId}`)}>
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round">
-                <path d="M19 12H5M12 19l-7-7 7-7" />
-              </svg>
-              Back to Sessions
-            </button>
-
-            <header className="map-header">
-              <div className="map-title-rule" aria-hidden="true">
-                <span /><span className="map-title-ornament">✦</span><span />
-              </div>
-              <h1 className="map-title">{game?.title ?? 'Campaign Map'}</h1>
-              <div className="map-title-rule" aria-hidden="true">
-                <span /><span className="map-title-ornament">✦</span><span />
-              </div>
-            </header>
-          </>
+        {!loading && !error && (maps.length > 0 || (isGM && archivedMaps.length > 0)) && (
+          <div className={`map-nav-overlay${mapNavExpanded ? ' map-nav-overlay--expanded' : ''}`}>
+            {mapNavExpanded ? (
+              <>
+                <button className="map-nav-back" onClick={() => navigate(`/games/${gameId}`)}>
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" width="14" height="14">
+                    <path d="M19 12H5M12 19l-7-7 7-7" />
+                  </svg>
+                  {game?.title ?? 'Campaign'}
+                </button>
+                <span className="map-nav-divider">│</span>
+                <MapSelector
+                  maps={maps}
+                  activeMapId={activeMapId}
+                  onSelect={(mapId) => { setActiveMapId(mapId); setMapNavExpanded(false) }}
+                  isGM={isGM}
+                  onCreateMap={handleCreateMap}
+                  onRenameMap={handleRenameMap}
+                  onArchiveMap={handleArchiveMap}
+                  onUnarchiveMap={handleRestoreMap}
+                  onReorderMaps={handleReorderMaps}
+                  archivedMaps={archivedMaps}
+                />
+                <button className="map-nav-collapse" onClick={() => setMapNavExpanded(false)} title="Collapse">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" width="12" height="12">
+                    <polyline points="18 15 12 9 6 15" />
+                  </svg>
+                </button>
+              </>
+            ) : (
+              <button className="map-nav-pill" onClick={() => setMapNavExpanded(true)} title="Switch maps">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" width="13" height="13">
+                  <rect x="3" y="3" width="18" height="18" rx="2" ry="2" />
+                  <line x1="3" y1="9" x2="21" y2="9" />
+                  <line x1="9" y1="21" x2="9" y2="9" />
+                </svg>
+                {activeMap?.name ?? 'Maps'}
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" width="10" height="10">
+                  <polyline points="6 9 12 15 18 9" />
+                </svg>
+              </button>
+            )}
+          </div>
         )}
-
         {loading && (
           <div className="map-spinner">
             <div className="spinner-ring" />
@@ -736,7 +911,7 @@ export default function MapView() {
           </div>
         )}
 
-        {!loading && !error && !game?.map_image_url && !isGM && (
+        {!loading && !error && maps.length === 0 && !isGM && (
           <div className="map-empty">
             <div className="map-empty-sigil" aria-hidden="true">⊕</div>
             <p className="map-empty-title">The Map Awaits</p>
@@ -744,11 +919,11 @@ export default function MapView() {
           </div>
         )}
 
-        {!loading && !error && !game?.map_image_url && isGM && (
+        {!loading && !error && activeMapId && !maps.find(m => m.id === activeMapId)?.image_url && isGM && (
           <div className="map-empty">
             <div className="map-empty-sigil" aria-hidden="true">⊕</div>
-            <p className="map-empty-title">No Map Uploaded</p>
-            <p className="map-empty-sub">Upload a map image to begin placing session markers.</p>
+            <p className="map-empty-title">No Map Image</p>
+            <p className="map-empty-sub">Upload an image for <em>{maps.find(m => m.id === activeMapId)?.name}</em> to begin placing session markers.</p>
             {uploadError && <p className="map-upload-error">{uploadError}</p>}
             <button className="map-upload-btn" onClick={handleUploadClick} disabled={uploading}>
               {uploading ? 'Uploading…' : '+ Upload Map Image'}
@@ -763,7 +938,41 @@ export default function MapView() {
           </div>
         )}
 
-        {!loading && !error && game?.map_image_url && (
+        {!loading && !error && activeMapId && !maps.find(m => m.id === activeMapId)?.image_url && !isGM && (
+          <div className="map-empty">
+            <div className="map-empty-sigil" aria-hidden="true">⊕</div>
+            <p className="map-empty-title">The Map Awaits</p>
+            <p className="map-empty-sub">The Game Master has not yet uploaded an image for this map.</p>
+          </div>
+        )}
+
+        {!loading && !error && maps.length === 0 && isGM && (
+          <div className="map-empty">
+            <div className="map-empty-sigil" aria-hidden="true">⊕</div>
+            <p className="map-empty-title">No Maps Yet</p>
+            <p className="map-empty-sub">Name your first map to get started.</p>
+            <form className="map-first-create" onSubmit={(e) => {
+              e.preventDefault()
+              const input = e.currentTarget.querySelector('input')
+              const name = input?.value.trim()
+              if (name) { handleCreateMap(name); input!.value = '' }
+            }}>
+              <input
+                className="map-first-create-input"
+                type="text"
+                placeholder="e.g. Otari Region, Dungeon Level 1…"
+                autoFocus
+                maxLength={255}
+              />
+              <button className="map-upload-btn" type="submit">
+                + Create Map
+              </button>
+            </form>
+          </div>
+        )}
+
+        {!loading && !error && activeMapId && maps.find(m => m.id === activeMapId)?.image_url && (
+          <>
           <div className="map-viewport-container" ref={viewportContainerRef}>
             {pinError && (
               <div className="map-pin-error-banner" onClick={() => setPinError(null)}>
@@ -814,7 +1023,7 @@ export default function MapView() {
                 >
                   <img
                     className="map-img"
-                    src={`${BASE_URL}${game.map_image_url}`}
+                    src={`${BASE_URL}${maps.find(m => m.id === activeMapId)?.image_url ?? ''}`}
                     alt="Campaign map"
                     draggable={false}
                     onLoad={handleImageLoad}
@@ -1127,13 +1336,6 @@ export default function MapView() {
                   </svg>
                 </button>
 
-                <button className="map-back-btn" onClick={() => navigate(`/games/${gameId}`)}>
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round">
-                    <path d="M19 12H5M12 19l-7-7 7-7" />
-                  </svg>
-                  Back to Sessions
-                </button>
-
                 <h2 className="map-panel-title">{game?.title ?? 'Campaign Map'}</h2>
 
                 {isGM && (
@@ -1209,6 +1411,7 @@ export default function MapView() {
               />
             )}
           </div>
+          </>
         )}
       </div>
 
@@ -1396,12 +1599,12 @@ export default function MapView() {
               {dragGroupPrompt.nearbyPins.length > 0 && (
                 <li>
                   <button className="map-picker-item" onClick={async () => {
-                    if (!gameId) return
+                    if (!gameId || !activeMapId) return
                     try {
-                      await createPinGroup(gameId, [...dragGroupPrompt.nearbyPins.map(p => p.id), dragGroupPrompt.draggedPinId])
+                      await createMapPinGroup(gameId, activeMapId, [...dragGroupPrompt.nearbyPins.map(p => p.id), dragGroupPrompt.draggedPinId])
                       await reloadPinGroups()
                       // Reload pins so group_id is reflected
-                      const updatedPins = await listGamePins(gameId)
+                      const updatedPins = await listMapPins(gameId, activeMapId)
                       setPins(updatedPins)
                     } catch (err: unknown) {
                       console.error('Failed to create group', err)
@@ -1420,8 +1623,8 @@ export default function MapView() {
                     try {
                       await addPinToGroup(g.id, dragGroupPrompt.draggedPinId)
                       await reloadPinGroups()
-                      if (gameId) {
-                        const updatedPins = await listGamePins(gameId)
+                      if (gameId && activeMapId) {
+                        const updatedPins = await listMapPins(gameId, activeMapId)
                         setPins(updatedPins)
                       }
                     } catch (err: unknown) {

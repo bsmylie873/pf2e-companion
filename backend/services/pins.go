@@ -13,6 +13,8 @@ type PinService interface {
 	GetPin(id, userID uuid.UUID) (models.SessionPin, error)
 	UpdatePin(id, userID uuid.UUID, updates map[string]interface{}) (models.SessionPin, error)
 	DeletePin(id, userID uuid.UUID) error
+	CreateMapPin(mapID, userID uuid.UUID, pin *models.SessionPin) (models.SessionPin, error)
+	ListMapPins(mapID, userID uuid.UUID) ([]models.SessionPin, error)
 }
 
 type pinService struct {
@@ -20,10 +22,11 @@ type pinService struct {
 	sessionRepo    repositories.SessionRepository
 	membershipRepo repositories.MembershipRepository
 	pinGroupRepo   repositories.PinGroupRepository
+	mapRepo        repositories.MapRepository
 }
 
-func NewPinService(repo repositories.PinRepository, sessionRepo repositories.SessionRepository, membershipRepo repositories.MembershipRepository, pinGroupRepo repositories.PinGroupRepository) PinService {
-	return &pinService{repo: repo, sessionRepo: sessionRepo, membershipRepo: membershipRepo, pinGroupRepo: pinGroupRepo}
+func NewPinService(repo repositories.PinRepository, sessionRepo repositories.SessionRepository, membershipRepo repositories.MembershipRepository, pinGroupRepo repositories.PinGroupRepository, mapRepo repositories.MapRepository) PinService {
+	return &pinService{repo: repo, sessionRepo: sessionRepo, membershipRepo: membershipRepo, pinGroupRepo: pinGroupRepo, mapRepo: mapRepo}
 }
 
 func (s *pinService) CreatePin(sessionID, userID uuid.UUID, pin *models.SessionPin) (models.SessionPin, error) {
@@ -133,4 +136,32 @@ func (s *pinService) DeletePin(id, userID uuid.UUID) error {
 		}
 	}
 	return nil
+}
+
+func (s *pinService) CreateMapPin(mapID, userID uuid.UUID, pin *models.SessionPin) (models.SessionPin, error) {
+	m, err := s.mapRepo.FindByID(mapID)
+	if err != nil {
+		return models.SessionPin{}, err
+	}
+	if _, err := s.membershipRepo.FindByUserAndGameID(userID, m.GameID); err != nil {
+		return models.SessionPin{}, ErrForbidden
+	}
+	pin.ID = uuid.Nil
+	pin.GameID = m.GameID
+	pin.MapID = &mapID
+	if err := s.repo.Create(pin); err != nil {
+		return models.SessionPin{}, err
+	}
+	return *pin, nil
+}
+
+func (s *pinService) ListMapPins(mapID, userID uuid.UUID) ([]models.SessionPin, error) {
+	m, err := s.mapRepo.FindByID(mapID)
+	if err != nil {
+		return nil, err
+	}
+	if _, err := s.membershipRepo.FindByUserAndGameID(userID, m.GameID); err != nil {
+		return nil, ErrForbidden
+	}
+	return s.repo.FindByMapID(mapID)
 }

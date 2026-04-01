@@ -273,6 +273,74 @@ func (h *PinHandler) DeletePin(c echo.Context) error {
 	return SuccessResponse(c, http.StatusOK, map[string]string{"message": "deleted"})
 }
 
+// CreateMapPin handles POST /games/:id/maps/:mapId/pins.
+func (h *PinHandler) CreateMapPin(c echo.Context) error {
+	authUserID, err := GetAuthUserID(c)
+	if err != nil {
+		return nil
+	}
+	mapID, err := ParseUUID(c, "mapId")
+	if err != nil {
+		return nil
+	}
+	var pin models.SessionPin
+	if err := c.Bind(&pin); err != nil {
+		return ErrorResponse(c, http.StatusBadRequest, "invalid request body")
+	}
+	if pin.Colour == "" {
+		pin.Colour = "grey"
+	}
+	if pin.Icon == "" {
+		pin.Icon = "position-marker"
+	}
+	if err := ValidatePinColour(pin.Colour); err != nil {
+		return ErrorResponse(c, http.StatusBadRequest, err.Error())
+	}
+	if err := ValidatePinIcon(pin.Icon); err != nil {
+		return ErrorResponse(c, http.StatusBadRequest, err.Error())
+	}
+	if len(pin.Label) > 100 {
+		return ErrorResponse(c, http.StatusBadRequest, "label must be 100 characters or fewer")
+	}
+	if pin.Description != nil && len(*pin.Description) > 1000 {
+		return ErrorResponse(c, http.StatusBadRequest, "description must be 1000 characters or fewer")
+	}
+	resp, err := h.service.CreateMapPin(mapID, authUserID, &pin)
+	if err != nil {
+		if errors.Is(err, services.ErrForbidden) {
+			return ErrorResponse(c, http.StatusForbidden, "forbidden")
+		}
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return ErrorResponse(c, http.StatusNotFound, "map not found")
+		}
+		return ErrorResponse(c, http.StatusInternalServerError, "failed to create pin")
+	}
+	return SuccessResponse(c, http.StatusCreated, resp)
+}
+
+// ListMapPins handles GET /games/:id/maps/:mapId/pins.
+func (h *PinHandler) ListMapPins(c echo.Context) error {
+	authUserID, err := GetAuthUserID(c)
+	if err != nil {
+		return nil
+	}
+	mapID, err := ParseUUID(c, "mapId")
+	if err != nil {
+		return nil
+	}
+	pins, err := h.service.ListMapPins(mapID, authUserID)
+	if err != nil {
+		if errors.Is(err, services.ErrForbidden) {
+			return ErrorResponse(c, http.StatusForbidden, "forbidden")
+		}
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return ErrorResponse(c, http.StatusNotFound, "map not found")
+		}
+		return ErrorResponse(c, http.StatusInternalServerError, "failed to list pins")
+	}
+	return SuccessResponse(c, http.StatusOK, pins)
+}
+
 // RegisterPinRoutes registers all pin-related routes on the group.
 func RegisterPinRoutes(g *echo.Group, service services.PinService) {
 	h := NewPinHandler(service)
@@ -282,4 +350,6 @@ func RegisterPinRoutes(g *echo.Group, service services.PinService) {
 	g.GET("/pins/:id", h.GetPin)
 	g.PATCH("/pins/:id", h.UpdatePin)
 	g.DELETE("/pins/:id", h.DeletePin)
+	g.POST("/games/:id/maps/:mapId/pins", h.CreateMapPin)
+	g.GET("/games/:id/maps/:mapId/pins", h.ListMapPins)
 }

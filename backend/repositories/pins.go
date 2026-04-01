@@ -16,6 +16,8 @@ type PinRepository interface {
 	ClearGroupID(pinID uuid.UUID) error
 	SetGroupID(pinID uuid.UUID, groupID uuid.UUID) error
 	FindStandaloneByGameID(gameID uuid.UUID) ([]models.SessionPin, error)
+	FindByMapID(mapID uuid.UUID) ([]models.SessionPin, error)
+	FindStandaloneByMapID(mapID uuid.UUID) ([]models.SessionPin, error)
 }
 
 type pinRepository struct {
@@ -73,5 +75,17 @@ func (r *pinRepository) SetGroupID(pinID uuid.UUID, groupID uuid.UUID) error {
 func (r *pinRepository) FindStandaloneByGameID(gameID uuid.UUID) ([]models.SessionPin, error) {
 	var pins []models.SessionPin
 	err := r.db.Where("game_id = ? AND group_id IS NULL", gameID).Find(&pins).Error
+	return pins, err
+}
+
+func (r *pinRepository) FindByMapID(mapID uuid.UUID) ([]models.SessionPin, error) {
+	var pins []models.SessionPin
+	err := r.db.Where("map_id = ?", mapID).Find(&pins).Error
+	return pins, err
+}
+
+func (r *pinRepository) FindStandaloneByMapID(mapID uuid.UUID) ([]models.SessionPin, error) {
+	var pins []models.SessionPin
+	err := r.db.Where("map_id = ? AND group_id IS NULL", mapID).Find(&pins).Error
 	return pins, err
 }

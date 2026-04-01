@@ -59,7 +59,7 @@ export default function Editor() {
   const [sessions, setSessions] = useState<Session[]>([])
   const [notes, setNotes] = useState<Note[]>([])
   const [memberships, setMemberships] = useState<GameMembership[]>([])
-  const [game, setGame] = useState<Game | null>(null)
+  const [, setGame] = useState<Game | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [sessionFolders, setSessionFolders] = useState<Folder[]>([])
@@ -450,10 +450,9 @@ export default function Editor() {
               </button>
             </div>
             <button
-              className={`editor-map-btn${!game?.map_image_url && !isGM ? ' editor-map-btn--disabled' : ''}`}
+              className="editor-map-btn"
               onClick={handleMapView}
-              disabled={!game?.map_image_url && !isGM}
-              title={!game?.map_image_url && !isGM ? 'No campaign map yet' : 'Map view'}
+              title="Map view"
             >
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
                 <polygon points="1 6 1 22 8 18 16 22 23 18 23 2 16 6 8 2 1 6" />

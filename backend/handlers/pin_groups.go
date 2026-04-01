@@ -195,6 +195,61 @@ func (h *PinGroupHandler) DisbandGroup(c echo.Context) error {
 	return SuccessResponse(c, http.StatusOK, map[string]string{"message": "disbanded"})
 }
 
+// CreateMapGroup handles POST /games/:id/maps/:mapId/pin-groups.
+func (h *PinGroupHandler) CreateMapGroup(c echo.Context) error {
+	authUserID, err := GetAuthUserID(c)
+	if err != nil {
+		return nil
+	}
+	mapID, err := ParseUUID(c, "mapId")
+	if err != nil {
+		return nil
+	}
+	var body struct {
+		PinIDs []uuid.UUID `json:"pin_ids"`
+	}
+	if err := c.Bind(&body); err != nil {
+		return ErrorResponse(c, http.StatusBadRequest, "invalid request body")
+	}
+	if len(body.PinIDs) < 2 {
+		return ErrorResponse(c, http.StatusUnprocessableEntity, "at least 2 pins required to create a group")
+	}
+	resp, err := h.service.CreateMapGroup(mapID, authUserID, body.PinIDs)
+	if err != nil {
+		if errors.Is(err, services.ErrForbidden) {
+			return ErrorResponse(c, http.StatusForbidden, "forbidden")
+		}
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return ErrorResponse(c, http.StatusNotFound, "map not found")
+		}
+		return ErrorResponse(c, http.StatusUnprocessableEntity, err.Error())
+	}
+	return SuccessResponse(c, http.StatusCreated, resp)
+}
+
+// ListMapGroups handles GET /games/:id/maps/:mapId/pin-groups.
+func (h *PinGroupHandler) ListMapGroups(c echo.Context) error {
+	authUserID, err := GetAuthUserID(c)
+	if err != nil {
+		return nil
+	}
+	mapID, err := ParseUUID(c, "mapId")
+	if err != nil {
+		return nil
+	}
+	groups, err := h.service.ListMapGroups(mapID, authUserID)
+	if err != nil {
+		if errors.Is(err, services.ErrForbidden) {
+			return ErrorResponse(c, http.StatusForbidden, "forbidden")
+		}
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return ErrorResponse(c, http.StatusNotFound, "map not found")
+		}
+		return ErrorResponse(c, http.StatusInternalServerError, "failed to list pin groups")
+	}
+	return SuccessResponse(c, http.StatusOK, groups)
+}
+
 // RegisterPinGroupRoutes wires all pin group routes on the given group.
 func RegisterPinGroupRoutes(g *echo.Group, service services.PinGroupService) {
 	h := NewPinGroupHandler(service)
@@ -204,4 +259,6 @@ func RegisterPinGroupRoutes(g *echo.Group, service services.PinGroupService) {
 	g.POST("/pin-groups/:id/pins", h.AddPinToGroup)
 	g.DELETE("/pin-groups/:id/pins/:pinId", h.RemovePinFromGroup)
 	g.DELETE("/pin-groups/:id", h.DisbandGroup)
+	g.POST("/games/:id/maps/:mapId/pin-groups", h.CreateMapGroup)
+	g.GET("/games/:id/maps/:mapId/pin-groups", h.ListMapGroups)
 }

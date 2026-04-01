@@ -3,6 +3,7 @@ package main
 import (
 	"net/http"
 	"os"
+	"time"
 
 	"github.com/labstack/echo/v4"
 	echomw "github.com/labstack/echo/v4/middleware"
@@ -45,6 +46,7 @@ func main() {
 	refreshTokenRepo := repositories.NewRefreshTokenRepository(db)
 	preferenceRepo := repositories.NewPreferenceRepository(db)
 	folderRepo := repositories.NewFolderRepository(db)
+	mapRepo := repositories.NewMapRepository(db)
 
 	// Services
 	authService := services.NewAuthService(userRepo, refreshTokenRepo)
@@ -57,8 +59,11 @@ func main() {
 	folderService := services.NewFolderService(folderRepo, membershipRepo)
 	characterService := services.NewCharacterService(characterRepo, membershipRepo)
 	itemService := services.NewItemService(itemRepo, membershipRepo, characterRepo)
-	pinService := services.NewPinService(pinRepo, sessionRepo, membershipRepo, pinGroupRepo)
-	pinGroupService := services.NewPinGroupService(pinGroupRepo, pinRepo, noteRepo, membershipRepo)
+	pinService := services.NewPinService(pinRepo, sessionRepo, membershipRepo, pinGroupRepo, mapRepo)
+	pinGroupService := services.NewPinGroupService(pinGroupRepo, pinRepo, noteRepo, membershipRepo, mapRepo)
+	mapService := services.NewMapService(mapRepo, membershipRepo)
+
+	hub := handlers.NewMapEventHub()
 
 	e.Static("/uploads", "./uploads")
 
@@ -81,7 +86,18 @@ func main() {
 	handlers.RegisterPinRoutes(protected, pinService)
 	handlers.RegisterPinGroupRoutes(protected, pinGroupService)
 	handlers.RegisterPreferenceRoutes(protected, preferenceService)
-	handlers.RegisterMapImageRoutes(protected, gameRepo, membershipRepo)
+	handlers.RegisterMapRoutes(e, protected, mapService, hub)
+
+	// Background cleanup: hard-delete maps archived more than 24 hours ago
+	go func() {
+		ticker := time.NewTicker(1 * time.Hour)
+		defer ticker.Stop()
+		for range ticker.C {
+			if err := mapService.CleanupExpiredMaps(); err != nil {
+				e.Logger.Errorf("map cleanup error: %v", err)
+			}
+		}
+	}()
 
 	port := os.Getenv("PORT")
 	if port == "" {

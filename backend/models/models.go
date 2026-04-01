@@ -30,7 +30,6 @@ type Game struct {
 	Title          string         `gorm:"not null"                                       json:"title"`
 	Description    *string        `                                                      json:"description"`
 	SplashImageURL *string        `gorm:"column:splash_image_url"                        json:"splash_image_url"`
-	MapImageURL    *string        `gorm:"column:map_image_url"                           json:"map_image_url"`
 	FoundryData    datatypes.JSON `gorm:"column:foundry_data;type:jsonb"                 json:"foundry_data"`
 	CreatedAt      time.Time      `gorm:"autoCreateTime"                                 json:"created_at"`
 	UpdatedAt      time.Time      `gorm:"autoUpdateTime"                                 json:"updated_at"`
@@ -82,6 +81,7 @@ type SessionPin struct {
 	Colour      string     `gorm:"not null;default:'grey'"                        json:"colour"`
 	Icon        string     `gorm:"not null;default:'position-marker'"             json:"icon"`
 	GroupID     *uuid.UUID `gorm:"type:uuid;column:group_id"                      json:"group_id"`
+	MapID       *uuid.UUID `gorm:"type:uuid;column:map_id"                        json:"map_id"`
 	Description *string    `                                                       json:"description"`
 	CreatedAt   time.Time  `gorm:"autoCreateTime"                                 json:"created_at"`
 	UpdatedAt   time.Time  `gorm:"autoUpdateTime"                                 json:"updated_at"`
@@ -91,17 +91,33 @@ func (SessionPin) TableName() string { return "session_pins" }
 
 // PinGroup represents a named cluster of session pins on the map.
 type PinGroup struct {
-	ID        uuid.UUID `gorm:"type:uuid;default:gen_random_uuid();primaryKey" json:"id"`
-	GameID    uuid.UUID `gorm:"type:uuid;not null;column:game_id"              json:"game_id"`
-	X         float64   `gorm:"type:numeric(6,4);not null"                     json:"x"`
-	Y         float64   `gorm:"type:numeric(6,4);not null"                     json:"y"`
-	Colour    string    `gorm:"not null;default:'grey'"                        json:"colour"`
-	Icon      string    `gorm:"not null;default:'position-marker'"             json:"icon"`
-	CreatedAt time.Time `gorm:"autoCreateTime"                                 json:"created_at"`
-	UpdatedAt time.Time `gorm:"autoUpdateTime"                                 json:"updated_at"`
+	ID        uuid.UUID  `gorm:"type:uuid;default:gen_random_uuid();primaryKey" json:"id"`
+	GameID    uuid.UUID  `gorm:"type:uuid;not null;column:game_id"              json:"game_id"`
+	MapID     *uuid.UUID `gorm:"type:uuid;column:map_id"                        json:"map_id"`
+	X         float64    `gorm:"type:numeric(6,4);not null"                     json:"x"`
+	Y         float64    `gorm:"type:numeric(6,4);not null"                     json:"y"`
+	Colour    string     `gorm:"not null;default:'grey'"                        json:"colour"`
+	Icon      string     `gorm:"not null;default:'position-marker'"             json:"icon"`
+	CreatedAt time.Time  `gorm:"autoCreateTime"                                 json:"created_at"`
+	UpdatedAt time.Time  `gorm:"autoUpdateTime"                                 json:"updated_at"`
 }
 
 func (PinGroup) TableName() string { return "pin_groups" }
+
+// GameMap represents a named map image within a game.
+type GameMap struct {
+	ID          uuid.UUID  `gorm:"type:uuid;default:gen_random_uuid();primaryKey" json:"id"`
+	GameID      uuid.UUID  `gorm:"type:uuid;not null;column:game_id"              json:"game_id"`
+	Name        string     `gorm:"not null"                                       json:"name"`
+	Description *string    `                                                      json:"description"`
+	ImageURL    *string    `gorm:"column:image_url"                               json:"image_url"`
+	SortOrder   int        `gorm:"not null;default:0"                             json:"sort_order"`
+	ArchivedAt  *time.Time `gorm:"column:archived_at"                             json:"archived_at"`
+	CreatedAt   time.Time  `gorm:"autoCreateTime"                                 json:"created_at"`
+	UpdatedAt   time.Time  `gorm:"autoUpdateTime"                                 json:"updated_at"`
+}
+
+func (GameMap) TableName() string { return "maps" }
 
 // Folder represents the folders table.
 type Folder struct {

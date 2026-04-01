@@ -4,6 +4,7 @@ export interface SessionPin {
   session_id: string | null
   note_id: string | null
   group_id: string | null
+  map_id: string | null
   label: string
   x: number
   y: number
@@ -27,6 +28,7 @@ export interface SessionPinFormData {
 export interface PinGroup {
   id: string
   game_id: string
+  map_id: string | null
   x: number
   y: number
   colour: string

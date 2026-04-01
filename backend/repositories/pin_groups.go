@@ -10,6 +10,7 @@ type PinGroupRepository interface {
 	Create(group *models.PinGroup) error
 	FindByID(id uuid.UUID) (models.PinGroup, error)
 	FindByGameID(gameID uuid.UUID) ([]models.PinGroup, error)
+	FindByMapID(mapID uuid.UUID) ([]models.PinGroup, error)
 	Update(id uuid.UUID, updates map[string]interface{}) (models.PinGroup, error)
 	Delete(id uuid.UUID) error
 	CountMembers(groupID uuid.UUID) (int64, error)
@@ -51,6 +52,12 @@ func (r *pinGroupRepository) Update(id uuid.UUID, updates map[string]interface{}
 
 func (r *pinGroupRepository) Delete(id uuid.UUID) error {
 	return r.db.Delete(&models.PinGroup{}, "id = ?", id).Error
+}
+
+func (r *pinGroupRepository) FindByMapID(mapID uuid.UUID) ([]models.PinGroup, error) {
+	var groups []models.PinGroup
+	err := r.db.Where("map_id = ?", mapID).Find(&groups).Error
+	return groups, err
 }
 
 func (r *pinGroupRepository) CountMembers(groupID uuid.UUID) (int64, error) {

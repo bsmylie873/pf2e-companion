@@ -16,6 +16,8 @@ type PinGroupService interface {
 	UpdateGroup(groupID, userID uuid.UUID, updates map[string]interface{}) (models.PinGroupResponse, error)
 	DisbandGroup(groupID, userID uuid.UUID) error
 	ListGameGroups(gameID, userID uuid.UUID) ([]models.PinGroupResponse, error)
+	CreateMapGroup(mapID, userID uuid.UUID, pinIDs []uuid.UUID) (models.PinGroupResponse, error)
+	ListMapGroups(mapID, userID uuid.UUID) ([]models.PinGroupResponse, error)
 }
 
 type pinGroupService struct {
@@ -23,6 +25,7 @@ type pinGroupService struct {
 	pinRepo        repositories.PinRepository
 	noteRepo       repositories.NoteRepository
 	membershipRepo repositories.MembershipRepository
+	mapRepo        repositories.MapRepository
 }
 
 func NewPinGroupService(
@@ -30,12 +33,14 @@ func NewPinGroupService(
 	pinRepo repositories.PinRepository,
 	noteRepo repositories.NoteRepository,
 	membershipRepo repositories.MembershipRepository,
+	mapRepo repositories.MapRepository,
 ) PinGroupService {
 	return &pinGroupService{
 		pinGroupRepo:   pinGroupRepo,
 		pinRepo:        pinRepo,
 		noteRepo:       noteRepo,
 		membershipRepo: membershipRepo,
+		mapRepo:        mapRepo,
 	}
 }
 
@@ -242,6 +247,74 @@ func (s *pinGroupService) ListGameGroups(gameID, userID uuid.UUID) ([]models.Pin
 			CreatedAt: g.CreatedAt,
 			UpdatedAt: g.UpdatedAt,
 		})
+	}
+	return result, nil
+}
+
+func (s *pinGroupService) CreateMapGroup(mapID, userID uuid.UUID, pinIDs []uuid.UUID) (models.PinGroupResponse, error) {
+	m, err := s.mapRepo.FindByID(mapID)
+	if err != nil {
+		return models.PinGroupResponse{}, err
+	}
+	if _, err := s.membershipRepo.FindByUserAndGameID(userID, m.GameID); err != nil {
+		return models.PinGroupResponse{}, ErrForbidden
+	}
+	if len(pinIDs) < 2 {
+		return models.PinGroupResponse{}, errors.New("at least 2 pins required to create a group")
+	}
+	pins := make([]models.SessionPin, 0, len(pinIDs))
+	for _, pid := range pinIDs {
+		pin, err := s.pinRepo.FindByID(pid)
+		if err != nil {
+			return models.PinGroupResponse{}, err
+		}
+		if pin.GameID != m.GameID {
+			return models.PinGroupResponse{}, ErrForbidden
+		}
+		if pin.GroupID != nil {
+			return models.PinGroupResponse{}, errors.New("pin " + pid.String() + " is already in a group")
+		}
+		pins = append(pins, pin)
+	}
+	first := pins[0]
+	group := &models.PinGroup{
+		GameID: m.GameID,
+		MapID:  &mapID,
+		X:      first.X,
+		Y:      first.Y,
+		Colour: first.Colour,
+		Icon:   first.Icon,
+	}
+	if err := s.pinGroupRepo.Create(group); err != nil {
+		return models.PinGroupResponse{}, err
+	}
+	for _, pid := range pinIDs {
+		if err := s.pinRepo.SetGroupID(pid, group.ID); err != nil {
+			return models.PinGroupResponse{}, err
+		}
+	}
+	return s.buildGroupResponse(*group)
+}
+
+func (s *pinGroupService) ListMapGroups(mapID, userID uuid.UUID) ([]models.PinGroupResponse, error) {
+	m, err := s.mapRepo.FindByID(mapID)
+	if err != nil {
+		return nil, err
+	}
+	if _, err := s.membershipRepo.FindByUserAndGameID(userID, m.GameID); err != nil {
+		return nil, ErrForbidden
+	}
+	groups, err := s.pinGroupRepo.FindByMapID(mapID)
+	if err != nil {
+		return nil, err
+	}
+	result := make([]models.PinGroupResponse, 0, len(groups))
+	for _, g := range groups {
+		resp, err := s.buildGroupResponse(g)
+		if err != nil {
+			return nil, err
+		}
+		result = append(result, resp)
 	}
 	return result, nil
 }
