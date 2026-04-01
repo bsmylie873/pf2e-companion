@@ -188,24 +188,28 @@ export default function FolderSection({
           </button>
           <span className="folder-unfiled-label">Unfiled ({unfiledItems.length})</span>
         </div>
-        {isUnfiledExpanded && unfiledItems.map(item => (
-          <div
-            key={item.id}
-            className={`folder-content-item ${itemType}`}
-            draggable
-            onDragStart={e => handleItemDragStart(e, item.id)}
-            onClick={() => onItemClick(item.id)}
-            title={getItemTitle(item)}
-          >
-            <span className="folder-content-icon" aria-hidden>
-              {itemType === 'session' ? '\u{1F4D6}' : '\u{1F4C4}'}
-            </span>
-            <span className="folder-content-label">{getItemTitle(item)}</span>
-            {'visibility' in item && item.visibility === 'private' && (
-              <span className="folder-content-badge" title="Private">&#128274;</span>
-            )}
-          </div>
-        ))}
+        {isUnfiledExpanded && (
+          <>
+            {unfiledItems.map(item => (
+              <div
+                key={item.id}
+                className={`folder-content-item ${itemType}`}
+                draggable
+                onDragStart={e => handleItemDragStart(e, item.id)}
+                onClick={() => onItemClick(item.id)}
+                title={getItemTitle(item)}
+              >
+                <span className="folder-content-icon" aria-hidden>
+                  {itemType === 'session' ? '\u{1F4D6}' : '\u{1F4C4}'}
+                </span>
+                <span className="folder-content-label">{getItemTitle(item)}</span>
+                {'visibility' in item && item.visibility === 'private' && (
+                  <span className="folder-content-badge" title="Private">&#128274;</span>
+                )}
+              </div>
+            ))}
+          </>
+        )}
       </div>
 
       {/* Folder list */}
@@ -229,24 +233,26 @@ export default function FolderSection({
             onItemDrop={(_itemType, itemId) => onAssignItem(itemId, folder.id)}
             onFolderContextMenu={e => handleContextMenu(e, folder.id)}
           >
-            {folderItems.map(item => (
-              <div
-                key={item.id}
-                className={`folder-content-item ${itemType}`}
-                draggable
-                onDragStart={e => handleItemDragStart(e, item.id)}
-                onClick={() => onItemClick(item.id)}
-                title={getItemTitle(item)}
-              >
-                <span className="folder-content-icon" aria-hidden>
-                  {itemType === 'session' ? '\u{1F4D6}' : '\u{1F4C4}'}
-                </span>
-                <span className="folder-content-label">{getItemTitle(item)}</span>
-                {'visibility' in item && item.visibility === 'private' && (
-                  <span className="folder-content-badge" title="Private">&#128274;</span>
-                )}
-              </div>
-            ))}
+            <>
+              {folderItems.map(item => (
+                <div
+                  key={item.id}
+                  className={`folder-content-item ${itemType}`}
+                  draggable
+                  onDragStart={e => handleItemDragStart(e, item.id)}
+                  onClick={() => onItemClick(item.id)}
+                  title={getItemTitle(item)}
+                >
+                  <span className="folder-content-icon" aria-hidden>
+                    {itemType === 'session' ? '\u{1F4D6}' : '\u{1F4C4}'}
+                  </span>
+                  <span className="folder-content-label">{getItemTitle(item)}</span>
+                  {'visibility' in item && item.visibility === 'private' && (
+                    <span className="folder-content-badge" title="Private">&#128274;</span>
+                  )}
+                </div>
+              ))}
+            </>
           </FolderItem>
         )
       })}

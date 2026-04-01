@@ -125,6 +125,18 @@ func (s *preferenceService) UpdatePreferences(userID uuid.UUID, updates map[stri
 		}
 	}
 
+	if v, ok := updates["default_view_mode"]; ok {
+		if v == nil {
+			pref.DefaultViewMode = nil
+		} else {
+			raw, err := json.Marshal(v)
+			if err != nil {
+				return models.UserPreferenceResponse{}, fmt.Errorf("%w: invalid default_view_mode", ErrValidation)
+			}
+			pref.DefaultViewMode = datatypes.JSON(raw)
+		}
+	}
+
 	if v, ok := updates["map_editor_mode"]; ok {
 		mode, ok2 := v.(string)
 		if !ok2 || !validMapEditorModes[mode] {
