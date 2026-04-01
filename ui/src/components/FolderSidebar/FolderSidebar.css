@@ -11,7 +11,7 @@
   right: 0;
   width: 280px;
   height: 100%;
-  background: rgba(12, 8, 4, 0.93);
+  background: var(--overlay-panel);
   border-left: 1px solid var(--color-border);
   backdrop-filter: blur(8px);
   display: flex;
@@ -70,7 +70,6 @@
   letter-spacing: 0.14em;
   text-transform: uppercase;
   color: var(--color-text-muted);
-  opacity: 0.7;
 }
 
 .folder-section-add-btn {
@@ -120,7 +119,7 @@
 }
 
 .folder-item-row:hover {
-  background: rgba(255, 255, 255, 0.04);
+  background: var(--overlay-hover);
 }
 
 .folder-chevron {
@@ -165,7 +164,7 @@
 .folder-empty-indicator {
   font-size: 0.65rem;
   color: var(--color-text-muted);
-  opacity: 0.4;
+  opacity: 0.6;
 }
 
 .folder-menu-wrap {
@@ -197,12 +196,12 @@
   position: absolute;
   right: 0;
   top: 100%;
-  background: var(--color-surface, #1a1210);
+  background: var(--color-surface);
   border: 1px solid var(--color-border);
   border-radius: 3px;
   z-index: 100;
   min-width: 120px;
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.5);
+  box-shadow: var(--shadow-dropdown);
 }
 
 .folder-context-menu button {
@@ -220,7 +219,7 @@
 }
 
 .folder-context-menu button:hover {
-  background: rgba(255, 255, 255, 0.06);
+  background: var(--overlay-hover-menu);
 }
 
 .folder-context-menu button.danger {
@@ -240,11 +239,11 @@
 .folder-section-context-menu {
   position: fixed;
   z-index: 200;
-  background: var(--color-surface, #1a1210);
+  background: var(--color-surface);
   border: 1px solid var(--color-border);
   border-radius: 3px;
   min-width: 160px;
-  box-shadow: 0 6px 24px rgba(0, 0, 0, 0.6);
+  box-shadow: var(--shadow-context);
   padding: 0.2rem 0;
 }
 
@@ -265,7 +264,7 @@
 }
 
 .folder-section-context-menu button:hover {
-  background: rgba(255, 255, 255, 0.06);
+  background: var(--overlay-hover-menu);
 }
 
 .folder-section-context-hint {
@@ -287,7 +286,7 @@
 }
 
 .folder-content-item:hover {
-  background: rgba(255, 255, 255, 0.04);
+  background: var(--overlay-hover);
 }
 
 .folder-content-icon {
@@ -331,7 +330,7 @@
 }
 
 .folder-unfiled-row:hover {
-  background: rgba(255, 255, 255, 0.04);
+  background: var(--overlay-hover);
 }
 
 .folder-unfiled-label {
@@ -340,7 +339,7 @@
   letter-spacing: 0.12em;
   text-transform: uppercase;
   color: var(--color-text-muted);
-  opacity: 0.55;
+  opacity: 0.75;
 }
 
 /* ── Inline Input ───────────────────────────────────────────── */
@@ -352,7 +351,7 @@
 
 .folder-inline-input {
   width: 100%;
-  background: rgba(255, 255, 255, 0.06);
+  background: var(--overlay-input);
   border: 1px solid var(--color-accent);
   border-radius: 2px;
   color: var(--color-text);

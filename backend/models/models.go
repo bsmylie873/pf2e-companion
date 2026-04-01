@@ -206,6 +206,7 @@ type UserPreference struct {
 	DefaultPinIcon   *string        `gorm:"column:default_pin_icon"                       json:"default_pin_icon"`
 	SidebarState     datatypes.JSON `gorm:"column:sidebar_state;type:jsonb"               json:"sidebar_state"`
 	DefaultViewMode  datatypes.JSON `gorm:"column:default_view_mode;type:jsonb"           json:"default_view_mode"`
+	MapEditorMode    string         `gorm:"column:map_editor_mode;default:modal"           json:"map_editor_mode"`
 	CreatedAt        time.Time      `gorm:"autoCreateTime"                                json:"created_at"`
 	UpdatedAt        time.Time      `gorm:"autoUpdateTime"                                json:"updated_at"`
 }

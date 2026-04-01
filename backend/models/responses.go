@@ -87,6 +87,7 @@ type UserPreferenceResponse struct {
 	DefaultPinIcon   *string        `json:"default_pin_icon"`
 	SidebarState     datatypes.JSON `json:"sidebar_state"`
 	DefaultViewMode  datatypes.JSON `json:"default_view_mode"`
+	MapEditorMode    string         `json:"map_editor_mode"`
 }
 
 // FromUserPreference converts a UserPreference model to a UserPreferenceResponse.
@@ -97,5 +98,6 @@ func FromUserPreference(pref UserPreference) UserPreferenceResponse {
 		DefaultPinIcon:   pref.DefaultPinIcon,
 		SidebarState:     pref.SidebarState,
 		DefaultViewMode:  pref.DefaultViewMode,
+		MapEditorMode:    pref.MapEditorMode,
 	}
 }

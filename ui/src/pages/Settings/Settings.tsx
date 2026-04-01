@@ -18,6 +18,7 @@ export default function Settings() {
     default_pin_icon: null,
     sidebar_state: null,
     default_view_mode: null,
+    map_editor_mode: 'modal',
   })
   const [prefsError, setPrefsError] = useState(false)
   const [loading, setLoading] = useState(true)
@@ -26,7 +27,7 @@ export default function Settings() {
     Promise.all([
       getPreferences().catch(() => {
         setPrefsError(true)
-        return { default_game_id: null, default_pin_colour: null, default_pin_icon: null } as UserPreferences
+        return { default_game_id: null, default_pin_colour: null, default_pin_icon: null, sidebar_state: null, map_editor_mode: 'modal' } as UserPreferences
       }),
       apiFetch<Game[]>('/games').catch(() => [] as Game[]),
     ]).then(([fetchedPrefs, fetchedGames]) => {
@@ -193,7 +194,7 @@ export default function Settings() {
             </div>
 
             {/* Default Pin Icon */}
-            <div className="settings-row settings-row--stacked settings-row--last">
+            <div className="settings-row settings-row--stacked">
               <div className="settings-row-info">
                 <span className="settings-row-label">Default Pin Icon</span>
                 <span className="settings-row-hint">The sigil that marks your path</span>
@@ -214,6 +215,30 @@ export default function Settings() {
                     </button>
                   )
                 })}
+              </div>
+            </div>
+
+            {/* Map Editor Mode */}
+            <div className="settings-row settings-row--last">
+              <div className="settings-row-info">
+                <span className="settings-row-label">Map Editor Mode</span>
+                <span className="settings-row-hint">How sessions and notes open from the map view</span>
+              </div>
+              <div className="settings-layout-toggle">
+                <button
+                  className={`settings-layout-btn${prefs.map_editor_mode === 'modal' ? ' active' : ''}`}
+                  onClick={() => savePrefs({ map_editor_mode: 'modal' })}
+                  aria-pressed={prefs.map_editor_mode === 'modal'}
+                >
+                  Modal Overlay
+                </button>
+                <button
+                  className={`settings-layout-btn${prefs.map_editor_mode === 'navigate' ? ' active' : ''}`}
+                  onClick={() => savePrefs({ map_editor_mode: 'navigate' })}
+                  aria-pressed={prefs.map_editor_mode === 'navigate'}
+                >
+                  Full Page
+                </button>
               </div>
             </div>
           </>

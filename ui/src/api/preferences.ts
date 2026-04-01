@@ -12,6 +12,7 @@ export interface UserPreferences {
   default_pin_icon: string | null
   sidebar_state: Record<string, GameSidebarState> | null
   default_view_mode: Record<string, 'list' | 'grid'> | null
+  map_editor_mode: 'modal' | 'navigate'
 }
 
 export async function getPreferences(): Promise<UserPreferences> {

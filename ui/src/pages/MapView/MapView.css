@@ -1682,7 +1682,7 @@
   justify-content: center;
   width: 32px;
   height: 32px;
-  background: rgba(12, 8, 4, 0.85);
+  background: var(--overlay-panel);
   border: 1px solid var(--color-border);
   border-radius: 3px;
   color: var(--color-text-muted);
@@ -1700,5 +1700,4 @@
 .map-sidebar-toggle-btn:hover {
   color: var(--color-accent);
   border-color: var(--color-accent);
-  background: rgba(12, 8, 4, 0.95);
 }
