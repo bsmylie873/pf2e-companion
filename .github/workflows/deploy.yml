@@ -34,7 +34,12 @@ jobs:
       - name: Set up Fly.io proxy
         run: |
           flyctl proxy 15432:5432 -a pf2e-companion-db &
-          sleep 3
+          for i in $(seq 1 30); do
+            nc -z localhost 15432 && echo "Proxy is ready" && exit 0
+            echo "Waiting for proxy... ($i/30)"
+            sleep 2
+          done
+          echo "Proxy failed to start" && exit 1
         env:
           FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
 
