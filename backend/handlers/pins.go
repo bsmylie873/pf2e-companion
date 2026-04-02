@@ -14,11 +14,12 @@ import (
 // PinHandler holds the service dependency for pin-related routes.
 type PinHandler struct {
 	service services.PinService
+	hub     *GameEventHub
 }
 
-// NewPinHandler constructs a PinHandler with the given service.
-func NewPinHandler(service services.PinService) *PinHandler {
-	return &PinHandler{service: service}
+// NewPinHandler constructs a PinHandler with the given service and hub.
+func NewPinHandler(service services.PinService, hub *GameEventHub) *PinHandler {
+	return &PinHandler{service: service, hub: hub}
 }
 
 // CreatePin handles POST /sessions/:id/pins.
@@ -68,6 +69,7 @@ func (h *PinHandler) CreatePin(c echo.Context) error {
 		return ErrorResponse(c, http.StatusInternalServerError, "failed to create pin")
 	}
 
+	h.hub.BroadcastExcept(resp.GameID, authUserID, GameEvent{Type: "pin_created", GameID: resp.GameID, Data: resp})
 	return SuccessResponse(c, http.StatusCreated, resp)
 }
 
@@ -110,6 +112,7 @@ func (h *PinHandler) CreateGamePin(c echo.Context) error {
 		}
 		return ErrorResponse(c, http.StatusInternalServerError, "failed to create pin")
 	}
+	h.hub.BroadcastExcept(resp.GameID, authUserID, GameEvent{Type: "pin_created", GameID: resp.GameID, Data: resp})
 	return SuccessResponse(c, http.StatusCreated, resp)
 }
 
@@ -245,6 +248,7 @@ func (h *PinHandler) UpdatePin(c echo.Context) error {
 		return ErrorResponse(c, http.StatusInternalServerError, "failed to update pin")
 	}
 
+	h.hub.BroadcastExcept(pin.GameID, authUserID, GameEvent{Type: "pin_updated", GameID: pin.GameID, Data: pin})
 	return SuccessResponse(c, http.StatusOK, pin)
 }
 
@@ -260,6 +264,18 @@ func (h *PinHandler) DeletePin(c echo.Context) error {
 		return nil
 	}
 
+	// Fetch pin before deletion to capture gameID for broadcast.
+	pin, err := h.service.GetPin(id, authUserID)
+	if err != nil {
+		if errors.Is(err, services.ErrForbidden) {
+			return ErrorResponse(c, http.StatusForbidden, "forbidden")
+		}
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return ErrorResponse(c, http.StatusNotFound, "pin not found")
+		}
+		return ErrorResponse(c, http.StatusInternalServerError, "failed to delete pin")
+	}
+
 	if err := h.service.DeletePin(id, authUserID); err != nil {
 		if errors.Is(err, services.ErrForbidden) {
 			return ErrorResponse(c, http.StatusForbidden, "forbidden")
@@ -270,6 +286,7 @@ func (h *PinHandler) DeletePin(c echo.Context) error {
 		return ErrorResponse(c, http.StatusInternalServerError, "failed to delete pin")
 	}
 
+	h.hub.BroadcastExcept(pin.GameID, authUserID, GameEvent{Type: "pin_deleted", GameID: pin.GameID, Data: map[string]interface{}{"id": id}})
 	return SuccessResponse(c, http.StatusOK, map[string]string{"message": "deleted"})
 }
 
@@ -315,6 +332,7 @@ func (h *PinHandler) CreateMapPin(c echo.Context) error {
 		}
 		return ErrorResponse(c, http.StatusInternalServerError, "failed to create pin")
 	}
+	h.hub.BroadcastExcept(resp.GameID, authUserID, GameEvent{Type: "pin_created", GameID: resp.GameID, Data: resp})
 	return SuccessResponse(c, http.StatusCreated, resp)
 }
 
@@ -342,8 +360,8 @@ func (h *PinHandler) ListMapPins(c echo.Context) error {
 }
 
 // RegisterPinRoutes registers all pin-related routes on the group.
-func RegisterPinRoutes(g *echo.Group, service services.PinService) {
-	h := NewPinHandler(service)
+func RegisterPinRoutes(g *echo.Group, service services.PinService, hub *GameEventHub) {
+	h := NewPinHandler(service, hub)
 	g.POST("/sessions/:id/pins", h.CreatePin)
 	g.POST("/games/:id/pins", h.CreateGamePin)
 	g.GET("/games/:id/pins", h.ListGamePins)

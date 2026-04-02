@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import type { Note } from '../../types/note'
 import type { JSONContent } from '@tiptap/react'
@@ -7,6 +7,8 @@ import SessionNotesEditor from '../../components/SessionNotesEditor/SessionNotes
 import { useAuth } from '../../context/AuthContext'
 import { listMemberships } from '../../api/memberships'
 import type { GameMembership } from '../../types/membership'
+import { useGameSocket } from '../../hooks/useGameSocket'
+import type { GameSocketEvent } from '../../hooks/useGameSocket'
 import './NoteEditor.css'
 
 export default function NoteEditor() {
@@ -44,12 +46,22 @@ export default function NoteEditor() {
     return () => { cancelled = true }
   }, [gameId])
 
-  const handleSave = async (content: JSONContent, version: number): Promise<Note> => {
+  const handleSave = async (content: JSONContent): Promise<Note> => {
     if (!noteId) throw new Error('No note ID')
-    const updated = await updateNoteContent(noteId, { content, version })
+    const updated = await updateNoteContent(noteId!, { content })
     setNote(updated)
     return updated
   }
+
+  const handleGameEvent = useCallback((event: GameSocketEvent) => {
+    if (event.type === 'note_updated' && event.entity_id === noteId) {
+      getNote(noteId!).then(setNote).catch(() => {})
+    } else if (event.type === 'note_deleted' && event.entity_id === noteId) {
+      navigate(`/games/${gameId}`)
+    }
+  }, [noteId, gameId, navigate])
+
+  useGameSocket(gameId, handleGameEvent)
 
   const isAuthor = note?.user_id === user?.id
   const isGM = memberships.some(m => m.user_id === user?.id && m.is_gm)
@@ -103,7 +115,6 @@ export default function NoteEditor() {
 
             <SessionNotesEditor
               initialContent={note.content as JSONContent | null}
-              version={note.version}
               onSave={handleSave}
               editable={canEdit}
               placeholder="Begin your private chronicle…"

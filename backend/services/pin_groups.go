@@ -11,6 +11,7 @@ import (
 
 type PinGroupService interface {
 	CreateGroup(gameID, userID uuid.UUID, pinIDs []uuid.UUID) (models.PinGroupResponse, error)
+	GetGroup(groupID, userID uuid.UUID) (models.PinGroupResponse, error)
 	AddPinToGroup(groupID, pinID, userID uuid.UUID) (models.PinGroupResponse, error)
 	RemovePinFromGroup(groupID, pinID, userID uuid.UUID) (models.PinGroupResponse, error)
 	UpdateGroup(groupID, userID uuid.UUID, updates map[string]interface{}) (models.PinGroupResponse, error)
@@ -61,6 +62,17 @@ func (s *pinGroupService) buildGroupResponse(group models.PinGroup) (models.PinG
 		CreatedAt: group.CreatedAt,
 		UpdatedAt: group.UpdatedAt,
 	}, nil
+}
+
+func (s *pinGroupService) GetGroup(groupID, userID uuid.UUID) (models.PinGroupResponse, error) {
+	group, err := s.pinGroupRepo.FindByID(groupID)
+	if err != nil {
+		return models.PinGroupResponse{}, err
+	}
+	if _, err := s.membershipRepo.FindByUserAndGameID(userID, group.GameID); err != nil {
+		return models.PinGroupResponse{}, ErrForbidden
+	}
+	return s.buildGroupResponse(group)
 }
 
 func (s *pinGroupService) CreateGroup(gameID, userID uuid.UUID, pinIDs []uuid.UUID) (models.PinGroupResponse, error) {

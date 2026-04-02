@@ -11,7 +11,6 @@ import (
 	"github.com/gorilla/websocket"
 	"github.com/labstack/echo/v4"
 	"gorm.io/gorm"
-	authpkg "pf2e-companion/backend/auth"
 	"pf2e-companion/backend/services"
 )
 
@@ -24,11 +23,11 @@ var wsUpgrader = websocket.Upgrader{
 // MapHandler handles map-related routes.
 type MapHandler struct {
 	service services.MapService
-	hub     *MapEventHub
+	hub     *GameEventHub
 }
 
 // NewMapHandler constructs a MapHandler.
-func NewMapHandler(service services.MapService, hub *MapEventHub) *MapHandler {
+func NewMapHandler(service services.MapService, hub *GameEventHub) *MapHandler {
 	return &MapHandler{service: service, hub: hub}
 }
 
@@ -105,7 +104,7 @@ func (h *MapHandler) CreateMap(c echo.Context) error {
 		}
 		return ErrorResponse(c, http.StatusInternalServerError, "failed to create map")
 	}
-	h.hub.Broadcast(gameID, MapEvent{Type: "map_created", MapID: m.ID, GameID: gameID, Data: m})
+	h.hub.Broadcast(gameID, GameEvent{Type: "map_created", GameID: gameID, Data: m})
 	return SuccessResponse(c, http.StatusCreated, m)
 }
 
@@ -147,7 +146,7 @@ func (h *MapHandler) RenameMap(c echo.Context) error {
 		}
 		return ErrorResponse(c, http.StatusInternalServerError, "failed to update map")
 	}
-	h.hub.Broadcast(gameID, MapEvent{Type: "map_renamed", MapID: mapID, GameID: gameID, Data: m})
+	h.hub.Broadcast(gameID, GameEvent{Type: "map_renamed", GameID: gameID, Data: m})
 	return SuccessResponse(c, http.StatusOK, m)
 }
 
@@ -176,7 +175,7 @@ func (h *MapHandler) ReorderMaps(c echo.Context) error {
 		}
 		return ErrorResponse(c, http.StatusInternalServerError, "failed to reorder maps")
 	}
-	h.hub.Broadcast(gameID, MapEvent{Type: "map_reordered", GameID: gameID, Data: body.MapIDs})
+	h.hub.Broadcast(gameID, GameEvent{Type: "map_reordered", GameID: gameID, Data: body.MapIDs})
 	return SuccessResponse(c, http.StatusOK, map[string]string{"message": "reordered"})
 }
 
@@ -203,7 +202,7 @@ func (h *MapHandler) ArchiveMap(c echo.Context) error {
 		}
 		return ErrorResponse(c, http.StatusInternalServerError, "failed to archive map")
 	}
-	h.hub.Broadcast(gameID, MapEvent{Type: "map_archived", MapID: mapID, GameID: gameID, Data: nil})
+	h.hub.Broadcast(gameID, GameEvent{Type: "map_archived", GameID: gameID, Data: map[string]interface{}{"id": mapID}})
 	return SuccessResponse(c, http.StatusOK, map[string]string{"message": "archived"})
 }
 
@@ -231,7 +230,7 @@ func (h *MapHandler) RestoreMap(c echo.Context) error {
 		}
 		return ErrorResponse(c, http.StatusInternalServerError, "failed to restore map")
 	}
-	h.hub.Broadcast(gameID, MapEvent{Type: "map_restored", MapID: mapID, GameID: gameID, Data: m})
+	h.hub.Broadcast(gameID, GameEvent{Type: "map_restored", GameID: gameID, Data: m})
 	return SuccessResponse(c, http.StatusOK, m)
 }
 
@@ -297,49 +296,12 @@ func (h *MapHandler) UploadMapImage(c echo.Context) error {
 		}
 		return ErrorResponse(c, http.StatusInternalServerError, "failed to update map image")
 	}
-	h.hub.Broadcast(m.GameID, MapEvent{Type: "map_renamed", MapID: mapID, GameID: m.GameID, Data: m})
+	h.hub.Broadcast(m.GameID, GameEvent{Type: "map_image_updated", GameID: m.GameID, Data: m})
 	return SuccessResponse(c, http.StatusOK, m)
 }
 
-// MapWebSocket handles GET /games/:id/maps/ws.
-// Authenticates via access_token cookie (inline JWT check, since WS upgrade needs special handling).
-func (h *MapHandler) MapWebSocket(c echo.Context) error {
-	cookie, err := c.Cookie("access_token")
-	if err != nil || cookie.Value == "" {
-		return c.JSON(http.StatusUnauthorized, map[string]interface{}{"code": 401, "message": "unauthorized"})
-	}
-	claims, err := authpkg.ValidateToken(cookie.Value)
-	if err != nil {
-		return c.JSON(http.StatusUnauthorized, map[string]interface{}{"code": 401, "message": "unauthorized"})
-	}
-	_ = claims
-
-	gameID, err := ParseUUID(c, "id")
-	if err != nil {
-		return nil
-	}
-
-	ws, err := wsUpgrader.Upgrade(c.Response(), c.Request(), nil)
-	if err != nil {
-		return err
-	}
-	defer ws.Close()
-
-	h.hub.Register(gameID, ws)
-	defer h.hub.Unregister(gameID, ws)
-
-	// Keep connection open, reading (and discarding) client messages for ping/pong
-	for {
-		_, _, err := ws.ReadMessage()
-		if err != nil {
-			break
-		}
-	}
-	return nil
-}
-
 // RegisterMapRoutes wires all map-related routes.
-func RegisterMapRoutes(e *echo.Echo, g *echo.Group, service services.MapService, hub *MapEventHub) {
+func RegisterMapRoutes(g *echo.Group, service services.MapService, hub *GameEventHub) {
 	h := NewMapHandler(service, hub)
 	g.GET("/games/:id/maps", h.ListMaps)
 	g.GET("/games/:id/maps/archived", h.ListArchivedMaps)
@@ -349,6 +311,4 @@ func RegisterMapRoutes(e *echo.Echo, g *echo.Group, service services.MapService,
 	g.DELETE("/games/:id/maps/:mapId", h.ArchiveMap)
 	g.POST("/games/:id/maps/:mapId/restore", h.RestoreMap)
 	g.POST("/games/:id/maps/:mapId/image", h.UploadMapImage)
-	// WS endpoint registered on base echo (not protected group — auth is handled inline)
-	e.GET("/games/:id/maps/ws", h.MapWebSocket)
 }

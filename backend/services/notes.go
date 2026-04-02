@@ -98,19 +98,6 @@ func (s *noteService) UpdateNote(id, userID uuid.UUID, updates map[string]interf
 		delete(updates, "visibility")
 	}
 
-	// Extract version for optimistic locking
-	var expectedVersion *int
-	if v, ok := updates["version"]; ok {
-		switch val := v.(type) {
-		case int:
-			expectedVersion = &val
-		case float64:
-			intVal := int(val)
-			expectedVersion = &intVal
-		}
-		delete(updates, "version")
-	}
-
 	// Strip immutable fields
 	delete(updates, "id")
 	delete(updates, "created_at")
@@ -146,7 +133,7 @@ func (s *noteService) UpdateNote(id, userID uuid.UUID, updates map[string]interf
 		}
 	}
 
-	return s.repo.Update(id, updates, expectedVersion)
+	return s.repo.Update(id, updates)
 }
 
 func (s *noteService) DeleteNote(id, userID uuid.UUID) error {

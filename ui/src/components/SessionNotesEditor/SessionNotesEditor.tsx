@@ -39,9 +39,8 @@ function ToolbarBtn({ label, active, onClick, ariaLabel }: ToolbarBtnProps) {
 
 interface SessionNotesEditorProps {
   initialContent: JSONContent | null
-  version: number
   editable?: boolean
-  onSave?: (content: JSONContent, version: number) => Promise<{ version: number }>
+  onSave?: (content: JSONContent) => Promise<unknown>
   placeholder?: string
 }
 
@@ -55,20 +54,17 @@ const STATUS_LABELS: Record<string, string> = {
   idle: '',
   saving: 'Saving…',
   saved: 'Saved ✦',
-  conflict: 'Conflict — reload to sync',
   error: 'Save failed',
 }
 
 export default function SessionNotesEditor({
   initialContent,
-  version,
   editable = true,
   onSave,
   placeholder = 'Begin your session chronicle…',
 }: SessionNotesEditorProps) {
   const { scheduleAutosave, status } = useAutosave(
     onSave ?? (() => Promise.reject(new Error('No onSave provided'))),
-    version,
   )
 
   const editor = useEditor({

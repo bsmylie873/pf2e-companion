@@ -1,9 +1,11 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import type { Session } from '../../types/session'
 import type { JSONContent } from '@tiptap/react'
 import { getSession, updateSessionNotes } from '../../api/sessions'
 import SessionNotesEditor from '../../components/SessionNotesEditor/SessionNotesEditor'
+import { useGameSocket } from '../../hooks/useGameSocket'
+import type { GameSocketEvent } from '../../hooks/useGameSocket'
 import './SessionNotes.css'
 
 export default function SessionNotes() {
@@ -30,12 +32,22 @@ export default function SessionNotes() {
     return () => { cancelled = true }
   }, [sessionId])
 
-  const handleSave = async (notes: JSONContent, version: number): Promise<Session> => {
+  const handleSave = async (content: JSONContent): Promise<Session> => {
     if (!sessionId) throw new Error('No session ID')
-    const updated = await updateSessionNotes(sessionId, { notes, version })
+    const updated = await updateSessionNotes(sessionId!, { notes: content })
     setSession(updated)
     return updated
   }
+
+  const handleGameEvent = useCallback((event: GameSocketEvent) => {
+    if (event.type === 'session_updated' && event.entity_id === sessionId) {
+      getSession(sessionId!).then(setSession).catch(() => {})
+    } else if (event.type === 'session_deleted' && event.entity_id === sessionId) {
+      navigate(`/games/${gameId}`)
+    }
+  }, [sessionId, gameId, navigate])
+
+  useGameSocket(gameId, handleGameEvent)
 
   return (
     <div className="session-notes-page">
@@ -83,7 +95,6 @@ export default function SessionNotes() {
 
             <SessionNotesEditor
               initialContent={session.notes as JSONContent | null}
-              version={session.version}
               onSave={handleSave}
               editable={true}
             />

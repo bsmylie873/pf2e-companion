@@ -16,16 +16,17 @@ import (
 // NoteHandler handles HTTP requests for notes.
 type NoteHandler struct {
 	service services.NoteService
+	hub     *GameEventHub
 }
 
-// NewNoteHandler creates a new NoteHandler with the given service.
-func NewNoteHandler(service services.NoteService) *NoteHandler {
-	return &NoteHandler{service: service}
+// NewNoteHandler creates a new NoteHandler with the given service and hub.
+func NewNoteHandler(service services.NoteService, hub *GameEventHub) *NoteHandler {
+	return &NoteHandler{service: service, hub: hub}
 }
 
 // RegisterNoteRoutes wires all note routes onto the group.
-func RegisterNoteRoutes(g *echo.Group, service services.NoteService) {
-	h := NewNoteHandler(service)
+func RegisterNoteRoutes(g *echo.Group, service services.NoteService, hub *GameEventHub) {
+	h := NewNoteHandler(service, hub)
 	g.POST("/games/:id/notes", h.CreateGameNote)
 	g.GET("/games/:id/notes", h.ListGameNotes)
 	g.GET("/notes/:id", h.GetNote)
@@ -66,6 +67,11 @@ func (h *NoteHandler) CreateGameNote(c echo.Context) error {
 		return ErrorResponse(c, http.StatusInternalServerError, "failed to create note")
 	}
 
+	if resp.Visibility == "private" {
+		h.hub.SendToUser(gameID, authUserID, GameEvent{Type: "note_created", GameID: gameID, Data: resp})
+	} else {
+		h.hub.BroadcastExcept(gameID, authUserID, GameEvent{Type: "note_created", GameID: gameID, Data: resp})
+	}
 	return SuccessResponse(c, http.StatusCreated, resp)
 }
 
@@ -162,12 +168,14 @@ func (h *NoteHandler) UpdateNote(c echo.Context) error {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return ErrorResponse(c, http.StatusNotFound, "note not found")
 		}
-		if errors.Is(err, repositories.ErrVersionConflict) {
-			return ErrorResponse(c, http.StatusConflict, "note was modified by another user — please refresh and try again")
-		}
 		return ErrorResponse(c, http.StatusInternalServerError, "failed to update note")
 	}
 
+	if note.Visibility == "private" {
+		h.hub.SendToUser(note.GameID, note.UserID, GameEvent{Type: "note_updated", GameID: note.GameID, Data: note})
+	} else {
+		h.hub.BroadcastExcept(note.GameID, authUserID, GameEvent{Type: "note_updated", GameID: note.GameID, Data: note})
+	}
 	return SuccessResponse(c, http.StatusOK, note)
 }
 
@@ -184,6 +192,18 @@ func (h *NoteHandler) DeleteNote(c echo.Context) error {
 		return nil
 	}
 
+	// Fetch note before deletion to capture gameID and visibility for broadcast.
+	note, err := h.service.GetNote(id, authUserID)
+	if err != nil {
+		if errors.Is(err, services.ErrForbidden) {
+			return ErrorResponse(c, http.StatusForbidden, "forbidden")
+		}
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return ErrorResponse(c, http.StatusNotFound, "note not found")
+		}
+		return ErrorResponse(c, http.StatusInternalServerError, "failed to delete note")
+	}
+
 	if err := h.service.DeleteNote(id, authUserID); err != nil {
 		if errors.Is(err, services.ErrForbidden) {
 			return ErrorResponse(c, http.StatusForbidden, "forbidden")
@@ -194,5 +214,10 @@ func (h *NoteHandler) DeleteNote(c echo.Context) error {
 		return ErrorResponse(c, http.StatusInternalServerError, "failed to delete note")
 	}
 
+	if note.Visibility == "private" {
+		h.hub.SendToUser(note.GameID, note.UserID, GameEvent{Type: "note_deleted", GameID: note.GameID, Data: map[string]interface{}{"id": id}})
+	} else {
+		h.hub.BroadcastExcept(note.GameID, authUserID, GameEvent{Type: "note_deleted", GameID: note.GameID, Data: map[string]interface{}{"id": id}})
+	}
 	return SuccessResponse(c, http.StatusOK, map[string]string{"message": "deleted"})
 }

@@ -65,14 +65,7 @@ func (s *sessionService) UpdateSession(id, userID uuid.UUID, updates map[string]
 	delete(updates, "created_at")
 	delete(updates, "updated_at")
 
-	var expectedVersion *int
-	if raw, ok := updates["version"]; ok {
-		v := int(raw.(float64))
-		expectedVersion = &v
-		delete(updates, "version")
-	}
-
-	return s.repo.Update(id, updates, expectedVersion)
+	return s.repo.Update(id, updates)
 }
 
 func (s *sessionService) DeleteSession(id, userID uuid.UUID) error {
