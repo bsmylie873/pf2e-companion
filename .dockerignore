@@ -1,0 +1,62 @@
+# flyctl launch added from .gitignore
+# Environment variables — do not commit real secrets
+**/.env
+
+# OS / editor artifacts
+**/.DS_Store
+**/*.swp
+**/*.swo
+
+# Node
+**/node_modules
+
+# Logs
+**/*.log
+
+# Go
+**/backend/bin
+**/backend/tmp
+
+# UI
+**/ui/dist
+**/ui/.env
+
+# Fly.io
+**/.fly
+
+# flyctl launch added from .idea/.gitignore
+# Default ignored files
+.idea/shelf
+.idea/workspace.xml
+# Editor-based HTTP Client requests
+.idea/httpRequests
+# Datasource local storage ignored files
+.idea/dataSources
+.idea/dataSources.local.xml
+
+# flyctl launch added from ui/.gitignore
+# Logs
+ui/**/logs
+ui/**/*.log
+ui/**/npm-debug.log*
+ui/**/yarn-debug.log*
+ui/**/yarn-error.log*
+ui/**/pnpm-debug.log*
+ui/**/lerna-debug.log*
+
+ui/**/node_modules
+ui/**/dist
+ui/**/dist-ssr
+ui/**/*.local
+
+# Editor directories and files
+ui/**/.vscode/*
+!ui/**/.vscode/extensions.json
+ui/**/.idea
+ui/**/.DS_Store
+ui/**/*.suo
+ui/**/*.ntvs*
+ui/**/*.njsproj
+ui/**/*.sln
+ui/**/*.sw?
+fly.toml

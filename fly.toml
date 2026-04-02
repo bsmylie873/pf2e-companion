@@ -1,36 +1,40 @@
-app = "pf2e-companion"
-primary_region = "iad"
+# fly.toml app configuration file generated for pf2e-companion on 2026-04-02T15:10:04+01:00
+#
+# See https://fly.io/docs/reference/configuration/ for information about how to use this file.
+#
+
+app = 'pf2e-companion'
+primary_region = 'lhr'
 
 [build]
-  context = "backend"
-  dockerfile = "backend/Dockerfile"
+  dockerfile = 'backend/Dockerfile'
 
 [env]
-  PORT = "8080"
+  PORT = '8080'
+
+[[mounts]]
+  source = 'uploads_vol'
+  destination = '/app/uploads/maps'
 
 [http_service]
   internal_port = 8080
   force_https = true
-  auto_stop_machines = "off"
+  auto_stop_machines = 'off'
   auto_start_machines = true
   min_machines_running = 1
 
   [http_service.concurrency]
-    type = "connections"
+    type = 'connections'
     hard_limit = 100
     soft_limit = 80
 
-[[http_service.checks]]
-  grace_period = "10s"
-  interval = "30s"
-  method = "GET"
-  timeout = "5s"
-  path = "/health"
+  [[http_service.checks]]
+    interval = '30s'
+    timeout = '5s'
+    grace_period = '10s'
+    method = 'GET'
+    path = '/health'
 
 [[vm]]
-  size = "shared-cpu-1x"
-  memory = "512mb"
-
-[mounts]
-  source = "uploads_vol"
-  destination = "/app/uploads/maps"
+  size = 'shared-cpu-1x'
+  memory = '512mb'
