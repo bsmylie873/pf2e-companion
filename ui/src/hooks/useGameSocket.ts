@@ -1,5 +1,5 @@
 import { useEffect, useRef, useCallback } from 'react'
-import { BASE_URL } from '../api/client'
+import { WS_BASE_URL } from '../api/client'
 
 export interface GameSocketEvent {
   type: string
@@ -17,7 +17,7 @@ export function useGameSocket(gameId: string | undefined, onEvent: EventHandler)
 
   useEffect(() => {
     if (!gameId) return
-    const wsUrl = BASE_URL.replace(/^http/, 'ws') + `/games/${gameId}/ws`
+    const wsUrl = WS_BASE_URL + `/games/${gameId}/ws`
     let retryDelay = 1000
     let closed = false
 

@@ -1,4 +1,5 @@
 export const BASE_URL = import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:8080'
+export const WS_BASE_URL = import.meta.env.VITE_WS_BASE_URL ?? BASE_URL.replace(/^http/, 'ws')
 
 export async function apiFetch<T>(path: string, options?: RequestInit): Promise<T> {
   const headers: Record<string, string> = {
