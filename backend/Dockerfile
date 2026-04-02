@@ -2,9 +2,9 @@
 FROM golang:1.24-alpine AS builder
 
 WORKDIR /build
-COPY go.mod go.sum ./
+COPY backend/go.mod backend/go.sum ./
 RUN go mod download
-COPY . .
+COPY backend/ .
 RUN CGO_ENABLED=0 GOOS=linux go build -o server .
 
 # ── Runtime stage ──
