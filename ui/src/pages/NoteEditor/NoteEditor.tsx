@@ -48,7 +48,7 @@ export default function NoteEditor() {
 
   const handleSave = async (content: JSONContent): Promise<Note> => {
     if (!noteId) throw new Error('No note ID')
-    const updated = await updateNoteContent(noteId!, { content })
+    const updated = await updateNoteContent(noteId!, { content, version: note!.version })
     setNote(updated)
     return updated
   }

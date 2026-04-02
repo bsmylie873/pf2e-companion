@@ -17,16 +17,18 @@ import (
 //	POSTGRES_DB       (required)
 //	POSTGRES_HOST     (optional, default: localhost)
 //	POSTGRES_PORT     (optional, default: 5432)
+//	POSTGRES_SSLMODE  (optional, default: disable)
 func Connect() *gorm.DB {
 	host := getEnv("POSTGRES_HOST", "localhost")
 	port := getEnv("POSTGRES_PORT", "5432")
+	sslmode := getEnv("POSTGRES_SSLMODE", "disable")
 	user := os.Getenv("POSTGRES_USER")
 	password := os.Getenv("POSTGRES_PASSWORD")
 	dbname := os.Getenv("POSTGRES_DB")
 
 	dsn := fmt.Sprintf(
-		"host=%s user=%s password=%s dbname=%s port=%s sslmode=disable",
-		host, user, password, dbname, port,
+		"host=%s user=%s password=%s dbname=%s port=%s sslmode=%s",
+		host, user, password, dbname, port, sslmode,
 	)
 
 	db, err := gorm.Open(postgres.Open(dsn), &gorm.Config{})

@@ -146,13 +146,13 @@ export default function EditorModal({ type, itemId, gameId, onClose }: EditorMod
     return () => { cancelled = true }
   }, [type, itemId, gameId, user])
 
-  const handleSave = async (content: JSONContent, ver: number): Promise<{ version: number }> => {
+  const handleSave = async (content: JSONContent): Promise<{ version: number }> => {
     if (type === 'session') {
-      const updated = await updateSessionNotes(itemId, { notes: content, version: ver })
+      const updated = await updateSessionNotes(itemId, { notes: content, version })
       setVersion(updated.version)
       return { version: updated.version }
     } else {
-      const updated = await updateNoteContent(itemId, { content, version: ver })
+      const updated = await updateNoteContent(itemId, { content, version })
       setVersion(updated.version)
       return { version: updated.version }
     }
@@ -223,7 +223,6 @@ export default function EditorModal({ type, itemId, gameId, onClose }: EditorMod
           {!loading && !error && editorContent !== undefined && (
             <SessionNotesEditor
               initialContent={editorContent}
-              version={version}
               editable={editable}
               onSave={handleSave}
               placeholder={type === 'note' ? 'Begin your private chronicle\u2026' : undefined}

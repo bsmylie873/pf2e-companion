@@ -19,3 +19,6 @@ backend/tmp/
 # UI
 ui/dist/
 ui/.env
+
+# Fly.io
+.fly/
