@@ -26,7 +26,7 @@ func SetAccessCookie(c echo.Context, value string, secure bool) {
 		Value:    value,
 		HttpOnly: true,
 		Secure:   secure,
-		SameSite: http.SameSiteStrictMode,
+		SameSite: http.SameSiteNoneMode,
 		Path:     "/",
 		MaxAge:   900,
 	})
@@ -39,7 +39,7 @@ func SetRefreshCookie(c echo.Context, value string, secure bool) {
 		Value:    value,
 		HttpOnly: true,
 		Secure:   secure,
-		SameSite: http.SameSiteStrictMode,
+		SameSite: http.SameSiteNoneMode,
 		Path:     "/auth/refresh",
 		MaxAge:   604800,
 	})
@@ -48,9 +48,9 @@ func SetRefreshCookie(c echo.Context, value string, secure bool) {
 // ClearAuthCookies clears all auth-related cookies.
 func ClearAuthCookies(c echo.Context) {
 	secure := CookieSecure()
-	c.SetCookie(&http.Cookie{Name: "access_token", Value: "", MaxAge: -1, HttpOnly: true, Secure: secure, SameSite: http.SameSiteStrictMode, Path: "/"})
-	c.SetCookie(&http.Cookie{Name: "refresh_token", Value: "", MaxAge: -1, HttpOnly: true, Secure: secure, SameSite: http.SameSiteStrictMode, Path: "/auth/refresh"})
-	c.SetCookie(&http.Cookie{Name: "csrf_token", Value: "", MaxAge: -1, HttpOnly: false, Secure: secure, SameSite: http.SameSiteStrictMode, Path: "/"})
+	c.SetCookie(&http.Cookie{Name: "access_token", Value: "", MaxAge: -1, HttpOnly: true, Secure: secure, SameSite: http.SameSiteNoneMode, Path: "/"})
+	c.SetCookie(&http.Cookie{Name: "refresh_token", Value: "", MaxAge: -1, HttpOnly: true, Secure: secure, SameSite: http.SameSiteNoneMode, Path: "/auth/refresh"})
+	c.SetCookie(&http.Cookie{Name: "csrf_token", Value: "", MaxAge: -1, HttpOnly: false, Secure: secure, SameSite: http.SameSiteNoneMode, Path: "/"})
 }
 
 // RequireAuth validates the access_token cookie JWT.

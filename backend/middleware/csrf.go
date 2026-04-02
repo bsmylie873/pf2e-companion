@@ -19,7 +19,7 @@ func CSRF() echo.MiddlewareFunc {
 		TokenLookup:    "header:X-CSRF-Token",
 		CookieName:     "csrf_token",
 		CookieHTTPOnly: false,
-		CookieSameSite: http.SameSiteStrictMode,
+		CookieSameSite: http.SameSiteNoneMode,
 		CookieSecure:   CookieSecure(),
 		CookiePath:     "/",
 	})
