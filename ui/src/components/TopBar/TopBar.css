@@ -105,3 +105,116 @@
 .topbar-icon-btn:hover .topbar-avatar {
   border-color: var(--color-accent);
 }
+
+/* ── Campaign Breadcrumb (replaces brand on map view) ── */
+
+.topbar-breadcrumb {
+  font-family: var(--font-heading);
+  font-size: 0.85rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--color-text);
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  padding: 0.3rem 0.5rem;
+  border-radius: 3px;
+  text-shadow:
+    0 0 20px rgba(139, 46, 46, 0.35),
+    0 1px 0 rgba(255, 255, 255, 0.1);
+  transition: color var(--transition-fast), background var(--transition-fast);
+}
+
+.topbar-breadcrumb:hover {
+  color: var(--color-accent);
+  background: rgba(139, 46, 46, 0.08);
+}
+
+[data-theme='dark'] .topbar-breadcrumb {
+  text-shadow:
+    0 0 24px rgba(201, 76, 76, 0.55),
+    0 0 48px rgba(201, 76, 76, 0.2);
+}
+
+[data-theme='dark'] .topbar-breadcrumb:hover {
+  background: rgba(201, 76, 76, 0.12);
+}
+
+/* ── Centred Map Selector ── */
+
+.topbar-map-selector {
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+}
+
+.topbar-map-toggle {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-family: var(--font-heading);
+  font-size: 0.65rem;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--color-accent);
+  background: transparent;
+  border: 1px solid rgba(139, 46, 46, 0.12);
+  border-radius: 3px;
+  cursor: pointer;
+  padding: 0.35rem 0.75rem;
+  white-space: nowrap;
+  transition: color var(--transition-fast), background var(--transition-fast), border-color var(--transition-fast);
+}
+
+.topbar-map-toggle:hover {
+  background: rgba(139, 46, 46, 0.08);
+  border-color: var(--color-accent);
+}
+
+[data-theme='dark'] .topbar-map-toggle {
+  border-color: rgba(201, 76, 76, 0.15);
+}
+
+[data-theme='dark'] .topbar-map-toggle:hover {
+  background: rgba(201, 76, 76, 0.12);
+  border-color: var(--color-accent);
+}
+
+.topbar-map-toggle svg {
+  width: 10px;
+  height: 10px;
+  opacity: 0.6;
+}
+
+/* ── Map Dropdown Panel ── */
+
+.topbar-map-dropdown {
+  position: absolute;
+  top: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  margin-top: 0.5rem;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: 4px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+  padding: 0.5rem;
+  z-index: 200;
+  min-width: 280px;
+}
+
+[data-theme='dark'] .topbar-map-dropdown {
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
+}
+
+/* Override MapSelector layout for vertical dropdown */
+.topbar-map-dropdown .map-selector-tabs {
+  flex-direction: column;
+  align-items: stretch;
+}
+
+.topbar-map-dropdown .map-tab {
+  width: 100%;
+}

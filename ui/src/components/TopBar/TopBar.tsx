@@ -1,7 +1,9 @@
-import { useState } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useDarkMode } from '../../hooks/useDarkMode'
 import { useAuth } from '../../context/AuthContext'
+import { useMapNav } from '../../context/MapNavContext'
+import MapSelector from '../MapSelector/MapSelector'
 import Modal from '../Modal/Modal'
 import Settings from '../../pages/Settings/Settings'
 import './TopBar.css'
@@ -58,20 +60,92 @@ function LogoutIcon() {
   )
 }
 
+function ChevronDownIcon() {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" width="10" height="10">
+      <polyline points="6 9 12 15 18 9" />
+    </svg>
+  )
+}
+
 export default function TopBar() {
   const [isDark, setIsDark] = useDarkMode()
   const [settingsOpen, setSettingsOpen] = useState(false)
   const { user, isAuthenticated, logout } = useAuth()
   const navigate = useNavigate()
 
+  const { state: mapNav } = useMapNav()
+  const [mapDropdownOpen, setMapDropdownOpen] = useState(false)
+  const mapDropdownRef = useRef<HTMLDivElement>(null)
+
+  // Close dropdown on outside click
+  useEffect(() => {
+    if (!mapDropdownOpen) return
+    const handler = (e: MouseEvent) => {
+      if (mapDropdownRef.current && !mapDropdownRef.current.contains(e.target as Node)) {
+        setMapDropdownOpen(false)
+      }
+    }
+    document.addEventListener('mousedown', handler)
+    return () => document.removeEventListener('mousedown', handler)
+  }, [mapDropdownOpen])
+
+  // Close dropdown when navigating away from map view
+  useEffect(() => {
+    if (!mapNav) setMapDropdownOpen(false)
+  }, [mapNav])
+
+  const activeMapName = mapNav?.maps.find(m => m.id === mapNav.activeMapId)?.name ?? 'Maps'
+
   return (
     <>
       <header className="topbar">
-        <div className="topbar-brand">
-          <span className="topbar-ornament">✦</span>
-          <span className="topbar-title">PF2E Companion</span>
-          <span className="topbar-ornament">✦</span>
-        </div>
+        {mapNav ? (
+          <div className="topbar-brand">
+            <span className="topbar-ornament">✦</span>
+            <button
+              className="topbar-breadcrumb"
+              onClick={() => navigate(`/games/${mapNav.gameId}`)}
+            >
+              {mapNav.gameTitle}
+            </button>
+            <span className="topbar-ornament">✦</span>
+          </div>
+        ) : (
+          <div className="topbar-brand">
+            <span className="topbar-ornament">✦</span>
+            <span className="topbar-title">PF2E Companion</span>
+            <span className="topbar-ornament">✦</span>
+          </div>
+        )}
+
+        {mapNav && (
+          <div className="topbar-map-selector" ref={mapDropdownRef}>
+            <button
+              className="topbar-map-toggle"
+              onClick={() => setMapDropdownOpen(o => !o)}
+            >
+              {activeMapName}
+              <ChevronDownIcon />
+            </button>
+            {mapDropdownOpen && (
+              <div className="topbar-map-dropdown">
+                <MapSelector
+                  maps={mapNav.maps}
+                  activeMapId={mapNav.activeMapId}
+                  onSelect={(id) => { mapNav.onSelectMap(id); setMapDropdownOpen(false) }}
+                  isGM={mapNav.isGM}
+                  onCreateMap={mapNav.onCreateMap}
+                  onRenameMap={mapNav.onRenameMap}
+                  onArchiveMap={mapNav.onArchiveMap}
+                  onUnarchiveMap={mapNav.onUnarchiveMap}
+                  onReorderMaps={mapNav.onReorderMaps}
+                  archivedMaps={mapNav.archivedMaps}
+                />
+              </div>
+            )}
+          </div>
+        )}
 
         <nav className="topbar-actions">
           <button

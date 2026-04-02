@@ -10,6 +10,7 @@ import { listGameNotes, updateNote, createNote } from '../../api/notes'
 import { listMaps, listArchivedMaps, uploadMapImage, archiveMap, createMap, renameMap, restoreMap, reorderMaps } from '../../api/maps'
 import { listMemberships } from '../../api/memberships'
 import { useAuth } from '../../context/AuthContext'
+import { useMapNav } from '../../context/MapNavContext'
 import { useLocalStorage } from '../../hooks/useLocalStorage'
 import type { Game } from '../../types/game'
 import type { Session } from '../../types/session'
@@ -25,7 +26,6 @@ import { getPreferences, updatePreferences } from '../../api/preferences'
 import type { GameSidebarState } from '../../api/preferences'
 import FolderSidebar from '../../components/FolderSidebar/FolderSidebar'
 import EditorModalManager from '../../components/EditorModalManager/EditorModalManager'
-import MapSelector from '../../components/MapSelector/MapSelector'
 import { useGameSocket } from '../../hooks/useGameSocket'
 import type { GameSocketEvent } from '../../hooks/useGameSocket'
 import './MapView.css'
@@ -49,6 +49,7 @@ export default function MapView() {
   const { gameId } = useParams<{ gameId: string }>()
   const navigate = useNavigate()
   const { user } = useAuth()
+  const { register, unregister } = useMapNav()
 
   const [game, setGame] = useState<Game | null>(null)
   const [sessions, setSessions] = useState<Session[]>([])
@@ -105,7 +106,6 @@ export default function MapView() {
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const [openItems, setOpenItems] = useState<Array<{ type: 'session' | 'note'; itemId: string; label: string }>>([])
   const [mapEditorMode, setMapEditorMode] = useState(false)
-  const [mapNavExpanded, setMapNavExpanded] = useState(false)
 
   const mapContainerRef = useRef<HTMLDivElement>(null)
   const viewportContainerRef = useRef<HTMLDivElement>(null)
@@ -164,7 +164,7 @@ export default function MapView() {
   const handleImageLoad = useCallback(() => {
     imageLoadedRef.current = true
     const ref = transformRef.current
-    if (!ref) return
+    if (!ref?.state) return
 
     if (isFirstOpenRef.current) {
       ref.centerView(1, 0)
@@ -198,7 +198,6 @@ export default function MapView() {
   }, [setViewState, clampPosition])
 
   const isGM = memberships.some(m => m.user_id === user?.id && m.is_gm)
-  const activeMap = maps.find(m => m.id === activeMapId)
   const pinnedSessionIds = new Set(pins.map(p => p.session_id))
   const unpinnedSessions = sessions.filter(s => !pinnedSessionIds.has(s.id))
 
@@ -284,9 +283,11 @@ export default function MapView() {
   // Real-time map updates via unified game WebSocket
   const handleGameEvent = useCallback((event: GameSocketEvent) => {
     switch (event.type) {
-      case 'map_created':
-        setMaps(prev => [...prev, event.data as GameMap])
+      case 'map_created': {
+        const created = event.data as GameMap
+        setMaps(prev => prev.some(m => m.id === created.id) ? prev : [...prev, created])
         break
+      }
       case 'map_renamed':
       case 'map_image_updated':
         setMaps(prev => prev.map(m => m.id === (event.data as GameMap).id ? event.data as GameMap : m))
@@ -303,10 +304,12 @@ export default function MapView() {
         })
         break
       }
-      case 'map_restored':
-        setArchivedMaps(prev => prev.filter(m => m.id !== (event.data as GameMap).id))
-        setMaps(prev => [...prev, event.data as GameMap].sort((a, b) => a.sort_order - b.sort_order))
+      case 'map_restored': {
+        const restored = event.data as GameMap
+        setArchivedMaps(prev => prev.filter(m => m.id !== restored.id))
+        setMaps(prev => prev.some(m => m.id === restored.id) ? prev : [...prev, restored].sort((a, b) => a.sort_order - b.sort_order))
         break
+      }
       case 'map_reordered':
         if (gameId) listMaps(gameId).then(setMaps).catch(() => {})
         break
@@ -333,8 +336,8 @@ export default function MapView() {
           listMaps(gameId).then(setMaps).catch(() => {})
           listArchivedMaps(gameId).then(setArchivedMaps).catch(() => {})
           if (activeMapId) {
-            listMapPins(activeMapId).then(setPins).catch(() => {})
-            listMapPinGroups(activeMapId).then(setPinGroups).catch(() => {})
+            listMapPins(gameId, activeMapId).then(setPins).catch(() => {})
+            listMapPinGroups(gameId, activeMapId).then(setPinGroups).catch(() => {})
           }
         }
         break
@@ -804,7 +807,7 @@ export default function MapView() {
     if (!gameId) return
     try {
       const newMap = await createMap(gameId, { name })
-      setMaps(prev => [...prev, newMap])
+      setMaps(prev => prev.some(m => m.id === newMap.id) ? prev : [...prev, newMap])
       setActiveMapId(newMap.id)
     } catch (err) { console.error('Failed to create map', err) }
   }, [gameId])
@@ -838,7 +841,7 @@ export default function MapView() {
     try {
       const restored = await restoreMap(gameId, mapId)
       setArchivedMaps(prev => prev.filter(m => m.id !== mapId))
-      setMaps(prev => [...prev, restored].sort((a, b) => a.sort_order - b.sort_order))
+      setMaps(prev => prev.some(m => m.id === restored.id) ? prev : [...prev, restored].sort((a, b) => a.sort_order - b.sort_order))
     } catch (err) {
       console.error('Failed to restore map', err)
       if (err instanceof Error && err.message.includes('not found')) {
@@ -855,56 +858,35 @@ export default function MapView() {
     } catch (err) { console.error('Failed to reorder maps', err) }
   }, [gameId])
 
+  // Register map nav state into context for TopBar breadcrumb
+  useEffect(() => {
+    if (!gameId || loading || error) return
+    register({
+      gameId,
+      gameTitle: game?.title ?? 'Campaign',
+      maps,
+      archivedMaps,
+      activeMapId,
+      isGM,
+      onSelectMap: (mapId: string) => setActiveMapId(mapId),
+      onCreateMap: handleCreateMap,
+      onRenameMap: handleRenameMap,
+      onArchiveMap: handleArchiveMap,
+      onUnarchiveMap: handleRestoreMap,
+      onReorderMaps: handleReorderMaps,
+    })
+  }, [gameId, game?.title, maps, archivedMaps, activeMapId, isGM, loading, error])
+
+  useEffect(() => {
+    return () => unregister()
+  }, [unregister])
+
   const sessionForPin = (pin: SessionPin) => sessions.find(s => s.id === pin.session_id)
   const noteForPin = (pin: SessionPin) => notes.find(n => n.id === pin.note_id)
 
   return (
     <div className="map-view-page">
       <div className="map-view-inner">
-        {!loading && !error && (maps.length > 0 || (isGM && archivedMaps.length > 0)) && (
-          <div className={`map-nav-overlay${mapNavExpanded ? ' map-nav-overlay--expanded' : ''}${sidebarOpen ? ' map-nav-overlay--sidebar-open' : ''}`}>
-            {mapNavExpanded ? (
-              <>
-                <button className="map-nav-back" onClick={() => navigate(`/games/${gameId}`)}>
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" width="14" height="14">
-                    <path d="M19 12H5M12 19l-7-7 7-7" />
-                  </svg>
-                  {game?.title ?? 'Campaign'}
-                </button>
-                <span className="map-nav-divider">│</span>
-                <MapSelector
-                  maps={maps}
-                  activeMapId={activeMapId}
-                  onSelect={(mapId) => { setActiveMapId(mapId); setMapNavExpanded(false) }}
-                  isGM={isGM}
-                  onCreateMap={handleCreateMap}
-                  onRenameMap={handleRenameMap}
-                  onArchiveMap={handleArchiveMap}
-                  onUnarchiveMap={handleRestoreMap}
-                  onReorderMaps={handleReorderMaps}
-                  archivedMaps={archivedMaps}
-                />
-                <button className="map-nav-collapse" onClick={() => setMapNavExpanded(false)} title="Collapse">
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" width="12" height="12">
-                    <polyline points="18 15 12 9 6 15" />
-                  </svg>
-                </button>
-              </>
-            ) : (
-              <button className="map-nav-pill" onClick={() => setMapNavExpanded(true)} title="Switch maps">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" width="13" height="13">
-                  <rect x="3" y="3" width="18" height="18" rx="2" ry="2" />
-                  <line x1="3" y1="9" x2="21" y2="9" />
-                  <line x1="9" y1="21" x2="9" y2="9" />
-                </svg>
-                {activeMap?.name ?? 'Maps'}
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" width="10" height="10">
-                  <polyline points="6 9 12 15 18 9" />
-                </svg>
-              </button>
-            )}
-          </div>
-        )}
         {loading && (
           <div className="map-spinner">
             <div className="spinner-ring" />
@@ -1398,6 +1380,12 @@ export default function MapView() {
               </div>
             )}
 
+          </div>
+          </>
+        )}
+
+        {!loading && !error && gameId && (
+          <>
             <button
               className="map-sidebar-toggle-btn"
               onClick={handleSidebarToggle}
@@ -1410,7 +1398,7 @@ export default function MapView() {
 
             {sidebarOpen && (
               <FolderSidebar
-                gameId={gameId!}
+                gameId={gameId}
                 isGM={isGM}
                 userId={user?.id ?? ''}
                 sessions={sessions}
@@ -1423,7 +1411,6 @@ export default function MapView() {
                 onCreateNote={handleCreateNote}
               />
             )}
-          </div>
           </>
         )}
       </div>
