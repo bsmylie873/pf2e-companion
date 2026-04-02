@@ -1,9 +1,11 @@
-const BACKEND_ORIGIN = 'https://pf2e-companion.fly.dev'
+interface Env {
+  BACKEND_ORIGIN: string
+}
 
-export const onRequest: PagesFunction = async (context) => {
+export const onRequest: PagesFunction<Env> = async (context) => {
   const url = new URL(context.request.url)
   const path = url.pathname.replace(/^\/api/, '') || '/'
-  const target = `${BACKEND_ORIGIN}${path}${url.search}`
+  const target = `${context.env.BACKEND_ORIGIN}${path}${url.search}`
 
   const headers = new Headers(context.request.headers)
   headers.delete('host')
