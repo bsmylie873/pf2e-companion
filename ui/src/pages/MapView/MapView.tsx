@@ -26,6 +26,8 @@ import type { GameSidebarState } from '../../api/preferences'
 import FolderSidebar from '../../components/FolderSidebar/FolderSidebar'
 import EditorModalManager from '../../components/EditorModalManager/EditorModalManager'
 import MapSelector from '../../components/MapSelector/MapSelector'
+import { useGameSocket } from '../../hooks/useGameSocket'
+import type { GameSocketEvent } from '../../hooks/useGameSocket'
 import './MapView.css'
 
 /** Proximity threshold in map-percentage units (0–100). ~16px on a 1000px map. */
@@ -279,57 +281,67 @@ export default function MapView() {
     return () => window.removeEventListener('focus', fetchPrefs)
   }, [gameId])
 
-  // WebSocket for real-time map updates
-  useEffect(() => {
-    if (!gameId) return
-    const wsUrl = BASE_URL.replace(/^http/, 'ws') + `/games/${gameId}/maps/ws`
-    let ws: WebSocket | null = null
-    let retryDelay = 1000
-    let closed = false
-
-    function connect() {
-      ws = new WebSocket(wsUrl)
-      ws.onmessage = (event: MessageEvent) => {
-        try {
-          const msg = JSON.parse(event.data as string) as { type: string; data: GameMap | GameMap[] }
-          if (msg.type === 'map_created') {
-            setMaps(prev => [...prev, msg.data as GameMap])
-          } else if (msg.type === 'map_updated') {
-            setMaps(prev => prev.map(m => m.id === (msg.data as GameMap).id ? msg.data as GameMap : m))
-          } else if (msg.type === 'map_archived') {
-            const archivedId = (msg.data as GameMap).id
-            setMaps(prev => {
-              const remaining = prev.filter(m => m.id !== archivedId)
-              setActiveMapId((current: string | null) => {
-                if (current === archivedId) return remaining[0]?.id ?? null
-                return current
-              })
-              return remaining
-            })
-            setArchivedMaps(prev => [...prev, msg.data as GameMap])
-          } else if (msg.type === 'map_unarchived') {
-            setArchivedMaps(prev => prev.filter(m => m.id !== (msg.data as GameMap).id))
-            setMaps(prev => [...prev, msg.data as GameMap].sort((a, b) => a.sort_order - b.sort_order))
-          } else if (msg.type === 'map_reordered') {
-            // Re-fetch maps to get updated sort order
-            if (gameId) listMaps(gameId).then(setMaps).catch(() => {})
+  // Real-time map updates via unified game WebSocket
+  const handleGameEvent = useCallback((event: GameSocketEvent) => {
+    switch (event.type) {
+      case 'map_created':
+        setMaps(prev => [...prev, event.data as GameMap])
+        break
+      case 'map_renamed':
+      case 'map_image_updated':
+        setMaps(prev => prev.map(m => m.id === (event.data as GameMap).id ? event.data as GameMap : m))
+        break
+      case 'map_archived': {
+        const archivedId = (event.data as { id: string }).id
+        setMaps(prev => {
+          const remaining = prev.filter(m => m.id !== archivedId)
+          setActiveMapId((current: string | null) => {
+            if (current === archivedId) return remaining[0]?.id ?? null
+            return current
+          })
+          return remaining
+        })
+        break
+      }
+      case 'map_restored':
+        setArchivedMaps(prev => prev.filter(m => m.id !== (event.data as GameMap).id))
+        setMaps(prev => [...prev, event.data as GameMap].sort((a, b) => a.sort_order - b.sort_order))
+        break
+      case 'map_reordered':
+        if (gameId) listMaps(gameId).then(setMaps).catch(() => {})
+        break
+      case 'pin_created':
+        setPins(prev => [...prev, event.data as SessionPin])
+        break
+      case 'pin_updated':
+        setPins(prev => prev.map(p => p.id === (event.data as SessionPin).id ? event.data as SessionPin : p))
+        break
+      case 'pin_deleted':
+        setPins(prev => prev.filter(p => p.id !== (event.data as { id: string }).id))
+        break
+      case 'pin_group_created':
+        setPinGroups(prev => [...prev, event.data as PinGroup])
+        break
+      case 'pin_group_updated':
+        setPinGroups(prev => prev.map(g => g.id === (event.data as PinGroup).id ? event.data as PinGroup : g))
+        break
+      case 'pin_group_disbanded':
+        setPinGroups(prev => prev.filter(g => g.id !== (event.data as { id: string }).id))
+        break
+      case '__reconnected':
+        if (gameId) {
+          listMaps(gameId).then(setMaps).catch(() => {})
+          listArchivedMaps(gameId).then(setArchivedMaps).catch(() => {})
+          if (activeMapId) {
+            listMapPins(activeMapId).then(setPins).catch(() => {})
+            listMapPinGroups(activeMapId).then(setPinGroups).catch(() => {})
           }
-        } catch { /* ignore parse errors */ }
-      }
-      ws.onclose = () => {
-        if (!closed) {
-          setTimeout(() => { connect(); retryDelay = Math.min(retryDelay * 2, 30000) }, retryDelay)
         }
-      }
-      ws.onerror = () => ws?.close()
+        break
     }
+  }, [gameId, activeMapId])
 
-    connect()
-    return () => {
-      closed = true
-      ws?.close()
-    }
-  }, [gameId])
+  useGameSocket(gameId, handleGameEvent)
 
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
@@ -850,7 +862,7 @@ export default function MapView() {
     <div className="map-view-page">
       <div className="map-view-inner">
         {!loading && !error && (maps.length > 0 || (isGM && archivedMaps.length > 0)) && (
-          <div className={`map-nav-overlay${mapNavExpanded ? ' map-nav-overlay--expanded' : ''}`}>
+          <div className={`map-nav-overlay${mapNavExpanded ? ' map-nav-overlay--expanded' : ''}${sidebarOpen ? ' map-nav-overlay--sidebar-open' : ''}`}>
             {mapNavExpanded ? (
               <>
                 <button className="map-nav-back" onClick={() => navigate(`/games/${gameId}`)}>
@@ -989,7 +1001,7 @@ export default function MapView() {
               initialScale={viewState.scale}
               initialPositionX={viewState.positionX}
               initialPositionY={viewState.positionY}
-              minScale={0.25}
+              minScale={0.75}
               maxScale={5}
               limitToBounds={false}
               disablePadding={true}
@@ -1373,7 +1385,7 @@ export default function MapView() {
                   <button className="map-zoom-level" onClick={() => transformRef.current?.resetTransform()} title="Reset zoom">
                     {Math.round(displayScale * 100)}%
                   </button>
-                  <button className="map-zoom-btn" onClick={() => transformRef.current?.zoomOut()} disabled={displayScale <= 1} title="Zoom out">
+                  <button className="map-zoom-btn" onClick={() => transformRef.current?.zoomOut()} disabled={displayScale <= 0.75} title="Zoom out">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
                       <line x1="5" y1="12" x2="19" y2="12" />
                     </svg>

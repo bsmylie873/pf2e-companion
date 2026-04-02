@@ -13,11 +13,12 @@ import (
 // PinGroupHandler holds the service dependency for pin group routes.
 type PinGroupHandler struct {
 	service services.PinGroupService
+	hub     *GameEventHub
 }
 
-// NewPinGroupHandler constructs a PinGroupHandler.
-func NewPinGroupHandler(service services.PinGroupService) *PinGroupHandler {
-	return &PinGroupHandler{service: service}
+// NewPinGroupHandler constructs a PinGroupHandler with the given service and hub.
+func NewPinGroupHandler(service services.PinGroupService, hub *GameEventHub) *PinGroupHandler {
+	return &PinGroupHandler{service: service, hub: hub}
 }
 
 // CreateGroup handles POST /games/:id/pin-groups.
@@ -49,6 +50,7 @@ func (h *PinGroupHandler) CreateGroup(c echo.Context) error {
 		}
 		return ErrorResponse(c, http.StatusUnprocessableEntity, err.Error())
 	}
+	h.hub.BroadcastExcept(gameID, authUserID, GameEvent{Type: "pin_group_created", GameID: gameID, Data: resp})
 	return SuccessResponse(c, http.StatusCreated, resp)
 }
 
@@ -114,6 +116,7 @@ func (h *PinGroupHandler) UpdateGroup(c echo.Context) error {
 		}
 		return ErrorResponse(c, http.StatusInternalServerError, "failed to update pin group")
 	}
+	h.hub.BroadcastExcept(resp.GameID, authUserID, GameEvent{Type: "pin_group_updated", GameID: resp.GameID, Data: resp})
 	return SuccessResponse(c, http.StatusOK, resp)
 }
 
@@ -143,6 +146,7 @@ func (h *PinGroupHandler) AddPinToGroup(c echo.Context) error {
 		}
 		return ErrorResponse(c, http.StatusUnprocessableEntity, err.Error())
 	}
+	h.hub.BroadcastExcept(resp.GameID, authUserID, GameEvent{Type: "pin_group_updated", GameID: resp.GameID, Data: resp})
 	return SuccessResponse(c, http.StatusOK, resp)
 }
 
@@ -170,6 +174,10 @@ func (h *PinGroupHandler) RemovePinFromGroup(c echo.Context) error {
 		}
 		return ErrorResponse(c, http.StatusInternalServerError, "failed to remove pin from group")
 	}
+	// Only broadcast if the group still exists (non-zero GameID means group wasn't auto-disbanded).
+	if resp.GameID != uuid.Nil {
+		h.hub.BroadcastExcept(resp.GameID, authUserID, GameEvent{Type: "pin_group_updated", GameID: resp.GameID, Data: resp})
+	}
 	return SuccessResponse(c, http.StatusOK, resp)
 }
 
@@ -183,6 +191,17 @@ func (h *PinGroupHandler) DisbandGroup(c echo.Context) error {
 	if err != nil {
 		return nil
 	}
+	// Fetch group before disbanding to capture gameID for broadcast.
+	group, err := h.service.GetGroup(groupID, authUserID)
+	if err != nil {
+		if errors.Is(err, services.ErrForbidden) {
+			return ErrorResponse(c, http.StatusForbidden, "forbidden")
+		}
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return ErrorResponse(c, http.StatusNotFound, "pin group not found")
+		}
+		return ErrorResponse(c, http.StatusInternalServerError, "failed to disband pin group")
+	}
 	if err := h.service.DisbandGroup(groupID, authUserID); err != nil {
 		if errors.Is(err, services.ErrForbidden) {
 			return ErrorResponse(c, http.StatusForbidden, "forbidden")
@@ -192,6 +211,7 @@ func (h *PinGroupHandler) DisbandGroup(c echo.Context) error {
 		}
 		return ErrorResponse(c, http.StatusInternalServerError, "failed to disband pin group")
 	}
+	h.hub.BroadcastExcept(group.GameID, authUserID, GameEvent{Type: "pin_group_disbanded", GameID: group.GameID, Data: map[string]interface{}{"id": groupID}})
 	return SuccessResponse(c, http.StatusOK, map[string]string{"message": "disbanded"})
 }
 
@@ -224,6 +244,7 @@ func (h *PinGroupHandler) CreateMapGroup(c echo.Context) error {
 		}
 		return ErrorResponse(c, http.StatusUnprocessableEntity, err.Error())
 	}
+	h.hub.BroadcastExcept(resp.GameID, authUserID, GameEvent{Type: "pin_group_created", GameID: resp.GameID, Data: resp})
 	return SuccessResponse(c, http.StatusCreated, resp)
 }
 
@@ -251,8 +272,8 @@ func (h *PinGroupHandler) ListMapGroups(c echo.Context) error {
 }
 
 // RegisterPinGroupRoutes wires all pin group routes on the given group.
-func RegisterPinGroupRoutes(g *echo.Group, service services.PinGroupService) {
-	h := NewPinGroupHandler(service)
+func RegisterPinGroupRoutes(g *echo.Group, service services.PinGroupService, hub *GameEventHub) {
+	h := NewPinGroupHandler(service, hub)
 	g.POST("/games/:id/pin-groups", h.CreateGroup)
 	g.GET("/games/:id/pin-groups", h.ListGameGroups)
 	g.PATCH("/pin-groups/:id", h.UpdateGroup)

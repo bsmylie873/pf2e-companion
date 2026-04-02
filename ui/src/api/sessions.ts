@@ -28,7 +28,7 @@ export function deleteSession(sessionId: string): Promise<void> {
   return apiFetch<void>(`/sessions/${sessionId}`, { method: 'DELETE' })
 }
 
-export function updateSessionNotes(sessionId: string, data: { notes: JSONContent; version: number }): Promise<Session> {
+export function updateSessionNotes(sessionId: string, data: { notes: JSONContent }): Promise<Session> {
   return apiFetch<Session>(`/sessions/${sessionId}`, {
     method: 'PATCH',
     body: JSON.stringify(data),

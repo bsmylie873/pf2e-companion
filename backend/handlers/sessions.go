@@ -9,18 +9,18 @@ import (
 	"github.com/labstack/echo/v4"
 	"gorm.io/gorm"
 	"pf2e-companion/backend/models"
-	"pf2e-companion/backend/repositories"
 	"pf2e-companion/backend/services"
 )
 
 // SessionHandler holds the service dependency for session-related routes.
 type SessionHandler struct {
 	service services.SessionService
+	hub     *GameEventHub
 }
 
-// NewSessionHandler constructs a SessionHandler with the given service.
-func NewSessionHandler(service services.SessionService) *SessionHandler {
-	return &SessionHandler{service: service}
+// NewSessionHandler constructs a SessionHandler with the given service and hub.
+func NewSessionHandler(service services.SessionService, hub *GameEventHub) *SessionHandler {
+	return &SessionHandler{service: service, hub: hub}
 }
 
 // CreateSession handles POST /games/:id/sessions.
@@ -59,6 +59,7 @@ func (h *SessionHandler) CreateSession(c echo.Context) error {
 		return ErrorResponse(c, http.StatusInternalServerError, "failed to create session")
 	}
 
+	h.hub.BroadcastExcept(gameID, authUserID, GameEvent{Type: "session_created", GameID: gameID, Data: resp})
 	return SuccessResponse(c, http.StatusCreated, resp)
 }
 
@@ -149,12 +150,10 @@ func (h *SessionHandler) UpdateSession(c echo.Context) error {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return ErrorResponse(c, http.StatusNotFound, "session not found")
 		}
-		if errors.Is(err, repositories.ErrVersionConflict) {
-			return ErrorResponse(c, http.StatusConflict, "session was modified by another user — please refresh and try again")
-		}
 		return ErrorResponse(c, http.StatusInternalServerError, "failed to update session")
 	}
 
+	h.hub.BroadcastExcept(session.GameID, authUserID, GameEvent{Type: "session_updated", GameID: session.GameID, Data: session})
 	return SuccessResponse(c, http.StatusOK, session)
 }
 
@@ -170,6 +169,18 @@ func (h *SessionHandler) DeleteSession(c echo.Context) error {
 		return nil
 	}
 
+	// Fetch session before deletion to capture gameID for broadcast.
+	session, err := h.service.GetSession(id, authUserID)
+	if err != nil {
+		if errors.Is(err, services.ErrForbidden) {
+			return ErrorResponse(c, http.StatusForbidden, "forbidden")
+		}
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return ErrorResponse(c, http.StatusNotFound, "session not found")
+		}
+		return ErrorResponse(c, http.StatusInternalServerError, "failed to delete session")
+	}
+
 	if err := h.service.DeleteSession(id, authUserID); err != nil {
 		if errors.Is(err, services.ErrForbidden) {
 			return ErrorResponse(c, http.StatusForbidden, "forbidden")
@@ -180,12 +191,13 @@ func (h *SessionHandler) DeleteSession(c echo.Context) error {
 		return ErrorResponse(c, http.StatusInternalServerError, "failed to delete session")
 	}
 
+	h.hub.BroadcastExcept(session.GameID, authUserID, GameEvent{Type: "session_deleted", GameID: session.GameID, Data: map[string]interface{}{"id": id}})
 	return SuccessResponse(c, http.StatusOK, map[string]string{"message": "deleted"})
 }
 
 // RegisterSessionRoutes registers all session-related routes on the group.
-func RegisterSessionRoutes(g *echo.Group, service services.SessionService) {
-	h := NewSessionHandler(service)
+func RegisterSessionRoutes(g *echo.Group, service services.SessionService, hub *GameEventHub) {
+	h := NewSessionHandler(service, hub)
 	g.POST("/games/:id/sessions", h.CreateSession)
 	g.GET("/games/:id/sessions", h.ListGameSessions)
 	g.GET("/sessions/:id", h.GetSession)

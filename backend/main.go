@@ -1,15 +1,18 @@
 package main
 
 import (
+	"encoding/json"
 	"net/http"
 	"os"
 	"time"
 
+	"github.com/google/uuid"
 	"github.com/labstack/echo/v4"
 	echomw "github.com/labstack/echo/v4/middleware"
 	"pf2e-companion/backend/database"
 	"pf2e-companion/backend/handlers"
 	custmw "pf2e-companion/backend/middleware"
+	"pf2e-companion/backend/ot"
 	"pf2e-companion/backend/repositories"
 	"pf2e-companion/backend/services"
 )
@@ -63,9 +66,15 @@ func main() {
 	pinGroupService := services.NewPinGroupService(pinGroupRepo, pinRepo, noteRepo, membershipRepo, mapRepo)
 	mapService := services.NewMapService(mapRepo, membershipRepo)
 
-	hub := handlers.NewMapEventHub()
+	hub := handlers.NewGameEventHub()
+	otStore := ot.NewDocumentStore()
+	go ot.StartPersistenceLoop(otStore, func(entityID uuid.UUID, content json.RawMessage, version int) error {
+		_, err := noteRepo.Update(entityID, map[string]interface{}{"content": content, "version": version})
+		return err
+	})
 
 	e.Static("/uploads", "./uploads")
+	e.GET("/games/:id/ws", handlers.GameWebSocket(hub, otStore))
 
 	// Protected group — all resource routes require a valid JWT
 	protected := e.Group("", custmw.RequireAuth(authService))
@@ -78,15 +87,15 @@ func main() {
 	handlers.RegisterUserRoutes(protected, userService)
 	handlers.RegisterGameRoutes(protected, gameService)
 	handlers.RegisterMembershipRoutes(protected, membershipService)
-	handlers.RegisterSessionRoutes(protected, sessionService)
-	handlers.RegisterNoteRoutes(protected, noteService)
+	handlers.RegisterSessionRoutes(protected, sessionService, hub)
+	handlers.RegisterNoteRoutes(protected, noteService, hub)
 	handlers.RegisterFolderRoutes(protected, folderService)
 	handlers.RegisterCharacterRoutes(protected, characterService)
 	handlers.RegisterItemRoutes(protected, itemService)
-	handlers.RegisterPinRoutes(protected, pinService)
-	handlers.RegisterPinGroupRoutes(protected, pinGroupService)
+	handlers.RegisterPinRoutes(protected, pinService, hub)
+	handlers.RegisterPinGroupRoutes(protected, pinGroupService, hub)
 	handlers.RegisterPreferenceRoutes(protected, preferenceService)
-	handlers.RegisterMapRoutes(e, protected, mapService, hub)
+	handlers.RegisterMapRoutes(protected, mapService, hub)
 
 	// Background cleanup: hard-delete maps archived more than 24 hours ago
 	go func() {

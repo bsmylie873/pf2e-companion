@@ -17,7 +17,7 @@ type NoteRepository interface {
 	Create(note *models.Note) error
 	FindByGameID(gameID, userID uuid.UUID, isGM bool, filters NoteFilters) ([]models.Note, error)
 	FindByID(id uuid.UUID) (models.Note, error)
-	Update(id uuid.UUID, updates map[string]interface{}, expectedVersion *int) (models.Note, error)
+	Update(id uuid.UUID, updates map[string]interface{}) (models.Note, error)
 	Delete(id uuid.UUID) error
 	ClearNoteFromPins(noteID uuid.UUID) error
 }
@@ -68,23 +68,11 @@ func (r *noteRepository) FindByID(id uuid.UUID) (models.Note, error) {
 	return note, err
 }
 
-func (r *noteRepository) Update(id uuid.UUID, updates map[string]interface{}, expectedVersion *int) (models.Note, error) {
+func (r *noteRepository) Update(id uuid.UUID, updates map[string]interface{}) (models.Note, error) {
 	updates["version"] = gorm.Expr("version + 1")
-
-	if expectedVersion != nil {
-		result := r.db.Model(&models.Note{}).Where("id = ? AND version = ?", id, *expectedVersion).Updates(updates)
-		if result.Error != nil {
-			return models.Note{}, result.Error
-		}
-		if result.RowsAffected == 0 {
-			return models.Note{}, ErrVersionConflict
-		}
-	} else {
-		if err := r.db.Model(&models.Note{}).Where("id = ?", id).Updates(updates).Error; err != nil {
-			return models.Note{}, err
-		}
+	if err := r.db.Model(&models.Note{}).Where("id = ?", id).Updates(updates).Error; err != nil {
+		return models.Note{}, err
 	}
-
 	return r.FindByID(id)
 }
 
