@@ -1,21 +1,9 @@
 export const BASE_URL = import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:8080'
 
-function getCsrfToken(): string {
-  const match = document.cookie.match(/(?:^|;\s*)csrf_token=([^;]*)/)
-  return match ? decodeURIComponent(match[1]) : ''
-}
-
 export async function apiFetch<T>(path: string, options?: RequestInit): Promise<T> {
-  const method = (options?.method ?? 'GET').toUpperCase()
-  const isMutating = ['POST', 'PATCH', 'DELETE', 'PUT'].includes(method)
-
   const headers: Record<string, string> = {
     'Content-Type': 'application/json',
     ...(options?.headers as Record<string, string>),
-  }
-  if (isMutating) {
-    const csrf = getCsrfToken()
-    if (csrf) headers['X-CSRF-Token'] = csrf
   }
 
   const res = await fetch(`${BASE_URL}${path}`, {

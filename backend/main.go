@@ -23,7 +23,6 @@ func main() {
 	e := echo.New()
 	e.Use(echomw.Logger())
 	e.Use(echomw.Recover())
-	e.Use(custmw.CSRF())
 
 	corsOrigin := os.Getenv("CORS_ALLOW_ORIGIN")
 	if corsOrigin == "" {
@@ -32,7 +31,7 @@ func main() {
 	e.Use(echomw.CORSWithConfig(echomw.CORSConfig{
 		AllowOrigins:     []string{corsOrigin},
 		AllowMethods:     []string{http.MethodGet, http.MethodPost, http.MethodPatch, http.MethodPut, http.MethodDelete, http.MethodOptions},
-		AllowHeaders:     []string{echo.HeaderContentType, echo.HeaderAccept, "X-CSRF-Token"},
+		AllowHeaders:     []string{echo.HeaderContentType, echo.HeaderAccept},
 		AllowCredentials: true,
 	}))
 
