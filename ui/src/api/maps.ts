@@ -1,11 +1,6 @@
 import { apiFetch, BASE_URL } from './client'
 import type { GameMap } from '../types/map'
 
-function getCsrfToken(): string {
-  const match = document.cookie.match(/(?:^|;\s*)csrf_token=([^;]*)/)
-  return match ? decodeURIComponent(match[1]) : ''
-}
-
 export function listMaps(gameId: string): Promise<GameMap[]> {
   return apiFetch<GameMap[]>(`/games/${gameId}/maps`)
 }
@@ -49,7 +44,6 @@ export async function uploadMapImage(gameId: string, mapId: string, file: File):
   const res = await fetch(`${BASE_URL}/games/${gameId}/maps/${mapId}/image`, {
     method: 'POST',
     credentials: 'include',
-    headers: { 'X-CSRF-Token': getCsrfToken() },
     body: formData,
   })
   if (!res.ok) {
