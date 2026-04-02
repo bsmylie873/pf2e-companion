@@ -47,22 +47,24 @@ ON CONFLICT (id) DO NOTHING;
 -- -----------------------------------------------------------------------------
 -- notes
 -- -----------------------------------------------------------------------------
-INSERT INTO notes (id, game_id, user_id, title, content, foundry_data, created_at, updated_at)
+INSERT INTO notes (id, game_id, user_id, title, content, visibility, version, foundry_data, created_at, updated_at)
 VALUES
     (
         'e1b2c3d4-0001-4000-8000-000000000001',
-        NULL,
+        'b1b2c3d4-0001-4000-8000-000000000001',
         'a1b2c3d4-0002-4000-8000-000000000002',
         'Elara''s Notes',
         '{"text": "Personal notes about the campaign."}'::jsonb,
+        'private', 1,
         NULL, NOW(), NOW()
     ),
     (
         'e1b2c3d4-0002-4000-8000-000000000002',
         'b1b2c3d4-0001-4000-8000-000000000001',
-        NULL,
+        'a1b2c3d4-0001-4000-8000-000000000001',
         'Campaign Lore',
         '{"text": "Key lore and world details."}'::jsonb,
+        'editable', 1,
         NULL, NOW(), NOW()
     )
 ON CONFLICT (id) DO NOTHING;

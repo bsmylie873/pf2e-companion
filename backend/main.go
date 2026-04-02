@@ -73,6 +73,10 @@ func main() {
 		return err
 	})
 
+	e.GET("/health", func(c echo.Context) error {
+		return c.JSON(http.StatusOK, map[string]string{"status": "ok"})
+	})
+
 	e.Static("/uploads", "./uploads")
 	e.GET("/games/:id/ws", handlers.GameWebSocket(hub, otStore))
 

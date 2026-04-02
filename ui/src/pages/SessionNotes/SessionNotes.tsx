@@ -34,7 +34,7 @@ export default function SessionNotes() {
 
   const handleSave = async (content: JSONContent): Promise<Session> => {
     if (!sessionId) throw new Error('No session ID')
-    const updated = await updateSessionNotes(sessionId!, { notes: content })
+    const updated = await updateSessionNotes(sessionId!, { notes: content, version: session!.version })
     setSession(updated)
     return updated
   }

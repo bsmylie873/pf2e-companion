@@ -33,7 +33,7 @@ export function deleteNote(noteId: string): Promise<void> {
   return apiFetch<void>(`/notes/${noteId}`, { method: 'DELETE' })
 }
 
-export function updateNoteContent(noteId: string, data: { content: JSONContent }): Promise<Note> {
+export function updateNoteContent(noteId: string, data: { content: JSONContent; version: number }): Promise<Note> {
   return apiFetch<Note>(`/notes/${noteId}`, {
     method: 'PATCH',
     body: JSON.stringify(data),
