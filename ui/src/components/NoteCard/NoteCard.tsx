@@ -21,7 +21,9 @@ export default function NoteCard({ note, sessionTitle, isGM, isAuthor, mode = 'l
       <article className="note-card note-card--grid">
         <div className="note-card-grid-body" onClick={() => onOpen(note)}>
           <span className="note-card-grid-icon" aria-hidden>📄</span>
-          <h3 className="note-card-grid-title">{note.title}</h3>
+          <div className="note-card-grid-title-wrapper">
+            <h3 className="note-card-grid-title">{note.title}</h3>
+          </div>
           <time className="note-card-grid-date">
             {new Date(note.created_at).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })}
           </time>

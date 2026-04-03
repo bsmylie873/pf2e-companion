@@ -13,7 +13,7 @@
     border-left-color var(--transition-base);
 }
 
-.note-card:last-child {
+.note-card:not(.note-card--grid):last-child {
   border-bottom: none;
 }
 
@@ -178,6 +178,7 @@
 .note-card--grid {
   display: flex;
   flex-direction: column;
+  align-items: stretch;
   gap: 0.25rem;
   padding: 1rem;
   border: 1px solid var(--color-border);
@@ -185,6 +186,8 @@
   background: var(--color-surface);
   cursor: pointer;
   transition: background var(--transition-fast), border-color var(--transition-fast);
+  height: 100%;
+  text-align: left;
 }
 
 .note-card--grid:hover {
@@ -194,14 +197,24 @@
 
 .note-card-grid-icon {
   font-size: 1.1rem;
+  flex-shrink: 0;
+}
+
+.note-card-grid-title-wrapper {
+  height: 2.6em;
+  line-height: 1.3;
+  font-size: 0.85rem;
+  overflow: hidden;
+  flex-shrink: 0;
 }
 
 .note-card-grid-title {
   font-family: var(--font-heading);
-  font-size: 0.85rem;
+  font-size: inherit;
   font-weight: 600;
   color: var(--color-text);
   margin: 0;
+  line-height: inherit;
   overflow: hidden;
   display: -webkit-box;
   -webkit-line-clamp: 2;
@@ -213,6 +226,7 @@
   font-size: 0.65rem;
   color: var(--color-text-muted);
   opacity: 0.6;
+  flex-shrink: 0;
 }
 
 .note-card-grid-preview {
@@ -225,6 +239,7 @@
   -webkit-line-clamp: 3;
   -webkit-box-orient: vertical;
   overflow: hidden;
+  min-height: calc(3 * 1.4 * 0.72rem);
 }
 
 .note-card-grid-body {
@@ -232,15 +247,13 @@
   flex-direction: column;
   gap: 0.25rem;
   cursor: pointer;
-  flex: 1;
-  min-height: 0;
 }
 
 .note-card-grid-actions {
   display: flex;
   align-items: center;
   gap: 0.35rem;
-  margin-top: 0.5rem;
+  margin-top: auto;
   padding-top: 0.5rem;
   border-top: 1px solid var(--color-border);
   opacity: 0;

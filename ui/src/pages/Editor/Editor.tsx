@@ -874,6 +874,15 @@ export default function Editor() {
         {formOpen && (
           <SessionFormModal
             mode="create"
+            initial={{
+              title: '',
+              session_number: sessions.length > 0
+                ? Math.max(...sessions.map(s => s.session_number ?? 0)) + 1
+                : 1,
+              scheduled_at: null,
+              runtime_start: null,
+              runtime_end: null,
+            }}
             error={mutationError}
             saving={saving}
             onSave={handleCreate}
