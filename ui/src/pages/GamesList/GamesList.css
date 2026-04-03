@@ -22,6 +22,7 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
+  gap: 1.5rem;
   margin-bottom: 2rem;
   padding-bottom: 1rem;
   border-bottom: 1px solid var(--color-border);
@@ -53,7 +54,7 @@
 .gameslist-controls {
   display: flex;
   align-items: center;
-  gap: 0.75rem;
+  gap: 1.5rem;
 }
 
 .layout-toggle {
@@ -238,5 +239,21 @@
   .gameslist-page {
     padding-left: 2rem;
     padding-right: 2rem;
+  }
+}
+
+@media (max-width: 1280px) {
+  .gameslist-page {
+    padding-left: 1.5rem;
+    padding-right: 1.5rem;
+  }
+
+  .gameslist-header {
+    gap: 1.5rem;
+    flex-wrap: wrap;
+  }
+
+  .gameslist-title {
+    font-size: 1.4rem;
   }
 }
