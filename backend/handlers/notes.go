@@ -101,6 +101,23 @@ func (h *NoteHandler) ListGameNotes(c echo.Context) error {
 		filters.SessionID = &parsed
 	}
 
+	page, limit, paginated, pErr := ParsePaginationParams(c)
+	if pErr != nil {
+		return nil // 400 already sent
+	}
+
+	if paginated {
+		offset := (page - 1) * limit
+		notes, total, err := h.service.ListGameNotesPaginated(gameID, authUserID, filters, offset, limit)
+		if err != nil {
+			if errors.Is(err, services.ErrForbidden) {
+				return ErrorResponse(c, http.StatusForbidden, "forbidden")
+			}
+			return ErrorResponse(c, http.StatusInternalServerError, "failed to fetch notes")
+		}
+		return c.JSON(http.StatusOK, PaginatedResponse{Data: notes, Total: total, Page: page, Limit: limit})
+	}
+
 	notes, err := h.service.ListGameNotes(gameID, authUserID, filters)
 	if err != nil {
 		if errors.Is(err, services.ErrForbidden) {

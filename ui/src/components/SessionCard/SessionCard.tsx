@@ -71,8 +71,8 @@ export default function SessionCard({ session, isGM, mode = 'list', onEdit, onDe
   })()
 
   return (
-    <article className="session-card">
-      <div className="session-card-body" onClick={() => onOpen?.(session)} style={{ cursor: onOpen ? 'pointer' : 'default' }}>
+    <article className={`session-card${onOpen ? ' session-card--clickable' : ''}`} onClick={() => onOpen?.(session)}>
+      <div className="session-card-body">
         {session.session_number != null && (
           <span className="session-card-number">Session #{session.session_number}</span>
         )}

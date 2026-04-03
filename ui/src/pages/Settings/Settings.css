@@ -458,6 +458,34 @@
   border-color: rgba(201, 76, 76, 0.35);
 }
 
+/* ── Page size grid ──────────────────────────────────────── */
+
+.settings-page-size-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 0.75rem;
+}
+
+.settings-page-size-field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+}
+
+.settings-page-size-label {
+  font-family: var(--font-heading);
+  font-size: 0.6rem;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--color-text-muted);
+}
+
+.settings-select--compact {
+  padding: 0.35rem 0.7rem;
+  font-size: 0.8rem;
+}
+
 /* ── Loading state ────────────────────────────────────────── */
 
 .settings-loading {

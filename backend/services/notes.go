@@ -11,6 +11,7 @@ import (
 type NoteService interface {
 	CreateNote(gameID, userID uuid.UUID, note *models.Note) (models.Note, error)
 	ListGameNotes(gameID, userID uuid.UUID, filters repositories.NoteFilters) ([]models.Note, error)
+	ListGameNotesPaginated(gameID, userID uuid.UUID, filters repositories.NoteFilters, offset, limit int) ([]models.Note, int64, error)
 	GetNote(id, userID uuid.UUID) (models.Note, error)
 	UpdateNote(id, userID uuid.UUID, updates map[string]interface{}) (models.Note, error)
 	DeleteNote(id, userID uuid.UUID) error
@@ -48,6 +49,14 @@ func (s *noteService) ListGameNotes(gameID, userID uuid.UUID, filters repositori
 		return nil, ErrForbidden
 	}
 	return s.repo.FindByGameID(gameID, userID, membership.IsGM, filters)
+}
+
+func (s *noteService) ListGameNotesPaginated(gameID, userID uuid.UUID, filters repositories.NoteFilters, offset, limit int) ([]models.Note, int64, error) {
+	membership, err := s.membershipRepo.FindByUserAndGameID(userID, gameID)
+	if err != nil {
+		return nil, 0, ErrForbidden
+	}
+	return s.repo.FindByGameIDPaginated(gameID, userID, membership.IsGM, filters, offset, limit)
 }
 
 func (s *noteService) GetNote(id, userID uuid.UUID) (models.Note, error) {

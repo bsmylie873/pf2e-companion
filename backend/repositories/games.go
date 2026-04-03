@@ -13,6 +13,7 @@ type GameRepository interface {
 	Update(id uuid.UUID, updates map[string]interface{}) (models.Game, error)
 	Delete(id uuid.UUID) error
 	FindByIDs(ids []uuid.UUID) ([]models.Game, error)
+	FindByIDsPaginated(ids []uuid.UUID, offset, limit int) ([]models.Game, int64, error)
 }
 
 type gameRepository struct {
@@ -55,6 +56,20 @@ func (r *gameRepository) FindByIDs(ids []uuid.UUID) ([]models.Game, error) {
 		return []models.Game{}, nil
 	}
 	var games []models.Game
-	err := r.db.Where("id IN ?", ids).Find(&games).Error
+	err := r.db.Where("id IN ?", ids).Order("created_at DESC").Find(&games).Error
 	return games, err
+}
+
+func (r *gameRepository) FindByIDsPaginated(ids []uuid.UUID, offset, limit int) ([]models.Game, int64, error) {
+	if len(ids) == 0 {
+		return []models.Game{}, 0, nil
+	}
+	var count int64
+	var games []models.Game
+	baseQuery := r.db.Model(&models.Game{}).Where("id IN ?", ids)
+	if err := baseQuery.Count(&count).Error; err != nil {
+		return nil, 0, err
+	}
+	err := baseQuery.Order("created_at DESC").Offset(offset).Limit(limit).Find(&games).Error
+	return games, count, err
 }

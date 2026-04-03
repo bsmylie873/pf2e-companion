@@ -88,6 +88,7 @@ type UserPreferenceResponse struct {
 	SidebarState     datatypes.JSON `json:"sidebar_state"`
 	DefaultViewMode  datatypes.JSON `json:"default_view_mode"`
 	MapEditorMode    string         `json:"map_editor_mode"`
+	PageSize         datatypes.JSON `json:"page_size"`
 }
 
 // FromUserPreference converts a UserPreference model to a UserPreferenceResponse.
@@ -99,5 +100,6 @@ func FromUserPreference(pref UserPreference) UserPreferenceResponse {
 		SidebarState:     pref.SidebarState,
 		DefaultViewMode:  pref.DefaultViewMode,
 		MapEditorMode:    pref.MapEditorMode,
+		PageSize:         pref.PageSize,
 	}
 }
