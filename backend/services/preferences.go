@@ -145,6 +145,18 @@ func (s *preferenceService) UpdatePreferences(userID uuid.UUID, updates map[stri
 		pref.MapEditorMode = mode
 	}
 
+	if v, ok := updates["page_size"]; ok {
+		if v == nil {
+			pref.PageSize = nil
+		} else {
+			raw, err := json.Marshal(v)
+			if err != nil {
+				return models.UserPreferenceResponse{}, fmt.Errorf("%w: invalid page_size", ErrValidation)
+			}
+			pref.PageSize = datatypes.JSON(raw)
+		}
+	}
+
 	if err := s.repo.Upsert(&pref); err != nil {
 		return models.UserPreferenceResponse{}, err
 	}

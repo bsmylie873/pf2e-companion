@@ -8,9 +8,8 @@ import Modal from '../../components/Modal/Modal'
 import NewCampaignForm from '../../components/NewCampaignForm/NewCampaignForm'
 import Pagination from '../../components/Pagination/Pagination'
 import { useLocalStorage } from '../../hooks/useLocalStorage'
+import { usePageSize } from '../../hooks/usePageSize'
 import './GamesList.css'
-
-const PAGE_SIZE = 10
 
 type Layout = 'grid' | 'list'
 
@@ -36,6 +35,7 @@ function ListIcon() {
 }
 
 export default function GamesList() {
+  const pageSize = usePageSize('campaigns')
   const [games, setGames] = useState<Game[]>([])
   const [total, setTotal] = useState(0)
   const [page, setPage] = useState(1)
@@ -51,7 +51,7 @@ export default function GamesList() {
     setLoading(true)
     setError(null)
 
-    listGamesPaginated({ page, limit: PAGE_SIZE })
+    listGamesPaginated({ page, limit: pageSize })
       .then((resp) => {
         if (!cancelled) {
           setGames(resp.data)
@@ -68,7 +68,7 @@ export default function GamesList() {
       })
 
     return () => { cancelled = true }
-  }, [page])
+  }, [page, pageSize])
 
   const handleClose = useCallback(() => {
     if (isDirty && !window.confirm('Discard changes?')) return
@@ -84,7 +84,7 @@ export default function GamesList() {
     if (!window.confirm('Are you sure you want to delete this campaign? This action cannot be undone.')) return
     try {
       await apiFetch(`/games/${gameId}`, { method: 'DELETE' })
-      const maxPage = Math.max(1, Math.ceil((total - 1) / PAGE_SIZE))
+      const maxPage = Math.max(1, Math.ceil((total - 1) / pageSize))
       if (page > maxPage) {
         setPage(maxPage)
       } else {
@@ -94,7 +94,7 @@ export default function GamesList() {
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : 'Failed to delete campaign.')
     }
-  }, [page, total])
+  }, [page, pageSize, total])
 
   return (
     <div className="gameslist-page">
@@ -176,7 +176,7 @@ export default function GamesList() {
       </div>
 
       {!loading && !error && total > 0 && (
-        <Pagination page={page} limit={PAGE_SIZE} total={total} onPageChange={setPage} />
+        <Pagination page={page} limit={pageSize} total={total} onPageChange={setPage} />
       )}
 
       {modalOpen && (

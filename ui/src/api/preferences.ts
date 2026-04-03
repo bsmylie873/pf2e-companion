@@ -6,6 +6,13 @@ export interface GameSidebarState {
   [folderId: string]: boolean
 }
 
+export interface PageSizePreferences {
+  default: number
+  campaigns?: number | null
+  sessions?: number | null
+  notes?: number | null
+}
+
 export interface UserPreferences {
   default_game_id: string | null
   default_pin_colour: string | null
@@ -13,6 +20,7 @@ export interface UserPreferences {
   sidebar_state: Record<string, GameSidebarState> | null
   default_view_mode: Record<string, 'list' | 'grid'> | null
   map_editor_mode: 'modal' | 'navigate'
+  page_size: PageSizePreferences | null
 }
 
 export async function getPreferences(): Promise<UserPreferences> {

@@ -20,9 +20,8 @@ import ConfirmModal from '../../components/ConfirmModal/ConfirmModal'
 import Modal from '../../components/Modal/Modal'
 import EditCampaignForm from '../../components/EditCampaignForm/EditCampaignForm'
 import Pagination from '../../components/Pagination/Pagination'
+import { usePageSize } from '../../hooks/usePageSize'
 import './Editor.css'
-
-const PAGE_SIZE = 10
 
 interface LocationState {
   title?: string
@@ -33,6 +32,8 @@ export default function Editor() {
   const location = useLocation()
   const navigate = useNavigate()
   const { user } = useAuth()
+  const sessionPageSize = usePageSize('sessions')
+  const notePageSize = usePageSize('notes')
   const state = location.state as LocationState | null
 
   const [title, setTitle] = useState(state?.title ?? `Game #${gameId}`)
@@ -166,7 +167,7 @@ export default function Editor() {
     let cancelled = false
     setLoading(true)
 
-    listGameSessionsPaginated(gameId, { page: sessionPage, limit: PAGE_SIZE })
+    listGameSessionsPaginated(gameId, { page: sessionPage, limit: sessionPageSize })
       .then((resp) => {
         if (!cancelled) {
           setSessions(resp.data)
@@ -181,7 +182,7 @@ export default function Editor() {
       })
 
     return () => { cancelled = true }
-  }, [gameId, sessionPage])
+  }, [gameId, sessionPage, sessionPageSize])
 
   // Notes: re-fetch when page, sort, or session filter changes
   useEffect(() => {
@@ -193,7 +194,7 @@ export default function Editor() {
     if (noteSessionFilter === 'unlinked') noteParams.unlinked = true
     else if (noteSessionFilter) noteParams.session_id = noteSessionFilter
 
-    listGameNotesPaginated(gameId, { page: notePage, limit: PAGE_SIZE, ...noteParams })
+    listGameNotesPaginated(gameId, { page: notePage, limit: notePageSize, ...noteParams })
       .then((resp) => {
         if (!cancelled) {
           setNotes(resp.data)
@@ -203,7 +204,7 @@ export default function Editor() {
       .catch(() => {})
 
     return () => { cancelled = true }
-  }, [gameId, notePage, noteSort, noteSessionFilter])
+  }, [gameId, notePage, notePageSize, noteSort, noteSessionFilter])
 
   useEffect(() => {
     if (!gameId) return
@@ -319,7 +320,7 @@ export default function Editor() {
     try {
       await deleteSession(deletingSession.id)
       setDeletingSession(null)
-      const maxPage = Math.max(1, Math.ceil((sessionTotal - 1) / PAGE_SIZE))
+      const maxPage = Math.max(1, Math.ceil((sessionTotal - 1) / sessionPageSize))
       if (sessionPage > maxPage) {
         setSessionPage(maxPage) // triggers re-fetch via useEffect
       } else {
@@ -391,7 +392,7 @@ export default function Editor() {
     try {
       await deleteNote(deletingNote.id)
       setDeletingNote(null)
-      const maxPage = Math.max(1, Math.ceil((noteTotal - 1) / PAGE_SIZE))
+      const maxPage = Math.max(1, Math.ceil((noteTotal - 1) / notePageSize))
       if (notePage > maxPage) {
         setNotePage(maxPage) // triggers re-fetch via useEffect
       } else {
@@ -731,7 +732,7 @@ export default function Editor() {
             {!loading && !error && sessionTotal > 0 && (
               <Pagination
                 page={sessionPage}
-                limit={PAGE_SIZE}
+                limit={sessionPageSize}
                 total={sessionTotal}
                 onPageChange={setSessionPage}
               />
@@ -861,7 +862,7 @@ export default function Editor() {
             {!loading && !error && noteTotal > 0 && (
               <Pagination
                 page={notePage}
-                limit={PAGE_SIZE}
+                limit={notePageSize}
                 total={noteTotal}
                 onPageChange={setNotePage}
               />

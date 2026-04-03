@@ -22,11 +22,16 @@
   border-left-color: var(--color-accent);
 }
 
+.session-card--clickable {
+  cursor: pointer;
+}
+
 .session-card-body {
   display: flex;
   flex-direction: column;
   gap: 0.2rem;
   min-width: 0;
+  flex: 1;
 }
 
 .session-card-number {

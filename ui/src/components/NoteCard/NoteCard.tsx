@@ -59,8 +59,8 @@ export default function NoteCard({ note, sessionTitle, isGM, isAuthor, mode = 'l
   const formattedDate = new Intl.DateTimeFormat(undefined, { dateStyle: 'medium' }).format(new Date(note.created_at))
 
   return (
-    <article className="note-card">
-      <div className="note-card-body" onClick={() => onOpen(note)}>
+    <article className="note-card note-card--clickable" onClick={() => onOpen(note)}>
+      <div className="note-card-body">
         <div className="note-card-meta">
           <span className={`note-card-visibility note-card-visibility--${note.visibility}`}>
             {note.visibility === 'private' ? (

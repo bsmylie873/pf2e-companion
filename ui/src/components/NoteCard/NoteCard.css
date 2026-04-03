@@ -22,12 +22,15 @@
   border-left-color: var(--color-accent);
 }
 
+.note-card--clickable {
+  cursor: pointer;
+}
+
 .note-card-body {
   display: flex;
   flex-direction: column;
   gap: 0.2rem;
   min-width: 0;
-  cursor: pointer;
   flex: 1;
 }
 

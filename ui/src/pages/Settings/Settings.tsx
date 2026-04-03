@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { apiFetch } from '../../api/client'
 import { getPreferences, updatePreferences } from '../../api/preferences'
-import type { UserPreferences } from '../../api/preferences'
+import type { UserPreferences, PageSizePreferences } from '../../api/preferences'
 import { useDarkMode } from '../../hooks/useDarkMode'
 import { useLocalStorage } from '../../hooks/useLocalStorage'
 import { COLOUR_MAP, PIN_ICON_COMPONENTS, PIN_ICON_LABELS, PIN_COLOURS, PIN_ICONS } from '../../constants/pins'
@@ -19,6 +19,7 @@ export default function Settings() {
     sidebar_state: null,
     default_view_mode: null,
     map_editor_mode: 'modal',
+    page_size: null,
   })
   const [prefsError, setPrefsError] = useState(false)
   const [loading, setLoading] = useState(true)
@@ -27,7 +28,7 @@ export default function Settings() {
     Promise.all([
       getPreferences().catch(() => {
         setPrefsError(true)
-        return { default_game_id: null, default_pin_colour: null, default_pin_icon: null, sidebar_state: null, map_editor_mode: 'modal' } as UserPreferences
+        return { default_game_id: null, default_pin_colour: null, default_pin_icon: null, sidebar_state: null, default_view_mode: null, map_editor_mode: 'modal', page_size: null } as UserPreferences
       }),
       apiFetch<Game[]>('/games').catch(() => [] as Game[]),
     ]).then(([fetchedPrefs, fetchedGames]) => {
@@ -219,7 +220,7 @@ export default function Settings() {
             </div>
 
             {/* Map Editor Mode */}
-            <div className="settings-row settings-row--last">
+            <div className="settings-row">
               <div className="settings-row-info">
                 <span className="settings-row-label">Map Editor Mode</span>
                 <span className="settings-row-hint">How sessions and notes open from the map view</span>
@@ -239,6 +240,45 @@ export default function Settings() {
                 >
                   Full Page
                 </button>
+              </div>
+            </div>
+
+            {/* Pagination Preferences */}
+            <div className="settings-row settings-row--stacked settings-row--last">
+              <div className="settings-row-info">
+                <span className="settings-row-label">Items Per Page</span>
+                <span className="settings-row-hint">How many entries to show in each list. Per-resource overrides take precedence.</span>
+              </div>
+              <div className="settings-page-size-grid">
+                {(['default', 'campaigns', 'sessions', 'notes'] as const).map(key => {
+                  const ps = prefs.page_size ?? { default: 10 }
+                  const value = key === 'default' ? (ps.default ?? 10) : (ps[key] ?? '')
+                  const label = key === 'default' ? 'Default' : key.charAt(0).toUpperCase() + key.slice(1)
+                  return (
+                    <div key={key} className="settings-page-size-field">
+                      <label className="settings-page-size-label">{label}</label>
+                      <select
+                        className="settings-select settings-select--compact"
+                        value={value}
+                        onChange={e => {
+                          const raw = e.target.value
+                          const newPs: PageSizePreferences = { ...(prefs.page_size ?? { default: 10 }) }
+                          if (key === 'default') {
+                            newPs.default = Number(raw)
+                          } else {
+                            newPs[key] = raw === '' ? null : Number(raw)
+                          }
+                          savePrefs({ page_size: newPs })
+                        }}
+                      >
+                        {key !== 'default' && <option value="">Use default</option>}
+                        {[5, 10, 20, 50, 100].map(n => (
+                          <option key={n} value={n}>{n}</option>
+                        ))}
+                      </select>
+                    </div>
+                  )
+                })}
               </div>
             </div>
           </>
