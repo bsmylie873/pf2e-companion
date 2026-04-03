@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { apiFetch } from '../../api/client'
 import type { Game } from '../../types/game'
 import type { User } from '../../types/user'
+import { useAuth } from '../../context/AuthContext'
 import UserSearch from '../UserSearch/UserSearch'
 import './NewCampaignForm.css'
 
@@ -11,16 +12,20 @@ interface NewCampaignFormProps {
 }
 
 export default function NewCampaignForm({ onSuccess, onDirtyChange }: NewCampaignFormProps) {
+  const { user: currentUser } = useAuth()
+
   const [title, setTitle] = useState('')
   const [description, setDescription] = useState('')
   const [splashImageUrl, setSplashImageUrl] = useState('')
-  const [members, setMembers] = useState<Array<{ user: User; isGm: boolean }>>([])
+  const [members, setMembers] = useState<Array<{ user: User; isGm: boolean }>>(() =>
+    currentUser ? [{ user: currentUser, isGm: true }] : []
+  )
   const [errors, setErrors] = useState<Record<string, string>>({})
   const [apiError, setApiError] = useState<string | null>(null)
   const [submitting, setSubmitting] = useState(false)
 
   useEffect(() => {
-    onDirtyChange(title !== '' || description !== '' || splashImageUrl !== '' || members.length > 0)
+    onDirtyChange(title !== '' || description !== '' || splashImageUrl !== '' || members.length > 1)
   }, [title, description, splashImageUrl, members.length, onDirtyChange])
 
   function handleAddMember(user: User) {
@@ -31,10 +36,12 @@ export default function NewCampaignForm({ onSuccess, onDirtyChange }: NewCampaig
   }
 
   function handleRemoveMember(id: string) {
+    if (id === currentUser?.id) return
     setMembers((prev) => prev.filter((m) => m.user.id !== id))
   }
 
   function handleToggleRole(id: string) {
+    if (id === currentUser?.id) return
     setMembers((prev) =>
       prev.map((m) => (m.user.id === id ? { ...m, isGm: !m.isGm } : m))
     )
@@ -143,35 +150,46 @@ export default function NewCampaignForm({ onSuccess, onDirtyChange }: NewCampaig
         />
         {members.length > 0 && (
           <ul className="ncf-member-list">
-            {members.map(({ user, isGm }) => (
-              <li key={user.id} className="ncf-member-row">
-                <span className="ncf-member-name">{user.username}</span>
-                <div className="ncf-role-toggle">
+            {members.map(({ user, isGm }) => {
+              const isCreator = user.id === currentUser?.id
+              return (
+                <li key={user.id} className="ncf-member-row">
+                  <span className="ncf-member-name">
+                    {user.username}
+                    {isCreator && <span className="ncf-creator-badge">Creator</span>}
+                  </span>
+                  <div className={`ncf-role-toggle${isCreator ? ' ncf-role-toggle--locked' : ''}`}
+                       title={isCreator ? 'The game creator must remain a GM' : undefined}>
+                    <button
+                      type="button"
+                      className={`ncf-role-btn${!isGm ? ' ncf-role-btn--active' : ''}`}
+                      onClick={() => handleToggleRole(user.id)}
+                      disabled={isCreator}
+                    >
+                      Player
+                    </button>
+                    <button
+                      type="button"
+                      className={`ncf-role-btn${isGm ? ' ncf-role-btn--active' : ''}`}
+                      onClick={() => handleToggleRole(user.id)}
+                      disabled={isCreator}
+                    >
+                      GM
+                    </button>
+                  </div>
                   <button
                     type="button"
-                    className={`ncf-role-btn${!isGm ? ' ncf-role-btn--active' : ''}`}
-                    onClick={() => handleToggleRole(user.id)}
+                    className="ncf-member-remove"
+                    onClick={() => handleRemoveMember(user.id)}
+                    aria-label={isCreator ? 'The game creator must remain a GM' : `Remove ${user.username}`}
+                    disabled={isCreator}
+                    title={isCreator ? 'The game creator must remain a GM' : undefined}
                   >
-                    Player
+                    &times;
                   </button>
-                  <button
-                    type="button"
-                    className={`ncf-role-btn${isGm ? ' ncf-role-btn--active' : ''}`}
-                    onClick={() => handleToggleRole(user.id)}
-                  >
-                    GM
-                  </button>
-                </div>
-                <button
-                  type="button"
-                  className="ncf-member-remove"
-                  onClick={() => handleRemoveMember(user.id)}
-                  aria-label={`Remove ${user.username}`}
-                >
-                  &times;
-                </button>
-              </li>
-            ))}
+                </li>
+              )
+            })}
           </ul>
         )}
       </div>
