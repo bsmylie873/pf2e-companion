@@ -106,7 +106,13 @@ export default function SessionFormModal({ mode, initial, error, saving, onSave,
               className="session-form-input"
               type="datetime-local"
               value={scheduledAt}
-              onChange={(e) => setScheduledAt(e.target.value)}
+              onChange={(e) => {
+                const value = e.target.value
+                setScheduledAt(value)
+                if (value && !runtimeStart) {
+                  setRuntimeStart(value)
+                }
+              }}
             />
           </div>
 

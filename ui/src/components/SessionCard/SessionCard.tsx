@@ -17,10 +17,12 @@ export default function SessionCard({ session, isGM, mode = 'list', onEdit, onDe
       <article className="session-card session-card--grid">
         <div className="session-card-grid-body" onClick={() => onOpen?.(session)}>
           <span className="session-card-grid-icon" aria-hidden>📖</span>
-          {session.session_number != null && (
-            <span className="session-card-grid-number">Session #{session.session_number}</span>
-          )}
-          <h3 className="session-card-grid-title">{session.title}</h3>
+          <span className="session-card-grid-number">
+            {session.session_number != null ? `Session #${session.session_number}` : '\u00A0'}
+          </span>
+          <div className="session-card-grid-title-wrapper">
+            <h3 className="session-card-grid-title">{session.title}</h3>
+          </div>
           <time className="session-card-grid-date">
             {new Date(session.created_at).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })}
           </time>
