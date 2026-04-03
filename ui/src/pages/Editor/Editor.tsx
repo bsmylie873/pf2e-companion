@@ -36,9 +36,15 @@ export default function Editor() {
   const notePageSize = usePageSize('notes')
   const state = location.state as LocationState | null
 
-  const [title, setTitle] = useState(state?.title ?? `Game #${gameId}`)
+  const [title, setTitle] = useState(state?.title ?? '')
   const [editOpen, setEditOpen] = useState(false)
   const [isDirty, setIsDirty] = useState(false)
+
+  useEffect(() => {
+    if (!state?.title && gameId) {
+      apiFetch<Game>(`/games/${gameId}`).then(game => setTitle(game.title)).catch(() => {})
+    }
+  }, [gameId, state?.title])
 
   const handleClose = useCallback(() => {
     if (isDirty && !confirm('Discard unsaved changes?')) return
