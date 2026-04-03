@@ -201,6 +201,37 @@
   line-height: 1;
 }
 
-.ncf-member-remove:hover {
+.ncf-member-remove:hover:not(:disabled) {
   color: var(--color-accent);
+}
+
+/* ── Creator lock states ───────────────────────────────── */
+
+.ncf-creator-badge {
+  font-family: var(--font-heading);
+  font-size: 0.55rem;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--color-accent);
+  background: rgba(139, 46, 46, 0.1);
+  border: 1px solid rgba(139, 46, 46, 0.25);
+  border-radius: 2px;
+  padding: 0.1rem 0.35rem;
+  margin-left: 0.5rem;
+  vertical-align: middle;
+}
+
+.ncf-role-toggle--locked {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.ncf-role-toggle--locked .ncf-role-btn {
+  cursor: not-allowed;
+}
+
+.ncf-member-remove:disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
+  pointer-events: none;
 }
