@@ -1,12 +1,16 @@
 import { useCallback, useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { apiFetch } from '../../api/client'
+import { listGamesPaginated } from '../../api/games'
 import type { Game } from '../../types/game'
 import GameCard from '../../components/GameCard/GameCard'
 import Modal from '../../components/Modal/Modal'
 import NewCampaignForm from '../../components/NewCampaignForm/NewCampaignForm'
+import Pagination from '../../components/Pagination/Pagination'
 import { useLocalStorage } from '../../hooks/useLocalStorage'
 import './GamesList.css'
+
+const PAGE_SIZE = 10
 
 type Layout = 'grid' | 'list'
 
@@ -33,6 +37,8 @@ function ListIcon() {
 
 export default function GamesList() {
   const [games, setGames] = useState<Game[]>([])
+  const [total, setTotal] = useState(0)
+  const [page, setPage] = useState(1)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [layout, setLayout] = useLocalStorage<Layout>('pf2e-layout-pref', 'grid')
@@ -45,10 +51,11 @@ export default function GamesList() {
     setLoading(true)
     setError(null)
 
-    apiFetch<Game[]>('/games')
-      .then((data) => {
+    listGamesPaginated({ page, limit: PAGE_SIZE })
+      .then((resp) => {
         if (!cancelled) {
-          setGames(data)
+          setGames(resp.data)
+          setTotal(resp.total)
         }
       })
       .catch((err: unknown) => {
@@ -61,7 +68,7 @@ export default function GamesList() {
       })
 
     return () => { cancelled = true }
-  }, [])
+  }, [page])
 
   const handleClose = useCallback(() => {
     if (isDirty && !window.confirm('Discard changes?')) return
@@ -77,11 +84,17 @@ export default function GamesList() {
     if (!window.confirm('Are you sure you want to delete this campaign? This action cannot be undone.')) return
     try {
       await apiFetch(`/games/${gameId}`, { method: 'DELETE' })
-      setGames((prev) => prev.filter((g) => g.id !== gameId))
+      const maxPage = Math.max(1, Math.ceil((total - 1) / PAGE_SIZE))
+      if (page > maxPage) {
+        setPage(maxPage)
+      } else {
+        setGames((prev) => prev.filter((g) => g.id !== gameId))
+        setTotal((prev) => prev - 1)
+      }
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : 'Failed to delete campaign.')
     }
-  }, [])
+  }, [page, total])
 
   return (
     <div className="gameslist-page">
@@ -161,6 +174,10 @@ export default function GamesList() {
           </div>
         )}
       </div>
+
+      {!loading && !error && total > 0 && (
+        <Pagination page={page} limit={PAGE_SIZE} total={total} onPageChange={setPage} />
+      )}
 
       {modalOpen && (
         <Modal title="New Campaign" onClose={handleClose}>

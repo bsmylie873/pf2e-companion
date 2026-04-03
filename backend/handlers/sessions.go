@@ -75,6 +75,23 @@ func (h *SessionHandler) ListGameSessions(c echo.Context) error {
 		return nil
 	}
 
+	page, limit, paginated, pErr := ParsePaginationParams(c)
+	if pErr != nil {
+		return nil // 400 already sent
+	}
+
+	if paginated {
+		offset := (page - 1) * limit
+		sessions, total, err := h.service.ListGameSessionsPaginated(gameID, authUserID, offset, limit)
+		if err != nil {
+			if errors.Is(err, services.ErrForbidden) {
+				return ErrorResponse(c, http.StatusForbidden, "forbidden")
+			}
+			return ErrorResponse(c, http.StatusInternalServerError, "failed to list sessions")
+		}
+		return c.JSON(http.StatusOK, PaginatedResponse{Data: sessions, Total: total, Page: page, Limit: limit})
+	}
+
 	sessions, err := h.service.ListGameSessions(gameID, authUserID)
 	if err != nil {
 		if errors.Is(err, services.ErrForbidden) {

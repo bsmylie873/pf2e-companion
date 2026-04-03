@@ -4,9 +4,9 @@ import type { Session, SessionFormData } from '../../types/session'
 import type { Note, NoteFormData } from '../../types/note'
 import type { GameMembership } from '../../types/membership'
 import type { Game } from '../../types/game'
-import { listGameSessions, createSession, updateSession, deleteSession } from '../../api/sessions'
+import { listGameSessionsPaginated, createSession, updateSession, deleteSession } from '../../api/sessions'
 import { listMemberships } from '../../api/memberships'
-import { listGameNotes, createNote, updateNote as updateNoteApi, deleteNote } from '../../api/notes'
+import { listGameNotesPaginated, createNote, updateNote as updateNoteApi, deleteNote } from '../../api/notes'
 import { apiFetch } from '../../api/client'
 import { getPreferences, updatePreferences } from '../../api/preferences'
 import { listFolders } from '../../api/folders'
@@ -19,7 +19,10 @@ import NoteFormModal from '../../components/NoteFormModal/NoteFormModal'
 import ConfirmModal from '../../components/ConfirmModal/ConfirmModal'
 import Modal from '../../components/Modal/Modal'
 import EditCampaignForm from '../../components/EditCampaignForm/EditCampaignForm'
+import Pagination from '../../components/Pagination/Pagination'
 import './Editor.css'
+
+const PAGE_SIZE = 10
 
 interface LocationState {
   title?: string
@@ -122,26 +125,28 @@ export default function Editor() {
   const [noteMutationError, setNoteMutationError] = useState<string | null>(null)
   const [noteSaving, setNoteSaving] = useState(false)
 
+  // Pagination state
+  const [sessionPage, setSessionPage] = useState(1)
+  const [sessionTotal, setSessionTotal] = useState(0)
+  const [notePage, setNotePage] = useState(1)
+  const [noteTotal, setNoteTotal] = useState(0)
+
+  // Initial load: memberships, game metadata, folders
   useEffect(() => {
     if (!gameId) return
     let cancelled = false
-    setLoading(true)
     setError(null)
 
     Promise.all([
-      listGameSessions(gameId),
       listMemberships(gameId),
       apiFetch<Game>(`/games/${gameId}`),
-      listGameNotes(gameId),
       listFolders(gameId, 'session'),
       listFolders(gameId, 'note'),
     ])
-      .then(([sessionsData, membershipsData, gameData, notesData, sFolders, nFolders]) => {
+      .then(([membershipsData, gameData, sFolders, nFolders]) => {
         if (!cancelled) {
-          setSessions(sessionsData)
           setMemberships(membershipsData)
           setGame(gameData)
-          setNotes(notesData)
           setSessionFolders(sFolders)
           setNoteFolders(nFolders)
         }
@@ -151,12 +156,54 @@ export default function Editor() {
           setError(err instanceof Error ? err.message : 'Failed to load data.')
         }
       })
+
+    return () => { cancelled = true }
+  }, [gameId])
+
+  // Sessions: re-fetch when page changes
+  useEffect(() => {
+    if (!gameId) return
+    let cancelled = false
+    setLoading(true)
+
+    listGameSessionsPaginated(gameId, { page: sessionPage, limit: PAGE_SIZE })
+      .then((resp) => {
+        if (!cancelled) {
+          setSessions(resp.data)
+          setSessionTotal(resp.total)
+        }
+      })
+      .catch((err: unknown) => {
+        if (!cancelled) setError(err instanceof Error ? err.message : 'Failed to load sessions.')
+      })
       .finally(() => {
         if (!cancelled) setLoading(false)
       })
 
     return () => { cancelled = true }
-  }, [gameId])
+  }, [gameId, sessionPage])
+
+  // Notes: re-fetch when page, sort, or session filter changes
+  useEffect(() => {
+    if (!gameId) return
+    let cancelled = false
+
+    const noteParams: { sort?: string; session_id?: string; unlinked?: boolean } = {}
+    if (noteSort) noteParams.sort = noteSort
+    if (noteSessionFilter === 'unlinked') noteParams.unlinked = true
+    else if (noteSessionFilter) noteParams.session_id = noteSessionFilter
+
+    listGameNotesPaginated(gameId, { page: notePage, limit: PAGE_SIZE, ...noteParams })
+      .then((resp) => {
+        if (!cancelled) {
+          setNotes(resp.data)
+          setNoteTotal(resp.total)
+        }
+      })
+      .catch(() => {})
+
+    return () => { cancelled = true }
+  }, [gameId, notePage, noteSort, noteSessionFilter])
 
   useEffect(() => {
     if (!gameId) return
@@ -218,16 +265,8 @@ export default function Editor() {
 
   const sessionMap = Object.fromEntries(sessions.map(s => [s.id, s]))
 
-  const filteredNotes = [...notes]
-    .filter(n => {
-      if (noteSessionFilter === '') return true
-      if (noteSessionFilter === 'unlinked') return n.session_id == null
-      return n.session_id === noteSessionFilter
-    })
-    .sort((a, b) => {
-      if (noteSort === 'title') return a.title.localeCompare(b.title)
-      return new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
-    })
+  // Server handles note filtering/sorting; notes state already reflects current filter+sort+page
+  const filteredNotes = notes
 
   const unfiledSessions = filteredSessions.filter(s => !s.folder_id)
   const sessionsByFolder = sessionFolders.map(folder => ({
@@ -279,8 +318,14 @@ export default function Editor() {
     setSaving(true)
     try {
       await deleteSession(deletingSession.id)
-      setSessions(prev => prev.filter(s => s.id !== deletingSession.id))
       setDeletingSession(null)
+      const maxPage = Math.max(1, Math.ceil((sessionTotal - 1) / PAGE_SIZE))
+      if (sessionPage > maxPage) {
+        setSessionPage(maxPage) // triggers re-fetch via useEffect
+      } else {
+        setSessions(prev => prev.filter(s => s.id !== deletingSession.id))
+        setSessionTotal(prev => prev - 1)
+      }
     } catch (err: unknown) {
       setMutationError(err instanceof Error ? err.message : 'Failed to delete session.')
     } finally {
@@ -345,8 +390,14 @@ export default function Editor() {
     setNoteSaving(true)
     try {
       await deleteNote(deletingNote.id)
-      setNotes(prev => prev.filter(n => n.id !== deletingNote.id))
       setDeletingNote(null)
+      const maxPage = Math.max(1, Math.ceil((noteTotal - 1) / PAGE_SIZE))
+      if (notePage > maxPage) {
+        setNotePage(maxPage) // triggers re-fetch via useEffect
+      } else {
+        setNotes(prev => prev.filter(n => n.id !== deletingNote.id))
+        setNoteTotal(prev => prev - 1)
+      }
     } catch (err: unknown) {
       setNoteMutationError(err instanceof Error ? err.message : 'Failed to delete note.')
     } finally {
@@ -676,6 +727,15 @@ export default function Editor() {
                 ))}
               </div>
             )}
+
+            {!loading && !error && sessionTotal > 0 && (
+              <Pagination
+                page={sessionPage}
+                limit={PAGE_SIZE}
+                total={sessionTotal}
+                onPageChange={setSessionPage}
+              />
+            )}
           </section>
         )}
 
@@ -691,13 +751,13 @@ export default function Editor() {
                 <div className="sessions-sort-options">
                   <button
                     className={`sessions-sort-btn${noteSort === 'title' ? ' sessions-sort-btn--active' : ''}`}
-                    onClick={() => setNoteSort('title')}
+                    onClick={() => { setNoteSort('title'); setNotePage(1) }}
                   >
                     Title A–Z
                   </button>
                   <button
                     className={`sessions-sort-btn${noteSort === 'created_at' ? ' sessions-sort-btn--active' : ''}`}
-                    onClick={() => setNoteSort('created_at')}
+                    onClick={() => { setNoteSort('created_at'); setNotePage(1) }}
                   >
                     Newest
                   </button>
@@ -708,7 +768,7 @@ export default function Editor() {
                 <select
                   className="notes-filter-select"
                   value={noteSessionFilter}
-                  onChange={e => setNoteSessionFilter(e.target.value)}
+                  onChange={e => { setNoteSessionFilter(e.target.value); setNotePage(1) }}
                 >
                   <option value="">All Notes</option>
                   <option value="unlinked">Unlinked</option>
@@ -796,6 +856,15 @@ export default function Editor() {
                   )
                 ))}
               </div>
+            )}
+
+            {!loading && !error && noteTotal > 0 && (
+              <Pagination
+                page={notePage}
+                limit={PAGE_SIZE}
+                total={noteTotal}
+                onPageChange={setNotePage}
+              />
             )}
           </section>
         )}

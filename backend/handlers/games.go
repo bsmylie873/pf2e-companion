@@ -82,6 +82,20 @@ func (h *GameHandler) ListGames(c echo.Context) error {
 		return nil
 	}
 
+	page, limit, paginated, pErr := ParsePaginationParams(c)
+	if pErr != nil {
+		return nil // 400 already sent
+	}
+
+	if paginated {
+		offset := (page - 1) * limit
+		games, total, err := h.service.ListGamesPaginated(authUserID, offset, limit)
+		if err != nil {
+			return ErrorResponse(c, http.StatusInternalServerError, "failed to list games")
+		}
+		return c.JSON(http.StatusOK, PaginatedResponse{Data: games, Total: total, Page: page, Limit: limit})
+	}
+
 	games, err := h.service.ListGames(authUserID)
 	if err != nil {
 		return ErrorResponse(c, http.StatusInternalServerError, "failed to list games")

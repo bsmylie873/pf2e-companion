@@ -9,6 +9,7 @@ import (
 type SessionService interface {
 	CreateSession(gameID, userID uuid.UUID, session *models.Session) (models.Session, error)
 	ListGameSessions(gameID, userID uuid.UUID) ([]models.Session, error)
+	ListGameSessionsPaginated(gameID, userID uuid.UUID, offset, limit int) ([]models.Session, int64, error)
 	GetSession(id, userID uuid.UUID) (models.Session, error)
 	UpdateSession(id, userID uuid.UUID, updates map[string]interface{}) (models.Session, error)
 	DeleteSession(id, userID uuid.UUID) error
@@ -40,6 +41,13 @@ func (s *sessionService) ListGameSessions(gameID, userID uuid.UUID) ([]models.Se
 		return nil, ErrForbidden
 	}
 	return s.repo.FindByGameID(gameID)
+}
+
+func (s *sessionService) ListGameSessionsPaginated(gameID, userID uuid.UUID, offset, limit int) ([]models.Session, int64, error) {
+	if _, err := s.membershipRepo.FindByUserAndGameID(userID, gameID); err != nil {
+		return nil, 0, ErrForbidden
+	}
+	return s.repo.FindByGameIDPaginated(gameID, offset, limit)
 }
 
 func (s *sessionService) GetSession(id, userID uuid.UUID) (models.Session, error) {

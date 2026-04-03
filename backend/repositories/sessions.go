@@ -9,6 +9,7 @@ import (
 type SessionRepository interface {
 	Create(session *models.Session) error
 	FindByGameID(gameID uuid.UUID) ([]models.Session, error)
+	FindByGameIDPaginated(gameID uuid.UUID, offset, limit int) ([]models.Session, int64, error)
 	FindByID(id uuid.UUID) (models.Session, error)
 	Update(id uuid.UUID, updates map[string]interface{}) (models.Session, error)
 	Delete(id uuid.UUID) error
@@ -28,8 +29,19 @@ func (r *sessionRepository) Create(session *models.Session) error {
 
 func (r *sessionRepository) FindByGameID(gameID uuid.UUID) ([]models.Session, error) {
 	var sessions []models.Session
-	err := r.db.Where("game_id = ?", gameID).Find(&sessions).Error
+	err := r.db.Where("game_id = ?", gameID).Order("created_at DESC").Find(&sessions).Error
 	return sessions, err
+}
+
+func (r *sessionRepository) FindByGameIDPaginated(gameID uuid.UUID, offset, limit int) ([]models.Session, int64, error) {
+	var count int64
+	var sessions []models.Session
+	baseQuery := r.db.Model(&models.Session{}).Where("game_id = ?", gameID)
+	if err := baseQuery.Count(&count).Error; err != nil {
+		return nil, 0, err
+	}
+	err := baseQuery.Order("created_at DESC").Offset(offset).Limit(limit).Find(&sessions).Error
+	return sessions, count, err
 }
 
 func (r *sessionRepository) FindByID(id uuid.UUID) (models.Session, error) {

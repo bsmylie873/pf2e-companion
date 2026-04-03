@@ -9,6 +9,7 @@ import (
 type GameService interface {
 	CreateGame(game *models.Game, members []models.GameMembership, creatorID uuid.UUID) (models.Game, error)
 	ListGames(userID uuid.UUID) ([]models.Game, error)
+	ListGamesPaginated(userID uuid.UUID, offset, limit int) ([]models.Game, int64, error)
 	GetGame(id, userID uuid.UUID) (models.Game, error)
 	UpdateGame(id, userID uuid.UUID, updates map[string]interface{}) (models.Game, error)
 	DeleteGame(id, userID uuid.UUID) error
@@ -53,6 +54,18 @@ func (s *gameService) ListGames(userID uuid.UUID) ([]models.Game, error) {
 		ids[i] = m.GameID
 	}
 	return s.repo.FindByIDs(ids)
+}
+
+func (s *gameService) ListGamesPaginated(userID uuid.UUID, offset, limit int) ([]models.Game, int64, error) {
+	memberships, err := s.membershipRepo.FindByUserID(userID)
+	if err != nil {
+		return nil, 0, err
+	}
+	ids := make([]uuid.UUID, len(memberships))
+	for i, m := range memberships {
+		ids[i] = m.GameID
+	}
+	return s.repo.FindByIDsPaginated(ids, offset, limit)
 }
 
 func (s *gameService) GetGame(id, userID uuid.UUID) (models.Game, error) {
