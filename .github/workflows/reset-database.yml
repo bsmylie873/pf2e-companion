@@ -1,0 +1,54 @@
+name: Reset Database
+
+on:
+  workflow_dispatch:
+
+concurrency:
+  group: database-reset
+  cancel-in-progress: false
+
+jobs:
+  reset-database:
+    name: Reset Remote Database
+    runs-on: ubuntu-latest
+    environment: production
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: superfly/flyctl-actions/setup-flyctl@master
+
+      - name: Set up Fly.io proxy
+        run: |
+          flyctl proxy 15432:5432 -a pf2e-companion-db &
+          for i in $(seq 1 30); do
+            nc -z localhost 15432 && echo "Proxy is ready" && exit 0
+            echo "Waiting for proxy... ($i/30)"
+            sleep 2
+          done
+          echo "Proxy failed to start" && exit 1
+        env:
+          FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
+
+      - name: Drop all tables and clear Flyway history
+        run: |
+          docker run --rm --network host \
+            -v "${{ github.workspace }}/database/migrations:/flyway/sql" \
+            flyway/flyway:latest \
+            -url=jdbc:postgresql://localhost:15432/${{ secrets.POSTGRES_DB }} \
+            -user=${{ secrets.POSTGRES_USER }} \
+            -password=${{ secrets.POSTGRES_PASSWORD }} \
+            -locations=filesystem:/flyway/sql \
+            -cleanDisabled=false \
+            clean
+
+      - name: Re-run all migrations
+        run: |
+          docker run --rm --network host \
+            -v "${{ github.workspace }}/database/migrations:/flyway/sql" \
+            flyway/flyway:latest \
+            -url=jdbc:postgresql://localhost:15432/${{ secrets.POSTGRES_DB }} \
+            -user=${{ secrets.POSTGRES_USER }} \
+            -password=${{ secrets.POSTGRES_PASSWORD }} \
+            -locations=filesystem:/flyway/sql \
+            migrate
