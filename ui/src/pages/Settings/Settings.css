@@ -43,6 +43,71 @@
   gap: 1.25rem;
 }
 
+/* ── Tab bar ─────────────────────────────────────────────── */
+
+.settings-tabs {
+  display: flex;
+  border: 1px solid var(--color-border);
+  border-radius: 3px;
+  overflow: hidden;
+  background: var(--color-bg);
+  opacity: 0;
+  animation: settings-section-in 550ms cubic-bezier(0.22, 1, 0.36, 1) both;
+  animation-delay: 0.02s;
+}
+
+.settings-tab {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.45rem;
+  padding: 0.65rem 1rem;
+  border: none;
+  border-right: 1px solid var(--color-border);
+  background: transparent;
+  color: var(--color-text-muted);
+  font-family: var(--font-heading);
+  font-size: 0.66rem;
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  cursor: pointer;
+  position: relative;
+  transition:
+    background var(--transition-fast),
+    color var(--transition-fast),
+    box-shadow var(--transition-fast);
+}
+
+.settings-tab:last-child {
+  border-right: none;
+}
+
+.settings-tab:not(.settings-tab--active):hover {
+  background: var(--color-bg-secondary);
+  color: var(--color-text);
+}
+
+.settings-tab--active {
+  background: var(--color-surface);
+  color: var(--color-accent);
+  box-shadow: inset 0 -2px 0 var(--color-accent);
+}
+
+[data-theme='dark'] .settings-tab--active {
+  box-shadow: inset 0 -2px 0 var(--color-accent);
+}
+
+.settings-tab svg {
+  flex-shrink: 0;
+  opacity: 0.7;
+}
+
+.settings-tab--active svg {
+  opacity: 1;
+}
+
 /* ── Sections (parchment panels) ──────────────────────────── */
 
 .settings-section {
@@ -67,8 +132,8 @@
   animation: settings-section-in 550ms cubic-bezier(0.22, 1, 0.36, 1) both;
 }
 
-.settings-section--device  { animation-delay: 0.08s; }
-.settings-section--account { animation-delay: 0.18s; }
+.settings-section--device  { animation-delay: 0.06s; }
+.settings-section--account { animation-delay: 0.14s; }
 
 /* ── Section headers ──────────────────────────────────────── */
 
@@ -511,4 +576,207 @@
   width: 28px;
   height: 28px;
   animation: settings-spin 2s linear infinite;
+}
+
+/* ── Backup section ───────────────────────────────────────── */
+
+.settings-section--backup { animation-delay: 0.06s; }
+
+.settings-badge--backup {
+  color: #4a6741;
+  background: rgba(74, 103, 65, 0.08);
+  border-color: rgba(74, 103, 65, 0.3);
+}
+
+[data-theme='dark'] .settings-badge--backup {
+  color: #8bb880;
+  background: rgba(139, 184, 128, 0.1);
+  border-color: rgba(139, 184, 128, 0.3);
+}
+
+/* ── Backup buttons ──────────────────────────────────────── */
+
+.settings-backup-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 1.1rem;
+  border-radius: 2px;
+  border: 1px solid;
+  font-family: var(--font-heading);
+  font-size: 0.68rem;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  cursor: pointer;
+  flex-shrink: 0;
+  transition:
+    background var(--transition-fast),
+    box-shadow var(--transition-fast),
+    opacity var(--transition-fast),
+    color var(--transition-fast);
+}
+
+.settings-backup-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.settings-backup-btn--export {
+  background: var(--color-accent);
+  border-color: var(--color-accent);
+  color: #f0e6d6;
+}
+
+.settings-backup-btn--export:not(:disabled):hover {
+  background: transparent;
+  color: var(--color-accent);
+  box-shadow: 0 0 8px rgba(139, 46, 46, 0.3);
+}
+
+.settings-backup-btn--import {
+  background: transparent;
+  border-color: var(--color-border);
+  color: var(--color-text-muted);
+}
+
+.settings-backup-btn--import:not(:disabled):hover {
+  background: var(--color-bg-secondary);
+  border-color: var(--color-text-muted);
+  color: var(--color-text);
+}
+
+/* ── File input ──────────────────────────────────────────── */
+
+.settings-backup-import-controls {
+  width: 100%;
+}
+
+.settings-backup-file-label {
+  display: block;
+  position: relative;
+  cursor: pointer;
+}
+
+.settings-backup-file-input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+  pointer-events: none;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+}
+
+.settings-backup-file-btn {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  width: 100%;
+  padding: 0.5rem 0.9rem;
+  background: var(--color-bg);
+  border: 1px dashed var(--color-border);
+  border-radius: 2px;
+  color: var(--color-text-muted);
+  font-family: var(--font-body);
+  font-size: 0.9rem;
+  transition:
+    border-color var(--transition-fast),
+    background var(--transition-fast),
+    color var(--transition-fast);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.settings-backup-file-label:hover .settings-backup-file-btn {
+  border-color: var(--color-text-muted);
+  background: var(--color-bg-secondary);
+  color: var(--color-text);
+}
+
+/* ── Messages (error / success) ──────────────────────────── */
+
+.settings-backup-message {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.55rem;
+  margin: 0 1.25rem 0.75rem;
+  padding: 0.65rem 0.9rem;
+  border-radius: 2px;
+  border: 1px solid;
+  font-family: var(--font-body);
+  font-size: 0.9rem;
+}
+
+.settings-backup-message--error {
+  background: rgba(139, 46, 46, 0.07);
+  border-color: rgba(139, 46, 46, 0.28);
+  color: var(--color-accent);
+}
+
+[data-theme='dark'] .settings-backup-message--error {
+  background: rgba(201, 76, 76, 0.1);
+  border-color: rgba(201, 76, 76, 0.35);
+}
+
+.settings-backup-message--success {
+  background: rgba(60, 100, 60, 0.07);
+  border-color: rgba(60, 100, 60, 0.25);
+  color: #3c6440;
+  border-bottom: none;
+}
+
+[data-theme='dark'] .settings-backup-message--success {
+  background: rgba(80, 140, 80, 0.1);
+  border-color: rgba(80, 140, 80, 0.3);
+  color: #7fc47f;
+}
+
+/* ── Import summary ──────────────────────────────────────── */
+
+.settings-backup-summary {
+  width: 100%;
+}
+
+.settings-backup-summary-title {
+  display: block;
+  font-family: var(--font-heading);
+  font-size: 0.68rem;
+  font-weight: 600;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+  margin-bottom: 0.55rem;
+}
+
+.settings-backup-summary-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.75rem;
+}
+
+.settings-backup-summary-col {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+}
+
+.settings-backup-summary-heading {
+  font-family: var(--font-heading);
+  font-size: 0.6rem;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  opacity: 0.7;
+  margin-bottom: 0.1rem;
+}
+
+.settings-backup-summary-stat {
+  font-size: 0.85rem;
+  line-height: 1.4;
+}
+
+.settings-backup-summary-stat strong {
+  font-weight: 700;
 }

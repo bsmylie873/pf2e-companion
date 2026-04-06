@@ -64,6 +64,7 @@ func main() {
 	pinService := services.NewPinService(pinRepo, sessionRepo, membershipRepo, pinGroupRepo, mapRepo)
 	pinGroupService := services.NewPinGroupService(pinGroupRepo, pinRepo, noteRepo, membershipRepo, mapRepo)
 	mapService := services.NewMapService(mapRepo, membershipRepo)
+	backupService := services.NewBackupService(db, sessionRepo, noteRepo, membershipRepo)
 
 	hub := handlers.NewGameEventHub()
 	otStore := ot.NewDocumentStore()
@@ -99,6 +100,8 @@ func main() {
 	handlers.RegisterPinGroupRoutes(protected, pinGroupService, hub)
 	handlers.RegisterPreferenceRoutes(protected, preferenceService)
 	handlers.RegisterMapRoutes(protected, mapService, hub)
+	backupRateLimiter := custmw.BackupRateLimiter()
+	handlers.RegisterBackupRoutes(protected, backupService, backupRateLimiter)
 
 	// Background cleanup: hard-delete maps archived more than 24 hours ago
 	go func() {

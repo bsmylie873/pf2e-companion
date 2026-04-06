@@ -1,4 +1,5 @@
 import type { Note } from '../../types/note'
+import { exportNoteBackup } from '../../api/backup'
 import { extractPreviewText } from '../../utils/contentPreview'
 import './NoteCard.css'
 
@@ -30,6 +31,15 @@ export default function NoteCard({ note, sessionTitle, isGM, isAuthor, mode = 'l
           <p className="note-card-grid-preview">{extractPreviewText(note.content)}</p>
         </div>
         <div className="note-card-grid-actions">
+          <button className="note-card-btn note-card-btn--export"
+            onClick={(e) => { e.stopPropagation(); exportNoteBackup(note.id) }}
+            aria-label="Export note" title="Export note">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+              <polyline points="7 10 12 15 17 10" />
+              <line x1="12" y1="15" x2="12" y2="3" />
+            </svg>
+          </button>
           {canEdit && (
             <button className="note-card-btn note-card-btn--edit"
               onClick={(e) => { e.stopPropagation(); onEdit(note) }}
@@ -90,6 +100,18 @@ export default function NoteCard({ note, sessionTitle, isGM, isAuthor, mode = 'l
         <time className="note-card-date">{formattedDate}</time>
       </div>
       <div className="note-card-actions">
+        <button
+          className="note-card-btn note-card-btn--export"
+          onClick={(e) => { e.stopPropagation(); exportNoteBackup(note.id) }}
+          aria-label="Export note"
+          title="Export note"
+        >
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+            <polyline points="7 10 12 15 17 10" />
+            <line x1="12" y1="15" x2="12" y2="3" />
+          </svg>
+        </button>
         {canEdit && (
           <button
             className="note-card-btn note-card-btn--edit"
