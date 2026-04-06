@@ -159,6 +159,16 @@
   height: 16px;
 }
 
+.note-card-btn--export:hover {
+  color: #4a6741;
+  background: rgba(74, 103, 65, 0.1);
+}
+
+[data-theme='dark'] .note-card-btn--export:hover {
+  color: #8bb880;
+  background: rgba(139, 184, 128, 0.12);
+}
+
 .note-card-btn--edit:hover {
   color: var(--color-accent);
   background: rgba(139, 46, 46, 0.1);

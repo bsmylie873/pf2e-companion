@@ -53,7 +53,7 @@ CREATE TABLE game_memberships (
     created_at      TIMESTAMPTZ     NOT NULL DEFAULT now(),
     updated_at      TIMESTAMPTZ     NOT NULL DEFAULT now(),
 
-    CONSTRAINT fk_game_memberships_game FOREIGN KEY (game_id) REFERENCES games (id),
+    CONSTRAINT fk_game_memberships_game FOREIGN KEY (game_id) REFERENCES games (id) ON DELETE CASCADE,
     CONSTRAINT fk_game_memberships_user FOREIGN KEY (user_id) REFERENCES users (id),
     CONSTRAINT uq_game_memberships_game_user UNIQUE (game_id, user_id)
 );
@@ -104,7 +104,7 @@ CREATE TABLE sessions (
     created_at      TIMESTAMPTZ     NOT NULL DEFAULT now(),
     updated_at      TIMESTAMPTZ     NOT NULL DEFAULT now(),
 
-    CONSTRAINT fk_sessions_game   FOREIGN KEY (game_id)   REFERENCES games (id),
+    CONSTRAINT fk_sessions_game   FOREIGN KEY (game_id)   REFERENCES games (id) ON DELETE CASCADE,
     CONSTRAINT fk_sessions_folder FOREIGN KEY (folder_id)  REFERENCES folders(id) ON DELETE SET NULL
 );
 
@@ -127,9 +127,9 @@ CREATE TABLE notes (
     created_at      TIMESTAMPTZ     NOT NULL DEFAULT now(),
     updated_at      TIMESTAMPTZ     NOT NULL DEFAULT now(),
 
-    CONSTRAINT fk_notes_game    FOREIGN KEY (game_id)    REFERENCES games (id),
+    CONSTRAINT fk_notes_game    FOREIGN KEY (game_id)    REFERENCES games (id) ON DELETE CASCADE,
     CONSTRAINT fk_notes_user    FOREIGN KEY (user_id)    REFERENCES users (id),
-    CONSTRAINT fk_notes_session FOREIGN KEY (session_id) REFERENCES sessions (id),
+    CONSTRAINT fk_notes_session FOREIGN KEY (session_id) REFERENCES sessions (id) ON DELETE SET NULL,
     CONSTRAINT fk_notes_folder  FOREIGN KEY (folder_id)  REFERENCES folders(id) ON DELETE SET NULL
 );
 
@@ -166,7 +166,7 @@ CREATE TABLE characters (
     created_at      TIMESTAMPTZ     NOT NULL DEFAULT now(),
     updated_at      TIMESTAMPTZ     NOT NULL DEFAULT now(),
 
-    CONSTRAINT fk_characters_game FOREIGN KEY (game_id) REFERENCES games (id),
+    CONSTRAINT fk_characters_game FOREIGN KEY (game_id) REFERENCES games (id) ON DELETE CASCADE,
     CONSTRAINT fk_characters_user FOREIGN KEY (user_id) REFERENCES users (id)
 );
 
@@ -188,8 +188,8 @@ CREATE TABLE items (
     created_at      TIMESTAMPTZ     NOT NULL DEFAULT now(),
     updated_at      TIMESTAMPTZ     NOT NULL DEFAULT now(),
 
-    CONSTRAINT fk_items_game      FOREIGN KEY (game_id)      REFERENCES games (id),
-    CONSTRAINT fk_items_character  FOREIGN KEY (character_id)  REFERENCES characters (id)
+    CONSTRAINT fk_items_game      FOREIGN KEY (game_id)      REFERENCES games (id) ON DELETE CASCADE,
+    CONSTRAINT fk_items_character  FOREIGN KEY (character_id)  REFERENCES characters (id) ON DELETE CASCADE
 );
 
 -- ---------------------------------------------------------------------------
@@ -247,7 +247,7 @@ CREATE INDEX idx_pin_groups_map_id ON pin_groups(map_id);
 CREATE TABLE session_pins (
     id          UUID          NOT NULL DEFAULT gen_random_uuid() PRIMARY KEY,
     session_id  UUID          REFERENCES sessions(id) ON DELETE CASCADE,
-    game_id     UUID          NOT NULL REFERENCES games(id),
+    game_id     UUID          NOT NULL REFERENCES games(id) ON DELETE CASCADE,
     map_id      UUID          REFERENCES maps(id) ON DELETE CASCADE,
     note_id     UUID          REFERENCES notes(id) ON DELETE SET NULL,
     group_id    UUID          REFERENCES pin_groups(id) ON DELETE SET NULL,
@@ -275,6 +275,7 @@ CREATE TABLE user_preferences (
     sidebar_state      JSONB        DEFAULT '{}'::jsonb,
     default_view_mode  JSONB        DEFAULT '{}'::jsonb,
     map_editor_mode    VARCHAR(10)  NOT NULL DEFAULT 'modal',
+    page_size          JSONB        DEFAULT '{"default":10}'::jsonb,
     created_at         TIMESTAMPTZ  NOT NULL DEFAULT now(),
     updated_at         TIMESTAMPTZ  NOT NULL DEFAULT now()
 );

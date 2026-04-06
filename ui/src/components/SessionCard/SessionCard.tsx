@@ -1,4 +1,5 @@
 import type { Session } from '../../types/session'
+import { exportSessionBackup } from '../../api/backup'
 import { extractPreviewText } from '../../utils/contentPreview'
 import './SessionCard.css'
 
@@ -29,6 +30,15 @@ export default function SessionCard({ session, isGM, mode = 'list', onEdit, onDe
           <p className="session-card-grid-preview">{extractPreviewText(session.notes)}</p>
         </div>
         <div className="session-card-grid-actions">
+          <button className="session-card-btn session-card-btn--export"
+            onClick={(e) => { e.stopPropagation(); exportSessionBackup(session.id) }}
+            aria-label="Export session" title="Export session">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+              <polyline points="7 10 12 15 17 10" />
+              <line x1="12" y1="15" x2="12" y2="3" />
+            </svg>
+          </button>
           <button className="session-card-btn session-card-btn--edit"
             onClick={(e) => { e.stopPropagation(); onEdit(session) }}
             aria-label="Edit session" title="Edit session">
@@ -93,6 +103,18 @@ export default function SessionCard({ session, isGM, mode = 'list', onEdit, onDe
         )}
       </div>
       <div className="session-card-actions">
+        <button
+          className="session-card-btn session-card-btn--export"
+          onClick={(e) => { e.stopPropagation(); exportSessionBackup(session.id) }}
+          aria-label="Export session"
+          title="Export session"
+        >
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+            <polyline points="7 10 12 15 17 10" />
+            <line x1="12" y1="15" x2="12" y2="3" />
+          </svg>
+        </button>
         <button
           className="session-card-btn session-card-btn--edit"
           onClick={(e) => { e.stopPropagation(); onEdit(session) }}

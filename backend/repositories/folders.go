@@ -15,6 +15,7 @@ type FolderRepository interface {
 	Delete(id uuid.UUID) error
 	BatchUpdatePositions(ids []uuid.UUID, positions []int) error
 	MaxPosition(gameID uuid.UUID, folderType string, userID *uuid.UUID) (int, error)
+	FindAllByGameID(gameID uuid.UUID) ([]models.Folder, error)
 }
 
 type folderRepository struct {
@@ -84,4 +85,10 @@ func (r *folderRepository) MaxPosition(gameID uuid.UUID, folderType string, user
 		return -1, err
 	}
 	return maxPos, nil
+}
+
+func (r *folderRepository) FindAllByGameID(gameID uuid.UUID) ([]models.Folder, error) {
+	var folders []models.Folder
+	err := r.db.Where("game_id = ?", gameID).Order("position ASC").Find(&folders).Error
+	return folders, err
 }

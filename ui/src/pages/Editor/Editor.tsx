@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { useParams, useLocation, useNavigate } from 'react-router-dom'
 import type { Session, SessionFormData } from '../../types/session'
 import type { Note, NoteFormData } from '../../types/note'
@@ -7,6 +7,8 @@ import type { Game } from '../../types/game'
 import { listGameSessionsPaginated, createSession, updateSession, deleteSession } from '../../api/sessions'
 import { listMemberships } from '../../api/memberships'
 import { listGameNotesPaginated, createNote, updateNote as updateNoteApi, deleteNote } from '../../api/notes'
+import { importGameBackup } from '../../api/backup'
+import type { ImportSummary } from '../../api/backup'
 import { apiFetch } from '../../api/client'
 import { getPreferences, updatePreferences } from '../../api/preferences'
 import { listFolders } from '../../api/folders'
@@ -131,6 +133,15 @@ export default function Editor() {
   const [deletingNote, setDeletingNote] = useState<Note | null>(null)
   const [noteMutationError, setNoteMutationError] = useState<string | null>(null)
   const [noteSaving, setNoteSaving] = useState(false)
+
+  // Import modal state
+  const [importOpen, setImportOpen] = useState(false)
+  const [importFile, setImportFile] = useState<File | null>(null)
+  const [importMode, setImportMode] = useState<'merge' | 'overwrite' | null>(null)
+  const [importBusy, setImportBusy] = useState(false)
+  const [importResult, setImportResult] = useState<ImportSummary | null>(null)
+  const [importError, setImportError] = useState<string | null>(null)
+  const importFileRef = useRef<HTMLInputElement>(null)
 
   // Pagination state
   const [sessionPage, setSessionPage] = useState(1)
@@ -431,6 +442,50 @@ export default function Editor() {
     navigate(`/games/${gameId}/notes/${note.id}`)
   }
 
+  const handleImportFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+    setImportError(null)
+    setImportResult(null)
+    if (file.size > 10 * 1024 * 1024) {
+      setImportError('File exceeds 10 MB limit.')
+      setImportFile(null)
+      e.target.value = ''
+      return
+    }
+    setImportFile(file)
+  }
+
+  const handleImportSubmit = async () => {
+    if (!importFile || !importMode || !gameId) return
+    setImportError(null)
+    setImportResult(null)
+    setImportBusy(true)
+    try {
+      const result = await importGameBackup(gameId, importFile, importMode)
+      setImportResult(result)
+      setImportFile(null)
+      setImportMode(null)
+      if (importFileRef.current) importFileRef.current.value = ''
+      // Refresh sessions and notes to show imported data
+      setSessionPage(1)
+      setNotePage(1)
+    } catch (e) {
+      setImportError(e instanceof Error ? e.message : 'Import failed.')
+    } finally {
+      setImportBusy(false)
+    }
+  }
+
+  const handleImportClose = () => {
+    setImportOpen(false)
+    setImportFile(null)
+    setImportMode(null)
+    setImportResult(null)
+    setImportError(null)
+    if (importFileRef.current) importFileRef.current.value = ''
+  }
+
   const handleViewModeChange = useCallback((mode: 'list' | 'grid') => {
     setViewMode(mode)
     if (!gameId) return
@@ -546,6 +601,13 @@ export default function Editor() {
             </button>
           </div>
           <div className="editor-toolbar-right">
+            <button className="editor-import-btn" onClick={() => setImportOpen(true)} title="Import backup">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                <polyline points="17 8 12 3 7 8" />
+                <line x1="12" y1="3" x2="12" y2="15" />
+              </svg>
+            </button>
             {activeTab === 'sessions' ? (
               <button className="sessions-new-btn" onClick={openCreate}>
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
@@ -974,6 +1036,81 @@ export default function Editor() {
             onSuccess={handleSuccess}
             onDirtyChange={setIsDirty}
           />
+        </Modal>
+      )}
+
+      {importOpen && (
+        <Modal title="Import Backup" onClose={handleImportClose}>
+          <div className="editor-import-modal">
+            <div className="editor-import-field">
+              <span className="editor-import-label">Backup File</span>
+              <span className="editor-import-hint">Select a JSON backup file (max 10 MB)</span>
+              <label className="editor-import-file-label">
+                <input
+                  ref={importFileRef}
+                  type="file"
+                  accept=".json,application/json"
+                  className="editor-import-file-input"
+                  onChange={handleImportFileSelect}
+                  disabled={importBusy}
+                />
+                <span className="editor-import-file-btn">
+                  <svg viewBox="0 0 16 16" width="13" height="13" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M13 10v3a1 1 0 01-1 1H4a1 1 0 01-1-1v-3M8 2v8M5 5l3-3 3 3"/>
+                  </svg>
+                  {importFile ? importFile.name : 'Choose File'}
+                </span>
+              </label>
+            </div>
+
+            <div className="editor-import-field">
+              <span className="editor-import-label">Conflict Resolution</span>
+              <span className="editor-import-hint">How to handle records that already exist</span>
+              <div className="editor-import-mode-toggle">
+                <button
+                  className={`editor-import-mode-btn${importMode === 'merge' ? ' active' : ''}`}
+                  onClick={() => setImportMode('merge')}
+                  disabled={importBusy}
+                >
+                  Merge (skip existing)
+                </button>
+                <button
+                  className={`editor-import-mode-btn${importMode === 'overwrite' ? ' active' : ''}`}
+                  onClick={() => setImportMode('overwrite')}
+                  disabled={importBusy}
+                >
+                  Overwrite (replace)
+                </button>
+              </div>
+            </div>
+
+            {importError && (
+              <div className="editor-import-error" role="alert">{importError}</div>
+            )}
+
+            {importResult && (
+              <div className="editor-import-success" role="status">
+                <span className="editor-import-success-title">Import Complete</span>
+                <div className="editor-import-summary">
+                  <span><strong>{importResult.sessions_created}</strong> sessions created, <strong>{importResult.sessions_skipped}</strong> skipped, <strong>{importResult.sessions_overwritten}</strong> overwritten</span>
+                  <span><strong>{importResult.notes_created}</strong> notes created, <strong>{importResult.notes_skipped}</strong> skipped, <strong>{importResult.notes_overwritten}</strong> overwritten</span>
+                </div>
+              </div>
+            )}
+
+            <div className="editor-import-actions">
+              <button
+                className="editor-import-submit"
+                onClick={handleImportSubmit}
+                disabled={!importFile || !importMode || importBusy}
+              >
+                {importBusy ? 'Importing…' : 'Import'}
+              </button>
+              <button className="editor-import-cancel" onClick={handleImportClose}>
+                {importResult ? 'Close' : 'Cancel'}
+              </button>
+            </div>
+          </div>
         </Modal>
       )}
     </div>
