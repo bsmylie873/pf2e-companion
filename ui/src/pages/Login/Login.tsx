@@ -2,11 +2,13 @@ import { useState, useEffect } from 'react'
 import { useNavigate, useSearchParams, Link } from 'react-router-dom'
 import { useAuth } from '../../context/AuthContext'
 import { getPreferences } from '../../api/preferences'
+import { useDocumentTitle } from '../../hooks/useDocumentTitle'
 import './Login.css'
 
 type Mode = 'login' | 'register'
 
 export default function Login() {
+  useDocumentTitle('Login')
   const navigate = useNavigate()
   const [searchParams] = useSearchParams()
   const sessionExpired = searchParams.get('expired') === 'true'

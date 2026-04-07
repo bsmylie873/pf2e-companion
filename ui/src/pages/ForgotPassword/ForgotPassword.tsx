@@ -1,9 +1,11 @@
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { forgotPassword } from '../../api/auth'
+import { useDocumentTitle } from '../../hooks/useDocumentTitle'
 import './ForgotPassword.css'
 
 export default function ForgotPassword() {
+  useDocumentTitle('Forgot Password')
   const [email, setEmail] = useState('')
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [submitted, setSubmitted] = useState(false)

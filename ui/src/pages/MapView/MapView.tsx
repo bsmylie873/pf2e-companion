@@ -28,6 +28,7 @@ import FolderSidebar from '../../components/FolderSidebar/FolderSidebar'
 import EditorModalManager from '../../components/EditorModalManager/EditorModalManager'
 import { useGameSocket } from '../../hooks/useGameSocket'
 import type { GameSocketEvent } from '../../hooks/useGameSocket'
+import { useDocumentTitle } from '../../hooks/useDocumentTitle'
 import './MapView.css'
 
 /** Proximity threshold in map-percentage units (0–100). ~16px on a 1000px map. */
@@ -46,6 +47,7 @@ const DEFAULT_VIEW_STATE: MapViewState = {
 }
 
 export default function MapView() {
+  useDocumentTitle('Map')
   const { gameId } = useParams<{ gameId: string }>()
   const navigate = useNavigate()
   const { user } = useAuth()

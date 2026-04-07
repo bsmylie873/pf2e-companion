@@ -14,6 +14,7 @@ import { getPreferences, updatePreferences } from '../../api/preferences'
 import { listFolders } from '../../api/folders'
 import type { Folder } from '../../types/folder'
 import { useAuth } from '../../context/AuthContext'
+import { useDocumentTitle } from '../../hooks/useDocumentTitle'
 import SessionCard from '../../components/SessionCard/SessionCard'
 import SessionFormModal from '../../components/SessionFormModal/SessionFormModal'
 import NoteCard from '../../components/NoteCard/NoteCard'
@@ -30,6 +31,7 @@ interface LocationState {
 }
 
 export default function Editor() {
+  useDocumentTitle('Editor')
   const { gameId } = useParams<{ gameId: string }>()
   const location = useLocation()
   const navigate = useNavigate()

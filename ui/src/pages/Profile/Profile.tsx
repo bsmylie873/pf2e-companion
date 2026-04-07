@@ -2,9 +2,11 @@ import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../../context/AuthContext'
 import { apiFetch } from '../../api/client'
+import { useDocumentTitle } from '../../hooks/useDocumentTitle'
 import './Profile.css'
 
 export default function Profile() {
+  useDocumentTitle('Profile')
   const navigate = useNavigate()
   const { user, logout, refreshUser } = useAuth()
 

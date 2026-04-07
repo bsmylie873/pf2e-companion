@@ -6,6 +6,7 @@ import { getPreferences, updatePreferences } from '../../api/preferences'
 import type { UserPreferences, PageSizePreferences } from '../../api/preferences'
 import { useDarkMode } from '../../hooks/useDarkMode'
 import { useLocalStorage } from '../../hooks/useLocalStorage'
+import { useDocumentTitle } from '../../hooks/useDocumentTitle'
 import { COLOUR_MAP, PIN_ICON_COMPONENTS, PIN_ICON_LABELS, PIN_COLOURS, PIN_ICONS } from '../../constants/pins'
 import type { Game } from '../../types/game'
 import './Settings.css'
@@ -15,6 +16,7 @@ const MAX_FILE_SIZE = 10 * 1024 * 1024 // 10 MB
 type SettingsTab = 'preferences' | 'backup'
 
 export default function Settings() {
+  useDocumentTitle('Settings')
   const [activeTab, setActiveTab] = useState<SettingsTab>('preferences')
   const [isDark, setIsDark] = useDarkMode()
   const [layout, setLayout] = useLocalStorage<'grid' | 'list'>('pf2e-layout-pref', 'grid')
