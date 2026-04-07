@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { useNavigate, Link } from 'react-router-dom'
+import { useNavigate, useSearchParams, Link } from 'react-router-dom'
 import { useAuth } from '../../context/AuthContext'
 import { getPreferences } from '../../api/preferences'
 import './Login.css'
@@ -8,6 +8,8 @@ type Mode = 'login' | 'register'
 
 export default function Login() {
   const navigate = useNavigate()
+  const [searchParams] = useSearchParams()
+  const sessionExpired = searchParams.get('expired') === 'true'
   const { login, register, isAuthenticated, isLoading } = useAuth()
 
   const [mode, setMode] = useState<Mode>('login')
@@ -167,6 +169,9 @@ export default function Login() {
             </div>
           )}
 
+          {sessionExpired && !error && (
+            <div className="login-error" role="status">Your session has expired. Please sign in again.</div>
+          )}
           {error && <div className="login-error" role="alert">{error}</div>}
 
           <button type="submit" className="login-btn" disabled={isSubmitting}>
