@@ -9,9 +9,11 @@ import { listMemberships } from '../../api/memberships'
 import type { GameMembership } from '../../types/membership'
 import { useGameSocket } from '../../hooks/useGameSocket'
 import type { GameSocketEvent } from '../../hooks/useGameSocket'
+import { useDocumentTitle } from '../../hooks/useDocumentTitle'
 import './NoteEditor.css'
 
 export default function NoteEditor() {
+  useDocumentTitle('Note Editor')
   const { gameId, noteId } = useParams<{ gameId: string; noteId: string }>()
   const navigate = useNavigate()
 

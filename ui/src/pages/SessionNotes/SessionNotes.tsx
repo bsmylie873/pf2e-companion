@@ -6,9 +6,11 @@ import { getSession, updateSessionNotes } from '../../api/sessions'
 import SessionNotesEditor from '../../components/SessionNotesEditor/SessionNotesEditor'
 import { useGameSocket } from '../../hooks/useGameSocket'
 import type { GameSocketEvent } from '../../hooks/useGameSocket'
+import { useDocumentTitle } from '../../hooks/useDocumentTitle'
 import './SessionNotes.css'
 
 export default function SessionNotes() {
+  useDocumentTitle('Session Notes')
   const { gameId, sessionId } = useParams<{ gameId: string; sessionId: string }>()
   const navigate = useNavigate()
 

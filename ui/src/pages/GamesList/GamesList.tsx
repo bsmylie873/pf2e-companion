@@ -9,6 +9,7 @@ import NewCampaignForm from '../../components/NewCampaignForm/NewCampaignForm'
 import Pagination from '../../components/Pagination/Pagination'
 import { useLocalStorage } from '../../hooks/useLocalStorage'
 import { usePageSize } from '../../hooks/usePageSize'
+import { useDocumentTitle } from '../../hooks/useDocumentTitle'
 import './GamesList.css'
 
 type Layout = 'grid' | 'list'
@@ -35,6 +36,7 @@ function ListIcon() {
 }
 
 export default function GamesList() {
+  useDocumentTitle('Games')
   const pageSize = usePageSize('campaigns')
   const [games, setGames] = useState<Game[]>([])
   const [total, setTotal] = useState(0)
