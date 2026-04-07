@@ -71,3 +71,32 @@ func RateLimiter() echo.MiddlewareFunc {
 		},
 	})
 }
+
+// PasswordResetRateLimiter returns a middleware that limits password-reset requests to 5 per IP per hour.
+func PasswordResetRateLimiter() echo.MiddlewareFunc {
+	return echomw.RateLimiterWithConfig(echomw.RateLimiterConfig{
+		Skipper: echomw.DefaultSkipper,
+		Store: echomw.NewRateLimiterMemoryStoreWithConfig(
+			echomw.RateLimiterMemoryStoreConfig{
+				Rate:      rate.Limit(5.0 / 3600.0),
+				Burst:     5,
+				ExpiresIn: 1 * time.Hour,
+			},
+		),
+		IdentifierExtractor: func(ctx echo.Context) (string, error) {
+			return ctx.RealIP(), nil
+		},
+		ErrorHandler: func(context echo.Context, err error) error {
+			return context.JSON(http.StatusForbidden, map[string]interface{}{
+				"code":    http.StatusForbidden,
+				"message": "forbidden",
+			})
+		},
+		DenyHandler: func(context echo.Context, identifier string, err error) error {
+			return context.JSON(http.StatusTooManyRequests, map[string]interface{}{
+				"code":    http.StatusTooManyRequests,
+				"message": "password reset rate limit exceeded",
+			})
+		},
+	})
+}

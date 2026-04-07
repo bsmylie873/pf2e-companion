@@ -112,13 +112,49 @@ func (h *AuthHandler) Me(c echo.Context) error {
 	return SuccessResponse(c, http.StatusOK, user)
 }
 
+// ForgotPassword handles POST /auth/forgot-password.
+// Always returns 200 to prevent user enumeration.
+func (h *AuthHandler) ForgotPassword(c echo.Context) error {
+	var req models.ForgotPasswordRequest
+	if err := c.Bind(&req); err != nil {
+		return SuccessResponse(c, http.StatusOK, map[string]string{"message": "if that email exists, a reset link has been sent"})
+	}
+	// Intentionally ignore error to prevent user enumeration
+	_ = h.service.RequestPasswordReset(req.Email)
+	return SuccessResponse(c, http.StatusOK, map[string]string{"message": "if that email exists, a reset link has been sent"})
+}
+
+// ResetPassword handles POST /auth/reset-password.
+func (h *AuthHandler) ResetPassword(c echo.Context) error {
+	var req models.ResetPasswordRequest
+	if err := c.Bind(&req); err != nil {
+		return ErrorResponse(c, http.StatusBadRequest, "invalid request body")
+	}
+	missing := ValidateRequired(map[string]interface{}{
+		"token":        req.Token,
+		"new_password": req.NewPassword,
+	})
+	if len(missing) > 0 {
+		return ErrorResponse(c, http.StatusUnprocessableEntity, "missing required fields: "+strings.Join(missing, ", "))
+	}
+	if err := h.service.ResetPassword(req.Token, req.NewPassword); err != nil {
+		if strings.Contains(err.Error(), "invalid") || strings.Contains(err.Error(), "expired") || strings.Contains(err.Error(), "already used") {
+			return ErrorResponse(c, http.StatusUnprocessableEntity, err.Error())
+		}
+		return ErrorResponse(c, http.StatusInternalServerError, "failed to reset password")
+	}
+	return SuccessResponse(c, http.StatusOK, map[string]string{"message": "password reset successfully"})
+}
+
 // RegisterAuthRoutes wires auth routes onto the Echo instance and protected group.
-// loginRateLimiter is applied only to the login endpoint.
-func RegisterAuthRoutes(e *echo.Echo, g *echo.Group, service services.AuthService, loginRateLimiter echo.MiddlewareFunc) {
+// loginRateLimiter is applied to login; passwordResetRateLimiter is applied to forgot-password.
+func RegisterAuthRoutes(e *echo.Echo, g *echo.Group, service services.AuthService, loginRateLimiter echo.MiddlewareFunc, passwordResetRateLimiter echo.MiddlewareFunc) {
 	h := NewAuthHandler(service)
 	e.POST("/auth/register", h.Register)
 	e.POST("/auth/login", h.Login, loginRateLimiter)
 	e.POST("/auth/refresh", h.Refresh)
+	e.POST("/auth/forgot-password", h.ForgotPassword, passwordResetRateLimiter)
+	e.POST("/auth/reset-password", h.ResetPassword)
 	g.POST("/auth/logout", h.Logout)
 	g.GET("/auth/me", h.Me)
 }

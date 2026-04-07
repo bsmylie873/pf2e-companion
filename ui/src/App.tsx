@@ -10,6 +10,8 @@ import SessionNotes from './pages/SessionNotes/SessionNotes'
 import NoteEditor from './pages/NoteEditor/NoteEditor'
 import Profile from './pages/Profile/Profile'
 import MapView from './pages/MapView/MapView'
+import ForgotPassword from './pages/ForgotPassword/ForgotPassword'
+import ResetPassword from './pages/ResetPassword/ResetPassword'
 import './App.css'
 
 export default function App() {
@@ -28,6 +30,8 @@ export default function App() {
                   <Route path="/games/:gameId/notes/:noteId" element={<ProtectedRoute><NoteEditor /></ProtectedRoute>} />
                   <Route path="/profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
                   <Route path="/games/:gameId/map" element={<ProtectedRoute><MapView /></ProtectedRoute>} />
+                  <Route path="/forgot-password" element={<ForgotPassword />} />
+                  <Route path="/reset-password" element={<ResetPassword />} />
                   <Route path="*" element={<Navigate to="/" replace />} />
                 </Routes>
               </main>

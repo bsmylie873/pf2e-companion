@@ -103,3 +103,14 @@ func FromUserPreference(pref UserPreference) UserPreferenceResponse {
 		PageSize:         pref.PageSize,
 	}
 }
+
+// ForgotPasswordRequest is the DTO for POST /auth/forgot-password.
+type ForgotPasswordRequest struct {
+	Email string `json:"email"`
+}
+
+// ResetPasswordRequest is the DTO for POST /auth/reset-password.
+type ResetPasswordRequest struct {
+	Token       string `json:"token"`
+	NewPassword string `json:"new_password"`
+}

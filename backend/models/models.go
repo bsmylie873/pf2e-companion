@@ -214,6 +214,18 @@ type RefreshToken struct {
 
 func (RefreshToken) TableName() string { return "refresh_tokens" }
 
+// PasswordResetToken represents a stored password-reset token.
+type PasswordResetToken struct {
+	ID        uuid.UUID  `gorm:"type:uuid;default:gen_random_uuid();primaryKey" json:"id"`
+	UserID    uuid.UUID  `gorm:"type:uuid;not null;column:user_id"               json:"user_id"`
+	TokenHash string     `gorm:"column:token_hash;not null;uniqueIndex"          json:"token_hash"`
+	ExpiresAt time.Time  `gorm:"column:expires_at;not null"                     json:"expires_at"`
+	UsedAt    *time.Time `gorm:"column:used_at"                                  json:"used_at"`
+	CreatedAt time.Time  `gorm:"autoCreateTime"                                  json:"created_at"`
+}
+
+func (PasswordResetToken) TableName() string { return "password_reset_tokens" }
+
 // UserPreference stores per-user default preferences.
 type UserPreference struct {
 	UserID           uuid.UUID      `gorm:"type:uuid;primaryKey"                          json:"user_id"`
