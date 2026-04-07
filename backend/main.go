@@ -46,12 +46,13 @@ func main() {
 	pinRepo := repositories.NewPinRepository(db)
 	pinGroupRepo := repositories.NewPinGroupRepository(db)
 	refreshTokenRepo := repositories.NewRefreshTokenRepository(db)
+	passwordResetTokenRepo := repositories.NewPasswordResetTokenRepository(db)
 	preferenceRepo := repositories.NewPreferenceRepository(db)
 	folderRepo := repositories.NewFolderRepository(db)
 	mapRepo := repositories.NewMapRepository(db)
 
 	// Services
-	authService := services.NewAuthService(userRepo, refreshTokenRepo)
+	authService := services.NewAuthService(userRepo, refreshTokenRepo, passwordResetTokenRepo)
 	userService := services.NewUserService(userRepo, authService)
 	gameService := services.NewGameService(gameRepo, membershipRepo)
 	preferenceService := services.NewPreferenceService(preferenceRepo, membershipRepo)
@@ -83,9 +84,10 @@ func main() {
 	// Protected group — all resource routes require a valid JWT
 	protected := e.Group("", custmw.RequireAuth(authService))
 
-	// Auth routes (register, login, refresh are public; logout and me are protected)
+	// Auth routes (register, login, refresh, forgot-password, reset-password are public; logout and me are protected)
 	loginRateLimiter := custmw.RateLimiter()
-	handlers.RegisterAuthRoutes(e, protected, authService, loginRateLimiter)
+	passwordResetRateLimiter := custmw.PasswordResetRateLimiter()
+	handlers.RegisterAuthRoutes(e, protected, authService, loginRateLimiter, passwordResetRateLimiter)
 
 	// Protected resource routes
 	handlers.RegisterUserRoutes(protected, userService)

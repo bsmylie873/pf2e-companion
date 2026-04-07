@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, Link } from 'react-router-dom'
 import { useAuth } from '../../context/AuthContext'
 import { getPreferences } from '../../api/preferences'
 import './Login.css'
@@ -181,9 +181,14 @@ export default function Login() {
 
         <div className="login-mode-toggle">
           {mode === 'login' ? (
-            <button className="login-mode-btn" type="button" onClick={() => switchMode('register')}>
-              New adventurer? Forge your legend →
-            </button>
+            <>
+              <button className="login-mode-btn" type="button" onClick={() => switchMode('register')}>
+                New adventurer? Forge your legend →
+              </button>
+              <Link to="/forgot-password" className="login-mode-btn" style={{ display: 'block', marginTop: '0.5rem' }}>
+                Forgot your passphrase?
+              </Link>
+            </>
           ) : (
             <button className="login-mode-btn" type="button" onClick={() => switchMode('login')}>
               ← Return to the gates

@@ -1,9 +1,11 @@
 package services
 
 import (
+	"crypto/rand"
 	"crypto/sha256"
 	"encoding/hex"
 	"errors"
+	"fmt"
 	"time"
 
 	"github.com/google/uuid"
@@ -14,7 +16,7 @@ import (
 	"pf2e-companion/backend/repositories"
 )
 
-// AuthService handles user registration, login, token refresh, and logout.
+// AuthService handles user registration, login, token refresh, logout, and password reset.
 type AuthService interface {
 	Register(req models.RegisterRequest) (models.UserResponse, models.TokenPair, error)
 	Login(req models.LoginRequest) (models.UserResponse, models.TokenPair, error)
@@ -22,16 +24,19 @@ type AuthService interface {
 	Logout(refreshToken string) error
 	GetMe(userID uuid.UUID) (models.UserResponse, error)
 	InvalidateAllSessions(userID uuid.UUID) error
+	RequestPasswordReset(email string) error
+	ResetPassword(token, newPassword string) error
 }
 
 type authService struct {
-	userRepo  repositories.UserRepository
-	tokenRepo repositories.RefreshTokenRepository
+	userRepo       repositories.UserRepository
+	tokenRepo      repositories.RefreshTokenRepository
+	resetTokenRepo repositories.PasswordResetTokenRepository
 }
 
 // NewAuthService creates a new AuthService.
-func NewAuthService(userRepo repositories.UserRepository, tokenRepo repositories.RefreshTokenRepository) AuthService {
-	return &authService{userRepo: userRepo, tokenRepo: tokenRepo}
+func NewAuthService(userRepo repositories.UserRepository, tokenRepo repositories.RefreshTokenRepository, resetTokenRepo repositories.PasswordResetTokenRepository) AuthService {
+	return &authService{userRepo: userRepo, tokenRepo: tokenRepo, resetTokenRepo: resetTokenRepo}
 }
 
 func hashToken(token string) string {
@@ -148,4 +153,67 @@ func (s *authService) GetMe(userID uuid.UUID) (models.UserResponse, error) {
 
 func (s *authService) InvalidateAllSessions(userID uuid.UUID) error {
 	return s.tokenRepo.DeleteAllForUser(userID)
+}
+
+func (s *authService) RequestPasswordReset(email string) error {
+	user, err := s.userRepo.FindByEmail(email)
+	if err != nil {
+		// Always return nil — never reveal whether the email exists
+		return nil
+	}
+
+	buf := make([]byte, 32)
+	if _, err := rand.Read(buf); err != nil {
+		return err
+	}
+	rawToken := hex.EncodeToString(buf)
+
+	record := models.PasswordResetToken{
+		UserID:    user.ID,
+		TokenHash: hashToken(rawToken),
+		ExpiresAt: time.Now().Add(1 * time.Hour),
+	}
+	if err := s.resetTokenRepo.Create(&record); err != nil {
+		return err
+	}
+
+	// Best-effort cleanup of expired tokens
+	_ = s.resetTokenRepo.DeleteExpiredForUser(user.ID)
+
+	// No email service yet — log the raw token to stdout
+	fmt.Printf("[PASSWORD RESET] reset token for %s: %s\n", email, rawToken)
+	return nil
+}
+
+func (s *authService) ResetPassword(token, newPassword string) error {
+	hash := hashToken(token)
+	record, err := s.resetTokenRepo.FindByTokenHash(hash)
+	if err != nil {
+		return errors.New("invalid or expired reset token")
+	}
+
+	if record.UsedAt != nil {
+		return errors.New("reset token already used")
+	}
+
+	if time.Now().After(record.ExpiresAt) {
+		return errors.New("reset token expired")
+	}
+
+	newHash, err := bcrypt.GenerateFromPassword([]byte(newPassword), bcrypt.DefaultCost)
+	if err != nil {
+		return err
+	}
+
+	if _, err := s.userRepo.Update(record.UserID, map[string]interface{}{"password_hash": string(newHash)}); err != nil {
+		return err
+	}
+
+	// Mark the reset token as used
+	if err := s.resetTokenRepo.MarkUsed(hash); err != nil {
+		return err
+	}
+
+	// Invalidate all refresh tokens to force re-login on all devices
+	return s.tokenRepo.DeleteAllForUser(record.UserID)
 }

@@ -33,3 +33,26 @@ export function logout(): Promise<{ message: string }> {
 export function getMe(): Promise<User> {
   return apiFetch<User>('/auth/me')
 }
+
+export interface ForgotPasswordPayload {
+  email: string
+}
+
+export interface ResetPasswordPayload {
+  token: string
+  new_password: string
+}
+
+export function forgotPassword(email: string): Promise<void> {
+  return apiFetch<void>('/auth/forgot-password', {
+    method: 'POST',
+    body: JSON.stringify({ email }),
+  })
+}
+
+export function resetPassword(token: string, newPassword: string): Promise<void> {
+  return apiFetch<void>('/auth/reset-password', {
+    method: 'POST',
+    body: JSON.stringify({ token, new_password: newPassword }),
+  })
+}
