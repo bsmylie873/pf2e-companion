@@ -28,6 +28,7 @@ interface MapCanvasProps {
   sessions: Session[]
   notes: Note[]
   hoveredPinId: string | null
+  flashPinId: string | null
   dragging: { pinId: string; startX: number; startY: number } | null
   editingPinId: string | null
   editLinkSearch: string
@@ -169,7 +170,7 @@ export default function MapCanvas(props: MapCanvasProps) {
               return (
                 <div
                   key={pin.id}
-                  className={`map-pin-wrapper${hoveredPinId === pin.id ? ' map-pin-wrapper--hovered' : ''}${dragging?.pinId === pin.id ? ' map-pin-wrapper--dragging' : ''}${dropTargetIds.has(pin.id) ? ' map-pin-wrapper--drop-target' : ''}`}
+                  className={`map-pin-wrapper${hoveredPinId === pin.id ? ' map-pin-wrapper--hovered' : ''}${props.flashPinId === pin.id ? ' map-pin-wrapper--flash' : ''}${dragging?.pinId === pin.id ? ' map-pin-wrapper--dragging' : ''}${dropTargetIds.has(pin.id) ? ' map-pin-wrapper--drop-target' : ''}`}
                   style={{ left: `${pin.x}%`, top: `${pin.y}%` }}
                   onMouseEnter={() => onHoverPin(pin.id)}
                   onMouseLeave={() => onHoverPin(null)}

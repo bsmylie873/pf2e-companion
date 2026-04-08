@@ -98,6 +98,28 @@
   50%      { transform: scale(1.2); }
 }
 
+/* Flash animation — highlights an existing pin when a duplicate drop is attempted */
+@keyframes pin-flash {
+  0%, 100% { transform: rotate(225deg) scale(1);   box-shadow: 0 0 8px var(--pin-colour, var(--color-accent)), 0 2px 8px rgba(0, 0, 0, 0.35); }
+  25%      { transform: rotate(225deg) scale(1.5);  box-shadow: 0 0 24px var(--pin-colour, var(--color-accent)), 0 0 40px rgba(255, 255, 255, 0.3), 0 2px 8px rgba(0, 0, 0, 0.35); }
+  50%      { transform: rotate(225deg) scale(1);    box-shadow: 0 0 8px var(--pin-colour, var(--color-accent)), 0 2px 8px rgba(0, 0, 0, 0.35); }
+  75%      { transform: rotate(225deg) scale(1.5);  box-shadow: 0 0 24px var(--pin-colour, var(--color-accent)), 0 0 40px rgba(255, 255, 255, 0.3), 0 2px 8px rgba(0, 0, 0, 0.35); }
+}
+
+.map-pin-wrapper--flash {
+  z-index: 50;
+}
+
+.map-pin-wrapper--flash .map-pin {
+  animation: pin-flash 1.2s ease-in-out infinite;
+  border-color: rgba(255, 255, 255, 0.95);
+}
+
+.map-pin-wrapper--flash .map-pin__label {
+  opacity: 1;
+  pointer-events: auto;
+}
+
 /* The pin itself: a teardrop marker shape */
 .map-pin {
   display: block;

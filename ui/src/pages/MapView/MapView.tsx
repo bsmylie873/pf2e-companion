@@ -43,7 +43,7 @@ export default function MapView() {
     handleCreateSession, handleCreateNote, openItem,
     sessionForPin, noteForPin, reloadPinGroups,
     handleCreateMap,
-    sidebarDragOver, toastMessage, dropLinkedItem, setDropLinkedItem,
+    sidebarDragOver, toastMessage, dropLinkedItem, setDropLinkedItem, flashPinId,
     handleCanvasDragOver, handleCanvasDragLeave, handleCanvasDrop,
   } = data
 
@@ -159,6 +159,7 @@ export default function MapView() {
               sessions={sessions}
               notes={notes}
               hoveredPinId={hoveredPinId}
+              flashPinId={flashPinId}
               dragging={dragging}
               editingPinId={editingPinId}
               editLinkSearch={editLinkSearch}

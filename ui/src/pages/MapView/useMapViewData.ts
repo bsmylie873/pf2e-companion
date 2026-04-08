@@ -116,7 +116,9 @@ export function useMapViewData(gameId: string | undefined) {
   const [sidebarDragOver, setSidebarDragOver] = useState(false)
   const [toastMessage, setToastMessage] = useState<string | null>(null)
   const [dropLinkedItem, setDropLinkedItem] = useState<{ type: 'session' | 'note'; id: string; label: string } | null>(null)
+  const [flashPinId, setFlashPinId] = useState<string | null>(null)
   const toastTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const flashTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   const mapContainerRef = useRef<HTMLDivElement>(null)
   const viewportContainerRef = useRef<HTMLDivElement>(null)
@@ -461,13 +463,25 @@ export function useMapViewData(gameId: string | undefined) {
     const dropLabel = e.dataTransfer.getData('mapDropLabel')
     if (!dropType || !dropId) return
 
-    // Check if already pinned
+    // Check if already pinned — flash the existing pin
     if (dropType === 'session' && pinnedSessionIds.has(dropId)) {
       showToast('This session already has a pin on the map.')
+      const existing = pins.find(p => p.session_id === dropId)
+      if (existing) {
+        if (flashTimerRef.current) clearTimeout(flashTimerRef.current)
+        setFlashPinId(existing.id)
+        flashTimerRef.current = setTimeout(() => setFlashPinId(null), 2000)
+      }
       return
     }
     if (dropType === 'note' && pins.some(p => p.note_id === dropId)) {
       showToast('This note already has a pin on the map.')
+      const existing = pins.find(p => p.note_id === dropId)
+      if (existing) {
+        if (flashTimerRef.current) clearTimeout(flashTimerRef.current)
+        setFlashPinId(existing.id)
+        flashTimerRef.current = setTimeout(() => setFlashPinId(null), 2000)
+      }
       return
     }
 
@@ -1020,6 +1034,7 @@ export function useMapViewData(gameId: string | undefined) {
     toastMessage,
     dropLinkedItem,
     setDropLinkedItem,
+    flashPinId,
     handleCanvasDragOver,
     handleCanvasDragLeave,
     handleCanvasDrop,
