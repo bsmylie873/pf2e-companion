@@ -103,9 +103,27 @@ export default function FolderSection({
 
   const handleItemDragStart = (e: React.DragEvent, id: string) => {
     e.stopPropagation()
+    const item = items.find(i => i.id === id)
+    const label = item ? ('title' in item ? item.title : '') : ''
     e.dataTransfer.setData('itemType', itemType)
     e.dataTransfer.setData('itemId', id)
+    // Map canvas drop keys (browser lowercases all dataTransfer type keys)
+    e.dataTransfer.setData('mapDropType', itemType)
+    e.dataTransfer.setData('mapDropId', id)
+    e.dataTransfer.setData('mapDropLabel', label)
     e.dataTransfer.effectAllowed = 'move'
+    // Custom drag ghost
+    const ghost = e.currentTarget.cloneNode(true) as HTMLElement
+    ghost.style.position = 'fixed'
+    ghost.style.top = '-200px'
+    ghost.style.left = '0'
+    ghost.style.width = `${(e.currentTarget as HTMLElement).offsetWidth}px`
+    ghost.style.opacity = '0.9'
+    ghost.style.pointerEvents = 'none'
+    ghost.classList.add('folder-drag-ghost')
+    document.body.appendChild(ghost)
+    e.dataTransfer.setDragImage(ghost, ghost.offsetWidth / 2, ghost.offsetHeight / 2)
+    setTimeout(() => ghost.remove(), 0)
   }
 
   const handleUnfiledDragOver = (e: React.DragEvent) => {
