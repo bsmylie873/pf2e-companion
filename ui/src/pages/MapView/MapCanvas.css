@@ -644,7 +644,7 @@
   border-bottom: none;
 }
 
-.map-pin-group-popover-list button {
+.map-pin-group-popover .map-pin-group-popover-list button {
   width: 100%;
   text-align: left;
   background: transparent;
@@ -663,12 +663,12 @@
   gap: 0.25rem;
 }
 
-.map-pin-group-popover-list button:hover {
+.map-pin-group-popover .map-pin-group-popover-list button:hover {
   background: rgba(139, 46, 46, 0.06);
   color: var(--color-accent);
 }
 
-[data-theme='dark'] .map-pin-group-popover-list button:hover {
+[data-theme='dark'] .map-pin-group-popover .map-pin-group-popover-list button:hover {
   background: rgba(201, 76, 76, 0.08);
 }
 
