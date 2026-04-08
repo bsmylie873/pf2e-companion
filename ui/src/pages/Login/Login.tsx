@@ -24,6 +24,11 @@ export default function Login() {
 
   useEffect(() => {
     if (!isLoading && isAuthenticated) {
+      const returnTo = searchParams.get('returnTo')
+      if (returnTo && returnTo.startsWith('/')) {
+        navigate(returnTo, { replace: true })
+        return
+      }
       getPreferences()
         .then(prefs => {
           if (prefs.default_game_id) {
@@ -34,7 +39,7 @@ export default function Login() {
         })
         .catch(() => navigate('/games', { replace: true }))
     }
-  }, [isAuthenticated, isLoading, navigate])
+  }, [isAuthenticated, isLoading, navigate, searchParams])
 
   if (isLoading) return null
 
@@ -62,15 +67,20 @@ export default function Login() {
       } else {
         await register(username, email, password)
       }
-      try {
-        const prefs = await getPreferences()
-        if (prefs.default_game_id) {
-          navigate(`/games/${prefs.default_game_id}`, { replace: true })
-        } else {
+      const returnTo = searchParams.get('returnTo')
+      if (returnTo && returnTo.startsWith('/')) {
+        navigate(returnTo, { replace: true })
+      } else {
+        try {
+          const prefs = await getPreferences()
+          if (prefs.default_game_id) {
+            navigate(`/games/${prefs.default_game_id}`, { replace: true })
+          } else {
+            navigate('/games', { replace: true })
+          }
+        } catch {
           navigate('/games', { replace: true })
         }
-      } catch {
-        navigate('/games', { replace: true })
       }
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : 'Something went wrong.')

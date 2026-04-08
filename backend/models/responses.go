@@ -114,3 +114,30 @@ type ResetPasswordRequest struct {
 	Token       string `json:"token"`
 	NewPassword string `json:"new_password"`
 }
+
+// InviteTokenResponse is returned when a GM generates an invite link.
+type InviteTokenResponse struct {
+	Token     string     `json:"token"`
+	ExpiresAt *time.Time `json:"expires_at"`
+	CreatedAt time.Time  `json:"created_at"`
+}
+
+// InviteTokenStatusResponse is returned when a GM fetches the active invite status.
+type InviteTokenStatusResponse struct {
+	HasActiveInvite bool       `json:"has_active_invite"`
+	ExpiresAt       *time.Time `json:"expires_at,omitempty"`
+	CreatedAt       *time.Time `json:"created_at,omitempty"`
+}
+
+// InviteValidationResponse is returned when a user validates a raw invite token.
+type InviteValidationResponse struct {
+	GameID    uuid.UUID `json:"game_id"`
+	GameTitle string    `json:"game_title"`
+}
+
+// InviteRedeemResponse is returned when a user redeems an invite token.
+type InviteRedeemResponse struct {
+	GameID        uuid.UUID `json:"game_id"`
+	MembershipID  uuid.UUID `json:"membership_id"`
+	AlreadyMember bool      `json:"already_member"`
+}
