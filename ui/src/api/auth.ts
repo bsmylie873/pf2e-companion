@@ -43,8 +43,8 @@ export interface ResetPasswordPayload {
   new_password: string
 }
 
-export function forgotPassword(email: string): Promise<void> {
-  return apiFetch<void>('/auth/forgot-password', {
+export function forgotPassword(email: string): Promise<{ token: string | null }> {
+  return apiFetch<{ token: string | null }>('/auth/forgot-password', {
     method: 'POST',
     body: JSON.stringify({ email }),
   })

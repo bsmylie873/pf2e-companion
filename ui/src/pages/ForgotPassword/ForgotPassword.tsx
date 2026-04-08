@@ -8,19 +8,33 @@ export default function ForgotPassword() {
   useDocumentTitle('Forgot Password')
   const [email, setEmail] = useState('')
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const [resetToken, setResetToken] = useState<string | null>(null)
   const [submitted, setSubmitted] = useState(false)
+  const [copied, setCopied] = useState(false)
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setIsSubmitting(true)
     try {
-      await forgotPassword(email)
+      const result = await forgotPassword(email)
+      setResetToken(result.token)
     } catch {
       // Intentionally swallow errors — always show success to prevent enumeration
     } finally {
       setIsSubmitting(false)
       setSubmitted(true)
     }
+  }
+
+  const resetUrl = resetToken ? `${window.location.origin}/reset-password?token=${resetToken}` : null
+
+  const handleCopy = async () => {
+    if (!resetUrl) return
+    try {
+      await navigator.clipboard.writeText(resetUrl)
+      setCopied(true)
+      setTimeout(() => setCopied(false), 2000)
+    } catch { /* noop */ }
   }
 
   return (
@@ -56,17 +70,64 @@ export default function ForgotPassword() {
 
         {submitted ? (
           <div className="login-form">
-            <div
-              className="login-error"
-              role="status"
-              style={{
-                background: 'rgba(100, 140, 60, 0.08)',
-                borderColor: 'rgba(100, 140, 60, 0.35)',
-                color: 'var(--color-text-muted)',
-              }}
-            >
-              The raven has been dispatched. If a matching sending stone is found in our records, a ritual of restoration shall arrive presently.
-            </div>
+            {resetUrl ? (
+              <>
+                <div
+                  className="login-error"
+                  role="status"
+                  style={{
+                    background: 'rgba(100, 140, 60, 0.08)',
+                    borderColor: 'rgba(100, 140, 60, 0.35)',
+                    color: 'var(--color-text-muted)',
+                  }}
+                >
+                  A restoration scroll has been conjured. Use the link below to reforge your passphrase. It expires in one hour.
+                </div>
+                <div className="gsettings-invite-url" style={{ margin: '0.75rem 0' }}>
+                  <code className="gsettings-link-preview" style={{
+                    display: 'block',
+                    padding: '0.6rem 0.75rem',
+                    background: 'var(--color-bg)',
+                    border: '1px solid var(--color-border)',
+                    borderRadius: '4px',
+                    fontSize: '0.72rem',
+                    fontFamily: 'var(--font-body)',
+                    color: 'var(--color-text-muted)',
+                    wordBreak: 'break-all',
+                    lineHeight: '1.5',
+                  }}>
+                    {resetUrl}
+                  </code>
+                </div>
+                <button type="button" className="login-btn" onClick={handleCopy}>
+                  <span className="login-btn-text">
+                    {copied ? 'Copied!' : 'Copy Link'}
+                  </span>
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                    {copied ? (
+                      <polyline points="20 6 9 17 4 12" />
+                    ) : (
+                      <>
+                        <rect x="9" y="9" width="13" height="13" rx="2" ry="2" />
+                        <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
+                      </>
+                    )}
+                  </svg>
+                </button>
+              </>
+            ) : (
+              <div
+                className="login-error"
+                role="status"
+                style={{
+                  background: 'rgba(100, 140, 60, 0.08)',
+                  borderColor: 'rgba(100, 140, 60, 0.35)',
+                  color: 'var(--color-text-muted)',
+                }}
+              >
+                If a matching sending stone is found in our records, a restoration scroll would have appeared here. Please verify your email and try again.
+              </div>
+            )}
           </div>
         ) : (
           <form className="login-form" onSubmit={handleSubmit}>

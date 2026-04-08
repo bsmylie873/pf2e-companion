@@ -117,11 +117,13 @@ func (h *AuthHandler) Me(c echo.Context) error {
 func (h *AuthHandler) ForgotPassword(c echo.Context) error {
 	var req models.ForgotPasswordRequest
 	if err := c.Bind(&req); err != nil {
-		return SuccessResponse(c, http.StatusOK, map[string]string{"message": "if that email exists, a reset link has been sent"})
+		return SuccessResponse(c, http.StatusOK, map[string]interface{}{"token": nil})
 	}
-	// Intentionally ignore error to prevent user enumeration
-	_ = h.service.RequestPasswordReset(req.Email)
-	return SuccessResponse(c, http.StatusOK, map[string]string{"message": "if that email exists, a reset link has been sent"})
+	token, _ := h.service.RequestPasswordReset(req.Email)
+	if token == "" {
+		return SuccessResponse(c, http.StatusOK, map[string]interface{}{"token": nil})
+	}
+	return SuccessResponse(c, http.StatusOK, map[string]interface{}{"token": token})
 }
 
 // ResetPassword handles POST /auth/reset-password.

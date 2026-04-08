@@ -5,7 +5,6 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"errors"
-	"fmt"
 	"time"
 
 	"github.com/google/uuid"
@@ -24,7 +23,7 @@ type AuthService interface {
 	Logout(refreshToken string) error
 	GetMe(userID uuid.UUID) (models.UserResponse, error)
 	InvalidateAllSessions(userID uuid.UUID) error
-	RequestPasswordReset(email string) error
+	RequestPasswordReset(email string) (string, error)
 	ResetPassword(token, newPassword string) error
 }
 
@@ -155,16 +154,15 @@ func (s *authService) InvalidateAllSessions(userID uuid.UUID) error {
 	return s.tokenRepo.DeleteAllForUser(userID)
 }
 
-func (s *authService) RequestPasswordReset(email string) error {
+func (s *authService) RequestPasswordReset(email string) (string, error) {
 	user, err := s.userRepo.FindByEmail(email)
 	if err != nil {
-		// Always return nil — never reveal whether the email exists
-		return nil
+		return "", nil
 	}
 
 	buf := make([]byte, 32)
 	if _, err := rand.Read(buf); err != nil {
-		return err
+		return "", err
 	}
 	rawToken := hex.EncodeToString(buf)
 
@@ -174,15 +172,13 @@ func (s *authService) RequestPasswordReset(email string) error {
 		ExpiresAt: time.Now().Add(1 * time.Hour),
 	}
 	if err := s.resetTokenRepo.Create(&record); err != nil {
-		return err
+		return "", err
 	}
 
 	// Best-effort cleanup of expired tokens
 	_ = s.resetTokenRepo.DeleteExpiredForUser(user.ID)
 
-	// No email service yet — log the raw token to stdout
-	fmt.Printf("[PASSWORD RESET] reset token for %s: %s\n", email, rawToken)
-	return nil
+	return rawToken, nil
 }
 
 func (s *authService) ResetPassword(token, newPassword string) error {
