@@ -226,6 +226,19 @@ type PasswordResetToken struct {
 
 func (PasswordResetToken) TableName() string { return "password_reset_tokens" }
 
+// InviteToken represents a magic-link invite token for a game.
+type InviteToken struct {
+	ID        uuid.UUID  `gorm:"type:uuid;default:gen_random_uuid();primaryKey" json:"id"`
+	GameID    uuid.UUID  `gorm:"type:uuid;not null;column:game_id"               json:"game_id"`
+	CreatedBy uuid.UUID  `gorm:"type:uuid;not null;column:created_by"            json:"created_by"`
+	TokenHash string     `gorm:"column:token_hash;not null;uniqueIndex"           json:"token_hash"`
+	ExpiresAt *time.Time `gorm:"column:expires_at"                                json:"expires_at"`
+	RevokedAt *time.Time `gorm:"column:revoked_at"                                json:"revoked_at"`
+	CreatedAt time.Time  `gorm:"autoCreateTime"                                   json:"created_at"`
+}
+
+func (InviteToken) TableName() string { return "invite_tokens" }
+
 // UserPreference stores per-user default preferences.
 type UserPreference struct {
 	UserID           uuid.UUID      `gorm:"type:uuid;primaryKey"                          json:"user_id"`

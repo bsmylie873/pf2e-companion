@@ -50,6 +50,7 @@ func main() {
 	preferenceRepo := repositories.NewPreferenceRepository(db)
 	folderRepo := repositories.NewFolderRepository(db)
 	mapRepo := repositories.NewMapRepository(db)
+	inviteTokenRepo := repositories.NewInviteTokenRepository(db)
 
 	// Services
 	authService := services.NewAuthService(userRepo, refreshTokenRepo, passwordResetTokenRepo)
@@ -66,6 +67,7 @@ func main() {
 	pinGroupService := services.NewPinGroupService(pinGroupRepo, pinRepo, noteRepo, membershipRepo, mapRepo)
 	mapService := services.NewMapService(mapRepo, membershipRepo)
 	backupService := services.NewBackupService(db, sessionRepo, noteRepo, membershipRepo)
+	inviteService := services.NewInviteService(inviteTokenRepo, membershipRepo, gameRepo)
 
 	hub := handlers.NewGameEventHub()
 	otStore := ot.NewDocumentStore()
@@ -104,6 +106,11 @@ func main() {
 	handlers.RegisterMapRoutes(protected, mapService, hub)
 	backupRateLimiter := custmw.BackupRateLimiter()
 	handlers.RegisterBackupRoutes(protected, backupService, backupRateLimiter)
+
+	// Invite routes
+	e.GET("/invite/:token", handlers.ValidateInvite(inviteService))
+	protected.POST("/invite/:token/redeem", handlers.RedeemInvite(inviteService))
+	handlers.RegisterInviteRoutes(protected, inviteService)
 
 	// Background cleanup: hard-delete maps archived more than 24 hours ago
 	go func() {

@@ -1,0 +1,387 @@
+/* ── Game Settings Page ───────────────────────────────────── */
+
+@keyframes gsettings-appear {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes gsettings-rune-spin {
+  from { transform: rotate(0deg); }
+  to   { transform: rotate(360deg); }
+}
+
+.gsettings-page {
+  flex: 1;
+  padding: 2rem;
+  max-width: 720px;
+  margin: 0 auto;
+  width: 100%;
+}
+
+.gsettings-inner {
+  animation: gsettings-appear 450ms cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+
+/* Back button */
+.gsettings-back-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  background: none;
+  border: none;
+  color: var(--color-text-muted);
+  font-family: var(--font-heading);
+  font-size: 0.7rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  cursor: pointer;
+  padding: 0;
+  margin-bottom: 2rem;
+  transition: color var(--transition-fast);
+}
+
+.gsettings-back-btn:hover {
+  color: var(--color-accent);
+}
+
+.gsettings-back-btn svg {
+  width: 16px;
+  height: 16px;
+}
+
+/* Header */
+.gsettings-header {
+  text-align: center;
+  margin-bottom: 2.5rem;
+}
+
+.gsettings-title {
+  font-family: var(--font-heading);
+  font-size: 1.7rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--color-text);
+  margin: 0.5rem 0;
+  text-shadow: 0 0 24px rgba(139, 46, 46, 0.3);
+}
+
+[data-theme='dark'] .gsettings-title {
+  text-shadow: 0 0 28px rgba(201, 76, 76, 0.45);
+}
+
+.gsettings-title-rule {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  justify-content: center;
+  color: var(--color-accent);
+  font-size: 0.75rem;
+  opacity: 0.6;
+}
+
+.gsettings-title-rule span {
+  display: block;
+  height: 1px;
+  flex: 1;
+  max-width: 80px;
+  background: var(--color-border);
+}
+
+.gsettings-ornament {
+  opacity: 0.8;
+}
+
+/* Loading */
+.gsettings-loading {
+  text-align: center;
+  padding: 3rem 0;
+  color: var(--color-text-muted);
+}
+
+.gsettings-loading-rune {
+  font-size: 2rem;
+  color: var(--color-accent);
+  opacity: 0.55;
+  display: block;
+  margin-bottom: 0.75rem;
+  animation: gsettings-rune-spin 3s linear infinite;
+}
+
+.gsettings-loading p {
+  font-family: var(--font-body);
+  font-style: italic;
+  margin: 0;
+}
+
+/* Error banner */
+.gsettings-error {
+  background: rgba(139, 46, 46, 0.08);
+  border: 1px solid rgba(139, 46, 46, 0.3);
+  border-radius: 2px;
+  padding: 0.65rem 1rem;
+  font-family: var(--font-body);
+  font-size: 0.9rem;
+  color: var(--color-accent);
+  margin-bottom: 1.5rem;
+}
+
+[data-theme='dark'] .gsettings-error {
+  background: rgba(201, 76, 76, 0.1);
+  border-color: rgba(201, 76, 76, 0.35);
+}
+
+/* Section card */
+.gsettings-section {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: 3px;
+  padding: 1.75rem 2rem;
+  box-shadow: var(--shadow-lg);
+
+  /* Subtle parchment grain */
+  background-image:
+    repeating-linear-gradient(
+      -45deg,
+      transparent,
+      transparent 3px,
+      rgba(196, 184, 154, 0.035) 3px,
+      rgba(196, 184, 154, 0.035) 4px
+    );
+}
+
+.gsettings-section-header {
+  display: flex;
+  align-items: flex-start;
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+  padding-bottom: 1.25rem;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.gsettings-section-icon {
+  flex-shrink: 0;
+  width: 36px;
+  height: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--color-accent);
+  opacity: 0.75;
+}
+
+.gsettings-section-icon svg {
+  width: 22px;
+  height: 22px;
+}
+
+.gsettings-section-title {
+  font-family: var(--font-heading);
+  font-size: 0.9rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--color-text);
+  margin: 0 0 0.3rem;
+}
+
+.gsettings-section-desc {
+  font-family: var(--font-body);
+  font-size: 0.9rem;
+  color: var(--color-text-muted);
+  margin: 0;
+  font-style: italic;
+  line-height: 1.5;
+}
+
+/* Active invite display */
+.gsettings-invite-active {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+
+.gsettings-invite-meta {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.gsettings-meta-row {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  font-family: var(--font-body);
+  font-size: 0.88rem;
+}
+
+.gsettings-meta-label {
+  font-family: var(--font-heading);
+  font-size: 0.65rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--color-text-muted);
+  min-width: 60px;
+}
+
+.gsettings-meta-value {
+  color: var(--color-text);
+}
+
+/* Link preview */
+.gsettings-invite-url {
+  background: var(--color-bg);
+  border: 1px solid var(--color-border);
+  border-radius: 2px;
+  padding: 0.6rem 0.9rem;
+  overflow: hidden;
+}
+
+.gsettings-link-preview {
+  font-family: monospace;
+  font-size: 0.8rem;
+  color: var(--color-text-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  display: block;
+  word-break: break-all;
+  white-space: normal;
+}
+
+.gsettings-invite-actions {
+  display: flex;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+
+/* Generate form */
+.gsettings-invite-generate {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.gsettings-field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.gsettings-label {
+  font-family: var(--font-heading);
+  font-size: 0.65rem;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+  color: var(--color-text-muted);
+}
+
+.gsettings-select {
+  padding: 0.65rem 0.9rem;
+  background: var(--color-bg);
+  border: 1px solid var(--color-border);
+  border-radius: 2px;
+  color: var(--color-text);
+  font-family: var(--font-body);
+  font-size: 0.95rem;
+  outline: none;
+  cursor: pointer;
+  transition:
+    border-color var(--transition-fast),
+    box-shadow var(--transition-fast);
+  appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%23888' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 0.75rem center;
+  padding-right: 2.25rem;
+  width: 100%;
+  max-width: 240px;
+}
+
+.gsettings-select:focus {
+  border-color: var(--color-accent);
+  box-shadow: 0 0 0 3px rgba(139, 46, 46, 0.12);
+}
+
+[data-theme='dark'] .gsettings-select:focus {
+  box-shadow: 0 0 0 3px rgba(201, 76, 76, 0.18);
+}
+
+.gsettings-select:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+/* Buttons */
+.gsettings-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.7rem 1.2rem;
+  border-radius: 2px;
+  font-family: var(--font-heading);
+  font-size: 0.72rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition:
+    background var(--transition-fast),
+    box-shadow var(--transition-fast),
+    transform var(--transition-fast),
+    color var(--transition-fast),
+    border-color var(--transition-fast);
+}
+
+.gsettings-btn svg {
+  width: 15px;
+  height: 15px;
+  flex-shrink: 0;
+}
+
+.gsettings-btn:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+  transform: none !important;
+  box-shadow: none !important;
+}
+
+.gsettings-btn--primary {
+  background: var(--color-accent);
+  color: #f0e6d6;
+  border: 1px solid transparent;
+}
+
+.gsettings-btn--primary:hover:not(:disabled) {
+  background: var(--color-accent-hover);
+  box-shadow: var(--glow-accent), 0 3px 10px rgba(139, 46, 46, 0.25);
+  transform: translateY(-1px);
+}
+
+.gsettings-btn--primary:active:not(:disabled) {
+  transform: translateY(0);
+  box-shadow: none;
+}
+
+.gsettings-btn--danger {
+  background: transparent;
+  color: var(--color-text-muted);
+  border: 1px solid var(--color-border);
+}
+
+.gsettings-btn--danger:hover:not(:disabled) {
+  color: #c0392b;
+  border-color: rgba(192, 57, 43, 0.5);
+  background: rgba(192, 57, 43, 0.06);
+  transform: translateY(-1px);
+}
+
+[data-theme='dark'] .gsettings-btn--danger:hover:not(:disabled) {
+  color: #e74c3c;
+  border-color: rgba(231, 76, 60, 0.5);
+  background: rgba(231, 76, 60, 0.08);
+}

@@ -273,6 +273,41 @@
   background: transparent;
 }
 
+/* ── GM Settings Link ─────────────────────────────────────── */
+.editor-settings-btn {
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+  padding: 0.3rem 0.65rem 0.3rem 0.5rem;
+  border: 1px solid var(--color-border);
+  border-radius: 4px;
+  background: transparent;
+  color: var(--color-text-muted);
+  font-family: var(--font-heading);
+  font-size: 0.6rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  text-decoration: none;
+  cursor: pointer;
+  transition: color var(--transition-fast), border-color var(--transition-fast), background var(--transition-fast);
+}
+
+.editor-settings-btn svg {
+  width: 14px;
+  height: 14px;
+}
+
+.editor-settings-btn:hover {
+  color: var(--color-accent);
+  border-color: var(--color-accent);
+  background: rgba(139, 46, 46, 0.06);
+}
+
+[data-theme='dark'] .editor-settings-btn:hover {
+  background: rgba(201, 76, 76, 0.1);
+}
+
 /* ── Collapsible Filter Bar ── */
 
 @keyframes filters-slide {

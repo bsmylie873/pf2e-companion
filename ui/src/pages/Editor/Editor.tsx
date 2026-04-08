@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
-import { useParams, useLocation, useNavigate } from 'react-router-dom'
+import { useParams, useLocation, useNavigate, Link } from 'react-router-dom'
 import type { Session, SessionFormData } from '../../types/session'
 import type { Note, NoteFormData } from '../../types/note'
 import type { GameMembership } from '../../types/membership'
@@ -576,6 +576,19 @@ export default function Editor() {
               </svg>
               Map
             </button>
+            {memberships.some(m => m.user_id === user?.id && m.is_gm) && (
+              <Link
+                to={`/games/${gameId}/settings`}
+                className="editor-settings-btn"
+                title="Campaign Settings"
+              >
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
+                  <circle cx="12" cy="12" r="3" />
+                  <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" />
+                </svg>
+                Settings
+              </Link>
+            )}
             <button
               className={`sessions-filter-toggle${filtersOpen ? ' sessions-filter-toggle--active' : ''}${(activeTab === 'sessions' ? hasActiveFilters : hasActiveNoteFilters) ? ' sessions-filter-toggle--has-filters' : ''}`}
               onClick={() => setFiltersOpen(prev => !prev)}
