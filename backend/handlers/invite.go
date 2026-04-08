@@ -26,7 +26,7 @@ type generateInviteRequest struct {
 
 // GenerateInvite handles POST /games/:gameId/invite.
 func (h *InviteHandler) GenerateInvite(c echo.Context) error {
-	gameID, err := ParseUUID(c, "gameId")
+	gameID, err := ParseUUID(c, "id")
 	if err != nil {
 		return nil
 	}
@@ -56,7 +56,7 @@ func (h *InviteHandler) GenerateInvite(c echo.Context) error {
 
 // GetActiveInvite handles GET /games/:gameId/invite.
 func (h *InviteHandler) GetActiveInvite(c echo.Context) error {
-	gameID, err := ParseUUID(c, "gameId")
+	gameID, err := ParseUUID(c, "id")
 	if err != nil {
 		return nil
 	}
@@ -76,7 +76,7 @@ func (h *InviteHandler) GetActiveInvite(c echo.Context) error {
 
 // RevokeInvite handles DELETE /games/:gameId/invite.
 func (h *InviteHandler) RevokeInvite(c echo.Context) error {
-	gameID, err := ParseUUID(c, "gameId")
+	gameID, err := ParseUUID(c, "id")
 	if err != nil {
 		return nil
 	}
@@ -136,7 +136,7 @@ func RedeemInvite(service services.InviteService) echo.HandlerFunc {
 // RegisterInviteRoutes wires GM-only invite management routes onto the protected group.
 func RegisterInviteRoutes(g *echo.Group, service services.InviteService) {
 	h := NewInviteHandler(service)
-	g.POST("/games/:gameId/invite", h.GenerateInvite)
-	g.GET("/games/:gameId/invite", h.GetActiveInvite)
-	g.DELETE("/games/:gameId/invite", h.RevokeInvite)
+	g.POST("/games/:id/invite", h.GenerateInvite)
+	g.GET("/games/:id/invite", h.GetActiveInvite)
+	g.DELETE("/games/:id/invite", h.RevokeInvite)
 }
