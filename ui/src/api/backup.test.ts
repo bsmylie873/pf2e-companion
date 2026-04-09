@@ -26,7 +26,7 @@ beforeEach(() => {
 describe('exportGameBackup', () => {
   it('should fetch the correct export URL with credentials', async () => {
     const fetchSpy = vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce(
-      new Response(new Blob(['{"data":{}}'], { type: 'application/json' }), {
+      new Response('{"data":{}}', {
         status: 200,
         headers: { 'Content-Disposition': 'attachment; filename="game-backup.json"' },
       }),
@@ -45,7 +45,7 @@ describe('exportGameBackup', () => {
     vi.spyOn(document, 'createElement').mockReturnValue(mockAnchor as unknown as HTMLElement)
 
     vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce(
-      new Response(new Blob(['{}'], { type: 'application/json' }), {
+      new Response('{}', {
         status: 200,
         headers: {},
       }),
@@ -62,7 +62,7 @@ describe('exportGameBackup', () => {
     vi.spyOn(document, 'createElement').mockReturnValue(mockAnchor as unknown as HTMLElement)
 
     vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce(
-      new Response(new Blob(['{}'], { type: 'application/json' }), {
+      new Response('{}', {
         status: 200,
         headers: { 'Content-Disposition': 'attachment; filename="my-backup.json"' },
       }),
@@ -78,7 +78,7 @@ describe('exportGameBackup', () => {
     vi.spyOn(document, 'createElement').mockReturnValue(mockAnchor as unknown as HTMLElement)
 
     vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce(
-      new Response(new Blob(['{}'], { type: 'application/octet-stream' }), {
+      new Response('{}', {
         status: 200,
         headers: {},
       }),
@@ -122,7 +122,7 @@ describe('exportGameBackup', () => {
 describe('exportSessionBackup', () => {
   it('should fetch the correct session export URL', async () => {
     const fetchSpy = vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce(
-      new Response(new Blob(['{}'], { type: 'application/json' }), {
+      new Response('{}', {
         status: 200,
         headers: {},
       }),
@@ -141,7 +141,7 @@ describe('exportSessionBackup', () => {
     vi.spyOn(document, 'createElement').mockReturnValue(mockAnchor as unknown as HTMLElement)
 
     vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce(
-      new Response(new Blob(['{}'], { type: 'application/json' }), {
+      new Response('{}', {
         status: 200,
         headers: {},
       }),
@@ -156,7 +156,7 @@ describe('exportSessionBackup', () => {
 describe('exportNoteBackup', () => {
   it('should fetch the correct note export URL', async () => {
     const fetchSpy = vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce(
-      new Response(new Blob(['{}'], { type: 'application/json' }), {
+      new Response('{}', {
         status: 200,
         headers: {},
       }),
