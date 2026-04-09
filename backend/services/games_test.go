@@ -79,16 +79,17 @@ func TestGameService_ListGames_Success(t *testing.T) {
 
 	userID := uuid.New()
 	gameID := uuid.New()
-	memberships := []models.GameMembership{{GameID: gameID, UserID: userID}}
-	expectedGames := []models.Game{{ID: gameID, Title: "Game 1"}}
+	memberships := []models.GameMembership{{GameID: gameID, UserID: userID, IsGM: true}}
+	repoGames := []models.Game{{ID: gameID, Title: "Game 1"}}
+	expectedGames := []models.GameWithRole{{Game: models.Game{ID: gameID, Title: "Game 1"}, IsGM: true}}
 
 	mockMemberRepo.On("FindByUserID", userID).Return(memberships, nil)
-	mockGameRepo.On("FindByIDs", []uuid.UUID{gameID}).Return(expectedGames, nil)
+	mockGameRepo.On("FindByIDs", []uuid.UUID{gameID}).Return(repoGames, nil)
 
 	games, err := svc.ListGames(userID)
 
 	assert.NoError(t, err)
-	assert.Len(t, games, 1)
+	assert.Equal(t, expectedGames, games)
 	mockGameRepo.AssertExpectations(t)
 	mockMemberRepo.AssertExpectations(t)
 }
@@ -116,17 +117,18 @@ func TestGameService_ListGamesPaginated_Success(t *testing.T) {
 
 	userID := uuid.New()
 	gameID := uuid.New()
-	memberships := []models.GameMembership{{GameID: gameID, UserID: userID}}
-	expectedGames := []models.Game{{ID: gameID, Title: "Game 1"}}
+	memberships := []models.GameMembership{{GameID: gameID, UserID: userID, IsGM: true}}
+	repoGames := []models.Game{{ID: gameID, Title: "Game 1"}}
+	expectedGames := []models.GameWithRole{{Game: models.Game{ID: gameID, Title: "Game 1"}, IsGM: true}}
 	var total int64 = 1
 
 	mockMemberRepo.On("FindByUserID", userID).Return(memberships, nil)
-	mockGameRepo.On("FindByIDsPaginated", []uuid.UUID{gameID}, 0, 10).Return(expectedGames, total, nil)
+	mockGameRepo.On("FindByIDsPaginated", []uuid.UUID{gameID}, 0, 10).Return(repoGames, total, nil)
 
 	games, count, err := svc.ListGamesPaginated(userID, 0, 10)
 
 	assert.NoError(t, err)
-	assert.Len(t, games, 1)
+	assert.Equal(t, expectedGames, games)
 	assert.Equal(t, int64(1), count)
 	mockGameRepo.AssertExpectations(t)
 	mockMemberRepo.AssertExpectations(t)
@@ -176,7 +178,7 @@ func TestGameService_UpdateGame_Success(t *testing.T) {
 
 	userID := uuid.New()
 	gameID := uuid.New()
-	membership := models.GameMembership{UserID: userID, GameID: gameID}
+	membership := models.GameMembership{UserID: userID, GameID: gameID, IsGM: true}
 	updates := map[string]interface{}{"title": "Updated", "id": "ignored", "created_at": "ignored"}
 	cleanUpdates := map[string]interface{}{"title": "Updated"}
 	expectedGame := models.Game{ID: gameID, Title: "Updated"}
@@ -215,7 +217,7 @@ func TestGameService_DeleteGame_Success(t *testing.T) {
 
 	userID := uuid.New()
 	gameID := uuid.New()
-	membership := models.GameMembership{UserID: userID, GameID: gameID}
+	membership := models.GameMembership{UserID: userID, GameID: gameID, IsGM: true}
 
 	mockMemberRepo.On("FindByUserAndGameID", userID, gameID).Return(membership, nil)
 	mockGameRepo.On("Delete", gameID).Return(nil)
@@ -241,4 +243,36 @@ func TestGameService_DeleteGame_Forbidden(t *testing.T) {
 
 	assert.ErrorIs(t, err, ErrForbidden)
 	mockMemberRepo.AssertExpectations(t)
+}
+
+func TestGameService_UpdateGame_NonGM_Forbidden(t *testing.T) {
+	mockGameRepo := &mocks.MockGameRepository{}
+	mockMemberRepo := &mocks.MockMembershipRepository{}
+	svc := NewGameService(mockGameRepo, mockMemberRepo)
+
+	userID := uuid.New()
+	gameID := uuid.New()
+	membership := models.GameMembership{UserID: userID, GameID: gameID, IsGM: false}
+
+	mockMemberRepo.On("FindByUserAndGameID", userID, gameID).Return(membership, nil)
+
+	_, err := svc.UpdateGame(gameID, userID, map[string]interface{}{})
+	assert.ErrorIs(t, err, ErrForbidden)
+	mockGameRepo.AssertNotCalled(t, "Update", mock.Anything, mock.Anything, mock.Anything)
+}
+
+func TestGameService_DeleteGame_NonGM_Forbidden(t *testing.T) {
+	mockGameRepo := &mocks.MockGameRepository{}
+	mockMemberRepo := &mocks.MockMembershipRepository{}
+	svc := NewGameService(mockGameRepo, mockMemberRepo)
+
+	userID := uuid.New()
+	gameID := uuid.New()
+	membership := models.GameMembership{UserID: userID, GameID: gameID, IsGM: false}
+
+	mockMemberRepo.On("FindByUserAndGameID", userID, gameID).Return(membership, nil)
+
+	err := svc.DeleteGame(gameID, userID)
+	assert.ErrorIs(t, err, ErrForbidden)
+	mockGameRepo.AssertNotCalled(t, "Delete", mock.Anything)
 }

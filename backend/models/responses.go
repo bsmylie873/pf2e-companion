@@ -141,3 +141,8 @@ type InviteRedeemResponse struct {
 	MembershipID  uuid.UUID `json:"membership_id"`
 	AlreadyMember bool      `json:"already_member"`
 }
+
+type GameWithRole struct {
+	Game
+	IsGM bool `json:"is_gm"`
+}
