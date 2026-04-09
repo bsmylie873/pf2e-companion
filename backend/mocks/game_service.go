@@ -13,14 +13,14 @@ func (m *MockGameService) CreateGame(game *models.Game, members []models.GameMem
 	return args.Get(0).(models.Game), args.Error(1)
 }
 
-func (m *MockGameService) ListGames(userID uuid.UUID) ([]models.Game, error) {
+func (m *MockGameService) ListGames(userID uuid.UUID) ([]models.GameWithRole, error) {
 	args := m.Called(userID)
-	return args.Get(0).([]models.Game), args.Error(1)
+	return args.Get(0).([]models.GameWithRole), args.Error(1)
 }
 
-func (m *MockGameService) ListGamesPaginated(userID uuid.UUID, offset, limit int) ([]models.Game, int64, error) {
+func (m *MockGameService) ListGamesPaginated(userID uuid.UUID, offset, limit int) ([]models.GameWithRole, int64, error) {
 	args := m.Called(userID, offset, limit)
-	return args.Get(0).([]models.Game), args.Get(1).(int64), args.Error(2)
+	return args.Get(0).([]models.GameWithRole), args.Get(1).(int64), args.Error(2)
 }
 
 func (m *MockGameService) GetGame(id, userID uuid.UUID) (models.Game, error) {

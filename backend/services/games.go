@@ -8,8 +8,8 @@ import (
 
 type GameService interface {
 	CreateGame(game *models.Game, members []models.GameMembership, creatorID uuid.UUID) (models.Game, error)
-	ListGames(userID uuid.UUID) ([]models.Game, error)
-	ListGamesPaginated(userID uuid.UUID, offset, limit int) ([]models.Game, int64, error)
+	ListGames(userID uuid.UUID) ([]models.GameWithRole, error)
+	ListGamesPaginated(userID uuid.UUID, offset, limit int) ([]models.GameWithRole, int64, error)
 	GetGame(id, userID uuid.UUID) (models.Game, error)
 	UpdateGame(id, userID uuid.UUID, updates map[string]interface{}) (models.Game, error)
 	DeleteGame(id, userID uuid.UUID) error
@@ -44,28 +44,48 @@ func (s *gameService) CreateGame(game *models.Game, members []models.GameMembers
 	return *game, nil
 }
 
-func (s *gameService) ListGames(userID uuid.UUID) ([]models.Game, error) {
+func (s *gameService) ListGames(userID uuid.UUID) ([]models.GameWithRole, error) {
 	memberships, err := s.membershipRepo.FindByUserID(userID)
 	if err != nil {
 		return nil, err
 	}
 	ids := make([]uuid.UUID, len(memberships))
+	gmMap := make(map[uuid.UUID]bool)
 	for i, m := range memberships {
 		ids[i] = m.GameID
+		gmMap[m.GameID] = m.IsGM
 	}
-	return s.repo.FindByIDs(ids)
+	games, err := s.repo.FindByIDs(ids)
+	if err != nil {
+		return nil, err
+	}
+	result := make([]models.GameWithRole, len(games))
+	for i, g := range games {
+		result[i] = models.GameWithRole{Game: g, IsGM: gmMap[g.ID]}
+	}
+	return result, nil
 }
 
-func (s *gameService) ListGamesPaginated(userID uuid.UUID, offset, limit int) ([]models.Game, int64, error) {
+func (s *gameService) ListGamesPaginated(userID uuid.UUID, offset, limit int) ([]models.GameWithRole, int64, error) {
 	memberships, err := s.membershipRepo.FindByUserID(userID)
 	if err != nil {
 		return nil, 0, err
 	}
 	ids := make([]uuid.UUID, len(memberships))
+	gmMap := make(map[uuid.UUID]bool)
 	for i, m := range memberships {
 		ids[i] = m.GameID
+		gmMap[m.GameID] = m.IsGM
 	}
-	return s.repo.FindByIDsPaginated(ids, offset, limit)
+	games, total, err := s.repo.FindByIDsPaginated(ids, offset, limit)
+	if err != nil {
+		return nil, 0, err
+	}
+	result := make([]models.GameWithRole, len(games))
+	for i, g := range games {
+		result[i] = models.GameWithRole{Game: g, IsGM: gmMap[g.ID]}
+	}
+	return result, total, nil
 }
 
 func (s *gameService) GetGame(id, userID uuid.UUID) (models.Game, error) {
@@ -76,7 +96,11 @@ func (s *gameService) GetGame(id, userID uuid.UUID) (models.Game, error) {
 }
 
 func (s *gameService) UpdateGame(id, userID uuid.UUID, updates map[string]interface{}) (models.Game, error) {
-	if _, err := s.membershipRepo.FindByUserAndGameID(userID, id); err != nil {
+	m, err := s.membershipRepo.FindByUserAndGameID(userID, id)
+	if err != nil {
+		return models.Game{}, ErrForbidden
+	}
+	if !m.IsGM {
 		return models.Game{}, ErrForbidden
 	}
 	delete(updates, "id")
@@ -86,7 +110,11 @@ func (s *gameService) UpdateGame(id, userID uuid.UUID, updates map[string]interf
 }
 
 func (s *gameService) DeleteGame(id, userID uuid.UUID) error {
-	if _, err := s.membershipRepo.FindByUserAndGameID(userID, id); err != nil {
+	m, err := s.membershipRepo.FindByUserAndGameID(userID, id)
+	if err != nil {
+		return ErrForbidden
+	}
+	if !m.IsGM {
 		return ErrForbidden
 	}
 	return s.repo.Delete(id)

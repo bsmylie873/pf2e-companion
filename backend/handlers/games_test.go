@@ -107,7 +107,7 @@ func TestGameHandler_ListGames_Success(t *testing.T) {
 	c := e.NewContext(req, rec)
 	c.Set(authmw.AuthUserIDKey, authUserID)
 
-	games := []models.Game{{ID: uuid.New(), Title: "Game 1"}}
+	games := []models.GameWithRole{{Game: models.Game{ID: uuid.New(), Title: "Game 1"}, IsGM: true}}
 	mockSvc.On("ListGames", authUserID).Return(games, nil)
 
 	err := h.ListGames(c)
@@ -125,7 +125,7 @@ func TestGameHandler_ListGames_Paginated(t *testing.T) {
 	c := e.NewContext(req, rec)
 	c.Set(authmw.AuthUserIDKey, authUserID)
 
-	games := []models.Game{{ID: uuid.New(), Title: "Game 1"}}
+	games := []models.GameWithRole{{Game: models.Game{ID: uuid.New(), Title: "Game 1"}, IsGM: true}}
 	mockSvc.On("ListGamesPaginated", authUserID, 0, 10).Return(games, int64(1), nil)
 
 	err := h.ListGames(c)
@@ -308,7 +308,7 @@ func TestGameHandler_ListGames_InternalError(t *testing.T) {
 	c := e.NewContext(req, rec)
 	c.Set(authmw.AuthUserIDKey, authUserID)
 
-	mockSvc.On("ListGames", authUserID).Return([]models.Game(nil), errors.New("db error"))
+	mockSvc.On("ListGames", authUserID).Return([]models.GameWithRole(nil), errors.New("db error"))
 
 	err := h.ListGames(c)
 	require.NoError(t, err)

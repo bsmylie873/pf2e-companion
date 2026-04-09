@@ -517,6 +517,7 @@ export default function Editor() {
             <span /><span className="editor-title-ornament">✦</span><span />
           </div>
           <h1 className="editor-title">{title}</h1>
+          {isGM && (
           <button
             className="editor-edit-btn"
             onClick={() => setEditOpen(true)}
@@ -528,6 +529,7 @@ export default function Editor() {
             </svg>
             Edit Campaign
           </button>
+          )}
           <div className="editor-title-rule" aria-hidden="true">
             <span /><span className="editor-title-ornament">✦</span><span />
           </div>

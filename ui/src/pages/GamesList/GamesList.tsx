@@ -171,7 +171,7 @@ export default function GamesList() {
         {!loading && !error && games.length > 0 && (
           <div className={`gameslist-grid gameslist-grid--${layout}`}>
             {games.map((game) => (
-              <GameCard key={game.id} game={game} mode={layout} onDelete={handleDelete} />
+              <GameCard key={game.id} game={game} mode={layout} onDelete={game.is_gm ? handleDelete : undefined} />
             ))}
           </div>
         )}
