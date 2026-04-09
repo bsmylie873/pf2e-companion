@@ -1,4 +1,4 @@
-.PHONY: setup db-up db-down db-migrate db-seed db-reset backend-run backend-build ui-dev ui-build start stop
+.PHONY: setup db-up db-down db-migrate db-seed db-reset backend-run backend-build ui-dev ui-build start stop test test-server test-ui
 
 setup: ## Install all project dependencies (Go modules + npm packages)
 	@echo "→ Installing Go dependencies..."
@@ -64,6 +64,27 @@ start: backend-build ui-build ## Start the full stack (db, migrations, backend, 
 	@echo "  Frontend → http://localhost:5173"
 	@echo "══════════════════════════════════════"
 	@wait
+
+test-server: ## Run backend tests with coverage (min 80%)
+	@echo "→ Running backend tests..."
+	cd backend && go test ./... -coverprofile=coverage.out -covermode=atomic \
+		-coverpkg=./auth/...,./handlers/...,./middleware/...,./ot/...,./repositories/...,./services/... && \
+	go tool cover -func=coverage.out && \
+	awk '/^total:/ { gsub(/%/, "", $$3); if ($$3+0 < 80) { print "FAIL: coverage " $$3 "%% is below 80%% threshold"; exit 1 } else { print "PASS: coverage " $$3 "%%" } }' coverage.out
+
+test-ui: ## Run frontend tests with coverage (min 80%)
+	@echo "→ Running frontend tests..."
+	cd ui && npx vitest run --coverage && \
+	node -e " \
+	  const fs = require('fs'); \
+	  const report = fs.readFileSync('coverage/coverage-summary.json', 'utf8'); \
+	  const summary = JSON.parse(report).total.statements.pct; \
+	  console.log('Coverage: ' + summary + '%'); \
+	  if (summary < 80) { console.error('FAIL: coverage below 80%'); process.exit(1); } \
+	  else { console.log('PASS: coverage meets threshold'); } \
+	"
+
+test: test-server test-ui ## Run all tests
 
 stop: ## Tear down the full stack (containers, volumes, build artifacts, running processes)
 	@echo "Killing processes on ports 8080 and 5173..."
