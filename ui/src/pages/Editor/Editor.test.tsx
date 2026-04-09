@@ -319,6 +319,9 @@ describe('Editor — navigation & toolbar', () => {
     mockNavigate.mockReset()
     vi.mocked(listGameSessionsPaginated).mockResolvedValue({ data: [], total: 0 })
     vi.mocked(listGameNotesPaginated).mockResolvedValue({ data: [], total: 0 })
+    vi.mocked(listMemberships).mockResolvedValue([
+      { id: 'm-1', game_id: 'game-1', user_id: 'user-1', is_gm: true, foundry_data: null, created_at: '', updated_at: '' },
+    ])
   })
 
   it('should navigate back to /games when back button clicked', async () => {
@@ -858,6 +861,9 @@ describe('Editor — edit campaign modal', () => {
     mockNavigate.mockReset()
     vi.mocked(listGameSessionsPaginated).mockResolvedValue({ data: [], total: 0 })
     vi.mocked(listGameNotesPaginated).mockResolvedValue({ data: [], total: 0 })
+    vi.mocked(listMemberships).mockResolvedValue([
+      { id: 'm-1', game_id: 'game-1', user_id: 'user-1', is_gm: true, foundry_data: null, created_at: '', updated_at: '' },
+    ])
   })
 
   it('should render the Edit Campaign modal with the form', async () => {
