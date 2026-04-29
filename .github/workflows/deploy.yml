@@ -84,9 +84,76 @@ jobs:
           VITE_API_BASE_URL: ${{ vars.VITE_API_BASE_URL }}
           VITE_WS_BASE_URL: ${{ vars.VITE_WS_BASE_URL }}
 
+      - name: Generate patch notes JSON
+        run: |
+          DEPLOY_DATE=$(date -u +"%Y-%m-%d")
+          COMMIT_SHA="${GITHUB_SHA::7}"
+          node -e "
+            const fs = require('fs');
+            const notes = fs.readFileSync('RELEASE_NOTES.md', 'utf8');
+            fs.writeFileSync('ui/dist/patch-notes.json', JSON.stringify({
+              version: '$COMMIT_SHA',
+              date: '$DEPLOY_DATE',
+              notes: notes
+            }, null, 2));
+          "
+
       - name: Deploy to Cloudflare Pages
         uses: cloudflare/wrangler-action@v3
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           command: pages deploy ui/dist --project-name=pf2e-companion --branch master
+
+  notify-discord:
+    name: Discord Deploy Notification
+    needs: [deploy-backend, migrate-database, deploy-frontend]
+    if: success()
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Generate changelog
+        id: changelog
+        run: |
+          # List the last 10 non-merge commits as a bullet list
+          CHANGELOG=$(git log --oneline -10 --no-merges --format="• %s")
+          # Truncate to 20 lines max for Discord embed limits
+          CHANGELOG=$(echo "$CHANGELOG" | head -20)
+          echo "changelog<<EOF" >> "$GITHUB_OUTPUT"
+          echo "$CHANGELOG" >> "$GITHUB_OUTPUT"
+          echo "EOF" >> "$GITHUB_OUTPUT"
+
+      - name: Send Discord notification
+        continue-on-error: true
+        run: |
+          DEPLOY_TIME=$(date -u +"%Y-%m-%d %H:%M UTC")
+          CHANGELOG=$(cat <<'CHLOG'
+          ${{ steps.changelog.outputs.changelog }}
+          CHLOG
+          )
+          # Build the JSON payload safely using jq
+          PAYLOAD=$(jq -n \
+            --arg title "🚀 PF2E Companion Deployed" \
+            --argjson color 5763719 \
+            --arg deploy_time "$DEPLOY_TIME" \
+            --arg commit "[${GITHUB_SHA::7}](https://github.com/${{ github.repository }}/commit/${{ github.sha }})" \
+            --arg changes "$CHANGELOG" \
+            --arg footer "All jobs passed — backend, database, frontend" \
+            '{
+              embeds: [{
+                title: $title,
+                color: $color,
+                fields: [
+                  { name: "Deployed at", value: $deploy_time, inline: true },
+                  { name: "Commit", value: $commit, inline: true },
+                  { name: "Changes", value: $changes }
+                ],
+                footer: { text: $footer }
+              }]
+            }')
+          curl -sf -H "Content-Type: application/json" \
+            -d "$PAYLOAD" \
+            "${{ secrets.DISCORD_WEBHOOK_URL }}"
