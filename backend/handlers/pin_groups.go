@@ -50,7 +50,7 @@ func (h *PinGroupHandler) CreateGroup(c echo.Context) error {
 		}
 		return ErrorResponse(c, http.StatusUnprocessableEntity, err.Error())
 	}
-	h.hub.BroadcastExcept(gameID, authUserID, GameEvent{Type: "pin_group_created", GameID: gameID, Data: resp})
+	h.hub.BroadcastExceptFiltered(gameID, authUserID, pinBroadcastFilter(), GameEvent{Type: "pin_group_created", GameID: gameID, Data: resp})
 	return SuccessResponse(c, http.StatusCreated, resp)
 }
 
@@ -116,7 +116,7 @@ func (h *PinGroupHandler) UpdateGroup(c echo.Context) error {
 		}
 		return ErrorResponse(c, http.StatusInternalServerError, "failed to update pin group")
 	}
-	h.hub.BroadcastExcept(resp.GameID, authUserID, GameEvent{Type: "pin_group_updated", GameID: resp.GameID, Data: resp})
+	h.hub.BroadcastExceptFiltered(resp.GameID, authUserID, pinBroadcastFilter(), GameEvent{Type: "pin_group_updated", GameID: resp.GameID, Data: resp})
 	return SuccessResponse(c, http.StatusOK, resp)
 }
 
@@ -146,7 +146,7 @@ func (h *PinGroupHandler) AddPinToGroup(c echo.Context) error {
 		}
 		return ErrorResponse(c, http.StatusUnprocessableEntity, err.Error())
 	}
-	h.hub.BroadcastExcept(resp.GameID, authUserID, GameEvent{Type: "pin_group_updated", GameID: resp.GameID, Data: resp})
+	h.hub.BroadcastExceptFiltered(resp.GameID, authUserID, pinBroadcastFilter(), GameEvent{Type: "pin_group_updated", GameID: resp.GameID, Data: resp})
 	return SuccessResponse(c, http.StatusOK, resp)
 }
 
@@ -176,7 +176,7 @@ func (h *PinGroupHandler) RemovePinFromGroup(c echo.Context) error {
 	}
 	// Only broadcast if the group still exists (non-zero GameID means group wasn't auto-disbanded).
 	if resp.GameID != uuid.Nil {
-		h.hub.BroadcastExcept(resp.GameID, authUserID, GameEvent{Type: "pin_group_updated", GameID: resp.GameID, Data: resp})
+		h.hub.BroadcastExceptFiltered(resp.GameID, authUserID, pinBroadcastFilter(), GameEvent{Type: "pin_group_updated", GameID: resp.GameID, Data: resp})
 	}
 	return SuccessResponse(c, http.StatusOK, resp)
 }
@@ -211,7 +211,7 @@ func (h *PinGroupHandler) DisbandGroup(c echo.Context) error {
 		}
 		return ErrorResponse(c, http.StatusInternalServerError, "failed to disband pin group")
 	}
-	h.hub.BroadcastExcept(group.GameID, authUserID, GameEvent{Type: "pin_group_disbanded", GameID: group.GameID, Data: map[string]interface{}{"id": groupID}})
+	h.hub.BroadcastExceptFiltered(group.GameID, authUserID, pinBroadcastFilter(), GameEvent{Type: "pin_group_disbanded", GameID: group.GameID, Data: map[string]interface{}{"id": groupID}})
 	return SuccessResponse(c, http.StatusOK, map[string]string{"message": "disbanded"})
 }
 
@@ -244,7 +244,7 @@ func (h *PinGroupHandler) CreateMapGroup(c echo.Context) error {
 		}
 		return ErrorResponse(c, http.StatusUnprocessableEntity, err.Error())
 	}
-	h.hub.BroadcastExcept(resp.GameID, authUserID, GameEvent{Type: "pin_group_created", GameID: resp.GameID, Data: resp})
+	h.hub.BroadcastExceptFiltered(resp.GameID, authUserID, pinBroadcastFilter(), GameEvent{Type: "pin_group_created", GameID: resp.GameID, Data: resp})
 	return SuccessResponse(c, http.StatusCreated, resp)
 }
 

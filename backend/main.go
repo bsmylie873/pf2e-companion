@@ -70,6 +70,7 @@ func main() {
 	inviteService := services.NewInviteService(inviteTokenRepo, membershipRepo, gameRepo)
 
 	hub := handlers.NewGameEventHub()
+	hub.SetLogger(e.Logger.Errorf)
 	otStore := ot.NewDocumentStore()
 	go ot.StartPersistenceLoop(otStore, func(entityID uuid.UUID, content json.RawMessage, version int) error {
 		_, err := noteRepo.Update(entityID, map[string]interface{}{"content": content, "version": version})
@@ -81,7 +82,7 @@ func main() {
 	})
 
 	e.Static("/uploads", "./uploads")
-	e.GET("/games/:id/ws", handlers.GameWebSocket(hub, otStore))
+	e.GET("/games/:id/ws", handlers.GameWebSocket(hub, otStore, membershipRepo))
 
 	// Protected group — all resource routes require a valid JWT
 	protected := e.Group("", custmw.RequireAuth(authService))

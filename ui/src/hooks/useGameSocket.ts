@@ -20,6 +20,7 @@ export function useGameSocket(gameId: string | undefined, onEvent: EventHandler)
     const wsUrl = WS_BASE_URL + `/games/${gameId}/ws`
     let retryDelay = 1000
     let closed = false
+    let hasOpenedBefore = false
 
     function connect() {
       const ws = new WebSocket(wsUrl)
@@ -27,7 +28,10 @@ export function useGameSocket(gameId: string | undefined, onEvent: EventHandler)
 
       ws.onopen = () => {
         retryDelay = 1000
-        handlersRef.current({ type: '__reconnected', game_id: gameId!, data: null })
+        if (hasOpenedBefore) {
+          handlersRef.current({ type: '__reconnected', game_id: gameId!, data: null })
+        }
+        hasOpenedBefore = true
       }
 
       ws.onmessage = (event: MessageEvent) => {
