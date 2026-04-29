@@ -60,7 +60,7 @@ describe('useGameSocket', () => {
     expect(FakeWebSocket.instances[0].url).toBe('ws://localhost:8080/games/game-abc/ws')
   })
 
-  it('should fire a __reconnected event when the WebSocket opens', () => {
+  it('does not fire __reconnected on the initial open', () => {
     const onEvent = vi.fn()
     renderHook(() => useGameSocket('game-abc', onEvent))
 
@@ -68,11 +68,49 @@ describe('useGameSocket', () => {
       FakeWebSocket.instances[0].onopen?.()
     })
 
+    expect(onEvent).not.toHaveBeenCalledWith({
+      type: '__reconnected',
+      game_id: 'game-abc',
+      data: null,
+    })
+  })
+
+  it('fires __reconnected on the second open after a close', () => {
+    const onEvent = vi.fn()
+    renderHook(() => useGameSocket('game-abc', onEvent))
+
+    // First open — no __reconnected
+    act(() => { FakeWebSocket.instances[0].onopen?.() })
+    expect(onEvent).not.toHaveBeenCalled()
+
+    // Simulate unexpected close (triggers reconnect timer)
+    act(() => { FakeWebSocket.instances[0].onclose?.() })
+    act(() => { vi.advanceTimersByTime(1000) })
+
+    // Second open — __reconnected fires
+    expect(FakeWebSocket.instances).toHaveLength(2)
+    act(() => { FakeWebSocket.instances[1].onopen?.() })
     expect(onEvent).toHaveBeenCalledWith({
       type: '__reconnected',
       game_id: 'game-abc',
       data: null,
     })
+    expect(onEvent).toHaveBeenCalledTimes(1)
+  })
+
+  it('still forwards regular game events on first open', () => {
+    const onEvent = vi.fn()
+    renderHook(() => useGameSocket('game-abc', onEvent))
+
+    act(() => { FakeWebSocket.instances[0].onopen?.() })
+    const msg = { type: 'pin_created', game_id: 'game-abc', data: { id: 'pin-1' } }
+    act(() => {
+      FakeWebSocket.instances[0].onmessage?.(
+        new MessageEvent('message', { data: JSON.stringify(msg) }),
+      )
+    })
+
+    expect(onEvent).toHaveBeenCalledWith(msg)
   })
 
   it('should parse and forward a valid JSON message to the event handler', () => {
@@ -99,7 +137,7 @@ describe('useGameSocket', () => {
       )
     })
 
-    // onEvent not called (the __reconnected hasn't been triggered either)
+    // onEvent not called — first open doesn't fire __reconnected, and non-JSON is ignored
     expect(onEvent).not.toHaveBeenCalled()
   })
 

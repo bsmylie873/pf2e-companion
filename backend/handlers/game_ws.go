@@ -9,11 +9,12 @@ import (
 	"github.com/labstack/echo/v4"
 	authpkg "pf2e-companion/backend/auth"
 	"pf2e-companion/backend/ot"
+	"pf2e-companion/backend/repositories"
 )
 
 // GameWebSocket handles GET /games/:id/ws.
 // Authenticates via access_token cookie (inline JWT check, since WS upgrade needs special handling).
-func GameWebSocket(hub *GameEventHub, otStore *ot.DocumentStore) echo.HandlerFunc {
+func GameWebSocket(hub *GameEventHub, otStore *ot.DocumentStore, membershipRepo repositories.MembershipRepository) echo.HandlerFunc {
 	return func(c echo.Context) error {
 		cookie, err := c.Cookie("access_token")
 		if err != nil || cookie.Value == "" {
@@ -30,14 +31,19 @@ func GameWebSocket(hub *GameEventHub, otStore *ot.DocumentStore) echo.HandlerFun
 			return nil
 		}
 
+		m, err := membershipRepo.FindByUserAndGameID(userID, gameID)
+		if err != nil {
+			return c.JSON(http.StatusForbidden, map[string]interface{}{"code": 403, "message": "forbidden"})
+		}
+
 		ws, err := wsUpgrader.Upgrade(c.Response(), c.Request(), nil)
 		if err != nil {
 			return err
 		}
 		defer ws.Close()
 
-		hub.Register(gameID, userID, ws)
-		defer hub.Unregister(gameID, userID)
+		hub.Register(gameID, userID, ws, m.IsGM)
+		defer hub.Unregister(gameID, userID, ws)
 
 		// Read loop: handle OT messages from this client.
 		for {
@@ -72,11 +78,14 @@ func GameWebSocket(hub *GameEventHub, otStore *ot.DocumentStore) echo.HandlerFun
 				if errors.Is(applyErr, ot.ErrVersionMismatch) {
 					// Send missed steps back to the client so it can rebase.
 					missedSteps := doc.StepsSince(req.Version)
-					_ = ws.WriteJSON(map[string]interface{}{
-						"type":      "ot_rebase",
-						"entity_id": req.EntityID,
-						"version":   newVersion,
-						"steps":     missedSteps,
+					hub.SendToUser(gameID, userID, GameEvent{
+						Type:   "ot_rebase",
+						GameID: gameID,
+						Data: map[string]interface{}{
+							"entity_id": req.EntityID,
+							"version":   newVersion,
+							"steps":     missedSteps,
+						},
 					})
 					continue
 				}
@@ -85,10 +94,13 @@ func GameWebSocket(hub *GameEventHub, otStore *ot.DocumentStore) echo.HandlerFun
 				}
 
 				// Acknowledge to the sender.
-				_ = ws.WriteJSON(map[string]interface{}{
-					"type":      "ot_ack",
-					"entity_id": req.EntityID,
-					"version":   newVersion,
+				hub.SendToUser(gameID, userID, GameEvent{
+					Type:   "ot_ack",
+					GameID: gameID,
+					Data: map[string]interface{}{
+						"entity_id": req.EntityID,
+						"version":   newVersion,
+					},
 				})
 
 				// Broadcast the accepted steps to all other subscribers.

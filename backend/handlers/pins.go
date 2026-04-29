@@ -22,6 +22,17 @@ func NewPinHandler(service services.PinService, hub *GameEventHub) *PinHandler {
 	return &PinHandler{service: service, hub: hub}
 }
 
+// pinBroadcastFilter mirrors the authorization rule applied in
+// services.PinService.ListMapPins / ListGamePins. Today that rule is
+// "user is a member of the game" — a precondition for being registered
+// in the hub at all — so the predicate always returns true. If/when
+// session-level "details restricted" visibility is added, this predicate
+// is the single place to extend it (using the isGM flag captured at
+// WebSocket registration time).
+func pinBroadcastFilter() BroadcastFilter {
+	return func(_ uuid.UUID, _ bool) bool { return true }
+}
+
 // CreatePin handles POST /sessions/:id/pins.
 func (h *PinHandler) CreatePin(c echo.Context) error {
 	authUserID, err := GetAuthUserID(c)
@@ -69,7 +80,7 @@ func (h *PinHandler) CreatePin(c echo.Context) error {
 		return ErrorResponse(c, http.StatusInternalServerError, "failed to create pin")
 	}
 
-	h.hub.BroadcastExcept(resp.GameID, authUserID, GameEvent{Type: "pin_created", GameID: resp.GameID, Data: resp})
+	h.hub.BroadcastExceptFiltered(resp.GameID, authUserID, pinBroadcastFilter(), GameEvent{Type: "pin_created", GameID: resp.GameID, Data: resp})
 	return SuccessResponse(c, http.StatusCreated, resp)
 }
 
@@ -112,7 +123,7 @@ func (h *PinHandler) CreateGamePin(c echo.Context) error {
 		}
 		return ErrorResponse(c, http.StatusInternalServerError, "failed to create pin")
 	}
-	h.hub.BroadcastExcept(resp.GameID, authUserID, GameEvent{Type: "pin_created", GameID: resp.GameID, Data: resp})
+	h.hub.BroadcastExceptFiltered(resp.GameID, authUserID, pinBroadcastFilter(), GameEvent{Type: "pin_created", GameID: resp.GameID, Data: resp})
 	return SuccessResponse(c, http.StatusCreated, resp)
 }
 
@@ -248,7 +259,7 @@ func (h *PinHandler) UpdatePin(c echo.Context) error {
 		return ErrorResponse(c, http.StatusInternalServerError, "failed to update pin")
 	}
 
-	h.hub.BroadcastExcept(pin.GameID, authUserID, GameEvent{Type: "pin_updated", GameID: pin.GameID, Data: pin})
+	h.hub.BroadcastExceptFiltered(pin.GameID, authUserID, pinBroadcastFilter(), GameEvent{Type: "pin_updated", GameID: pin.GameID, Data: pin})
 	return SuccessResponse(c, http.StatusOK, pin)
 }
 
@@ -286,7 +297,7 @@ func (h *PinHandler) DeletePin(c echo.Context) error {
 		return ErrorResponse(c, http.StatusInternalServerError, "failed to delete pin")
 	}
 
-	h.hub.BroadcastExcept(pin.GameID, authUserID, GameEvent{Type: "pin_deleted", GameID: pin.GameID, Data: map[string]interface{}{"id": id}})
+	h.hub.BroadcastExceptFiltered(pin.GameID, authUserID, pinBroadcastFilter(), GameEvent{Type: "pin_deleted", GameID: pin.GameID, Data: map[string]interface{}{"id": id}})
 	return SuccessResponse(c, http.StatusOK, map[string]string{"message": "deleted"})
 }
 
@@ -332,7 +343,7 @@ func (h *PinHandler) CreateMapPin(c echo.Context) error {
 		}
 		return ErrorResponse(c, http.StatusInternalServerError, "failed to create pin")
 	}
-	h.hub.BroadcastExcept(resp.GameID, authUserID, GameEvent{Type: "pin_created", GameID: resp.GameID, Data: resp})
+	h.hub.BroadcastExceptFiltered(resp.GameID, authUserID, pinBroadcastFilter(), GameEvent{Type: "pin_created", GameID: resp.GameID, Data: resp})
 	return SuccessResponse(c, http.StatusCreated, resp)
 }
 
