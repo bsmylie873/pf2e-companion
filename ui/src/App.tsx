@@ -14,6 +14,7 @@ import ForgotPassword from './pages/ForgotPassword/ForgotPassword'
 import ResetPassword from './pages/ResetPassword/ResetPassword'
 import JoinGame from './pages/JoinGame/JoinGame'
 import GameSettings from './pages/GameSettings/GameSettings'
+import PatchNotes from './pages/PatchNotes/PatchNotes'
 import './App.css'
 
 export default function App() {
@@ -35,6 +36,7 @@ export default function App() {
                   <Route path="/forgot-password" element={<ForgotPassword />} />
                   <Route path="/reset-password" element={<ResetPassword />} />
                   <Route path="/join/:token" element={<JoinGame />} />
+                  <Route path="/patch-notes" element={<PatchNotes />} />
                   <Route path="/games/:gameId/settings" element={<ProtectedRoute><GameSettings /></ProtectedRoute>} />
                   <Route path="*" element={<Navigate to="/" replace />} />
                 </Routes>
