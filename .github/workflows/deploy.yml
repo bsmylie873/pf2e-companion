@@ -111,8 +111,7 @@ jobs:
     if: success()
     runs-on: ubuntu-latest
     permissions:
-      actions: read
-      variables: write
+      actions: write
     steps:
       - uses: actions/checkout@v4
         with:
