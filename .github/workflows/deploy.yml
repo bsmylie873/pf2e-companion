@@ -111,28 +111,19 @@ jobs:
     if: success()
     runs-on: ubuntu-latest
     permissions:
-      actions: write
+      contents: write
     steps:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
-      - name: Get last deployed SHA
-        id: last-deploy
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          LAST_SHA=$(gh variable get LAST_DEPLOYED_SHA 2>/dev/null || echo "")
-          echo "sha=$LAST_SHA" >> "$GITHUB_OUTPUT"
-
       - name: Generate changelog
         id: changelog
         run: |
-          LAST_SHA="${{ steps.last-deploy.outputs.sha }}"
-          if [ -n "$LAST_SHA" ] && git cat-file -e "$LAST_SHA" 2>/dev/null; then
-            CHANGELOG=$(git log "$LAST_SHA"..HEAD --no-merges --format="• %s")
+          if git rev-parse last-deploy 2>/dev/null; then
+            CHANGELOG=$(git log last-deploy..HEAD --no-merges --format="• %s")
           else
-            # First deploy or SHA no longer in history — fall back to last 10
+            # First deploy — no tag yet, fall back to last 10
             CHANGELOG=$(git log --oneline -10 --no-merges --format="• %s")
           fi
           # Truncate to 20 lines max for Discord embed limits
@@ -173,8 +164,8 @@ jobs:
             -d "$PAYLOAD" \
             "${{ secrets.DISCORD_WEBHOOK_URL }}"
 
-      - name: Update last deployed SHA
+      - name: Update last-deploy tag
         if: success()
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: gh variable set LAST_DEPLOYED_SHA --body "${{ github.sha }}"
+        run: |
+          git tag -f last-deploy "${{ github.sha }}"
+          git push origin last-deploy --force
