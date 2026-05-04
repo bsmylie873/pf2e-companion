@@ -1,7 +1,7 @@
 # Rich-Text Editor Research: Collaborative Editing for Session Notes
 
 **Date:** 2026-03-23
-**Status:** Pending Tech Lead Approval
+**Status:** Implemented (v1 REST-only → upgraded to WebSocket/OT)
 **Scope:** `sessions.notes` JSONB column — rich-text editing in the Editor view
 
 ---
@@ -203,6 +203,8 @@ Both Candidates A and B require deploying and maintaining a WebSocket server tha
 - Potential complications with load balancing and proxy configuration for WebSocket upgrades
 
 These concerns are manageable at larger scale where the benefits of real-time CRDT collaboration justify the infrastructure investment. At v1 scale, they represent unnecessary overhead.
+
+> **Post-implementation note (2026):** The v1 REST-only approach was implemented as recommended. The system has since been upgraded to include WebSocket-based operational transform (OT) for real-time collaborative note editing. The OT implementation uses a Go-native WebSocket handler (`backend/handlers/game_ws.go`) and an in-memory document store (`backend/ot/`), rather than the Hocuspocus/Yjs approach described in Candidate A. The upgrade path described in Section 6 was not followed exactly — a Go-native OT solution was chosen instead of a Node.js Hocuspocus sidecar.
 
 ---
 

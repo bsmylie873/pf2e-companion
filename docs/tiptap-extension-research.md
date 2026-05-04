@@ -1,7 +1,7 @@
 # Tiptap Extension Research: Enhancing the Session Notes Editor
 
 **Date:** 2026-03-23
-**Status:** Draft — Pending Review
+**Status:** Implemented
 **Scope:** `SessionNotesEditor` component (`ui/src/components/SessionNotesEditor/SessionNotesEditor.tsx`)
 
 ---

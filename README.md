@@ -1,5 +1,19 @@
 # pf2e-companion
 
+A campaign companion application for **Pathfinder 2nd Edition** — designed for GMs and players who want to organise sessions, track characters and items, take rich-text notes, and visualise campaign maps in one place.
+
+## Key Features
+
+- **Campaign management** — create and manage multiple campaigns, invite players via magic links
+- **Session tracking** — schedule sessions, record session numbers, and link sessions to map locations via interactive pins
+- **Rich-text notes** — collaborative session notes and personal/shared sticky notes powered by a TipTap editor with tables, task lists, highlights, images, and more
+- **Interactive campaign maps** — upload maps, place and drag session pins, organise pins into groups
+- **Character & item management** — track PCs and NPCs with full PF2E stat blocks; manage item inventories with traits, bulk, and pricing
+- **Real-time collaboration** — WebSocket-based operational transform for concurrent note editing with live updates
+- **Data backup & restore** — export and import game data
+- **Password reset** — email-based token reset flow
+- **Deployment-ready** — CI/CD pipeline deploying to Fly.io (backend) and Cloudflare Pages (frontend) with Discord deploy notifications and in-app patch notes
+
 ## Local Development
 
 ### Quick Start
@@ -113,3 +127,9 @@ Migrations only run after the backend health check passes, protecting against pa
 | Dedicated IPv4 (optional) | $2.00 |
 | Cloudflare Pages | $0.00 |
 | **Total** | **~$7.64** |
+
+---
+
+## License
+
+This project is licensed under the MIT License — see the [LICENSE](LICENSE) file for details.

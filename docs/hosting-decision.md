@@ -1,7 +1,7 @@
 # Hosting Decision Document
 
 > **Date:** 2026-04-02
-> **Status:** Proposed
+> **Status:** Implemented
 > **Scope:** Hosting strategy for all three application layers (frontend, backend, database)
 
 ---
@@ -235,7 +235,7 @@ flowchart TD
 **Frontend:**
 1. Connect Cloudflare Pages to the GitHub repo
 2. Configure build: root directory `ui/`, build command `npm run build`, output directory `dist`
-3. Set the `VITE_API_URL` environment variable to point to the Fly.io backend URL
+3. Set the `VITE_API_BASE_URL` environment variable to point to the Fly.io backend URL
 
 **Environment variables and secrets:**
 1. Configure `POSTGRES_*` variables via `fly secrets set`
@@ -246,13 +246,13 @@ flowchart TD
 
 ## 6. Next Steps
 
-- [ ] Review and approve this document
-- [ ] Create `fly.toml` configuration for the backend
-- [ ] Create production `Dockerfile` for the Go backend
-- [ ] Provision Fly Postgres and configure Flyway migration workflow
-- [ ] Connect `ui/` to Cloudflare Pages
-- [ ] Configure environment variables and secrets on Fly.io
-- [ ] Set up GitHub Actions for automated deployment
+- [x] Review and approve this document
+- [x] Create `fly.toml` configuration for the backend
+- [x] Create production `Dockerfile` for the Go backend
+- [x] Provision Fly Postgres and configure Flyway migration workflow
+- [x] Connect `ui/` to Cloudflare Pages
+- [x] Configure environment variables and secrets on Fly.io
+- [x] Set up GitHub Actions for automated deployment
 
 ---
 

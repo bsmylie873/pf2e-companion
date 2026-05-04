@@ -1,7 +1,7 @@
 # Spike: Campaign Map View — Research & Recommendation
 
 **Date:** 2026-03-25
-**Status:** Pending Tech Lead Approval
+**Status:** Implemented
 **Scope:** Map-based session view — image storage, map rendering, data model, and effort estimate
 
 ---
