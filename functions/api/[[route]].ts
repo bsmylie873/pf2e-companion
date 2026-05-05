@@ -10,6 +10,10 @@ export const onRequest: PagesFunction<Env> = async (context) => {
   const headers = new Headers(context.request.headers)
   headers.delete('host')
 
+  if (context.request.headers.get('Upgrade') === 'websocket') {
+    return fetch(target, { headers })
+  }
+
   const res = await fetch(target, {
     method: context.request.method,
     headers,

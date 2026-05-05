@@ -82,7 +82,6 @@ jobs:
         run: npm run build
         env:
           VITE_API_BASE_URL: ${{ vars.VITE_API_BASE_URL }}
-          VITE_WS_BASE_URL: ${{ vars.VITE_WS_BASE_URL }}
 
       - name: Generate patch notes JSON
         run: |
