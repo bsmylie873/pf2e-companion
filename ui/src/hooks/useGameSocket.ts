@@ -1,5 +1,5 @@
 import { useEffect, useRef, useCallback } from 'react'
-import { WS_BASE_URL } from '../api/client'
+import { WS_BASE_URL, BASE_URL } from '../api/client'
 
 export interface GameSocketEvent {
   type: string
@@ -43,7 +43,13 @@ export function useGameSocket(gameId: string | undefined, onEvent: EventHandler)
 
       ws.onclose = () => {
         if (!closed) {
-          setTimeout(() => { connect(); retryDelay = Math.min(retryDelay * 2, 30000) }, retryDelay)
+          setTimeout(async () => {
+            try {
+              await fetch(BASE_URL + '/auth/refresh', { method: 'POST', credentials: 'include' })
+            } catch { /* ignore */ }
+            connect()
+            retryDelay = Math.min(retryDelay * 2, 30000)
+          }, retryDelay)
         }
       }
 

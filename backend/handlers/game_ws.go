@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"net/http"
+	"time"
 
 	"github.com/google/uuid"
 	"github.com/labstack/echo/v4"
@@ -44,6 +45,27 @@ func GameWebSocket(hub *GameEventHub, otStore *ot.DocumentStore, membershipRepo 
 
 		hub.Register(gameID, userID, ws, m.IsGM)
 		defer hub.Unregister(gameID, userID, ws)
+
+		// Keepalive: set initial read deadline, reset on every pong.
+		_ = ws.SetReadDeadline(time.Now().Add(pongWait))
+		ws.SetPongHandler(func(string) error {
+			return ws.SetReadDeadline(time.Now().Add(pongWait))
+		})
+
+		// Ping goroutine: periodically sends a ping to all game subscribers.
+		done := make(chan struct{})
+		go func() {
+			ticker := time.NewTicker(pingPeriod)
+			defer ticker.Stop()
+			for {
+				select {
+				case <-ticker.C:
+					hub.WritePing(gameID)
+				case <-done:
+					return
+				}
+			}
+		}()
 
 		// Read loop: handle OT messages from this client.
 		for {
@@ -119,6 +141,7 @@ func GameWebSocket(hub *GameEventHub, otStore *ot.DocumentStore, membershipRepo 
 				// Ignore unknown message types.
 			}
 		}
+		close(done)
 		return nil
 	}
 }

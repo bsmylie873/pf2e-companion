@@ -43,6 +43,8 @@ describe('useGameSocket', () => {
     FakeWebSocket.instances = []
     globalThis.WebSocket = FakeWebSocket as unknown as typeof WebSocket
     vi.useFakeTimers()
+    // Provide a default fetch stub so async onclose callbacks resolve immediately
+    globalThis.fetch = vi.fn().mockResolvedValue({ ok: true })
   })
 
   afterEach(() => {
@@ -75,7 +77,7 @@ describe('useGameSocket', () => {
     })
   })
 
-  it('fires __reconnected on the second open after a close', () => {
+  it('fires __reconnected on the second open after a close', async () => {
     const onEvent = vi.fn()
     renderHook(() => useGameSocket('game-abc', onEvent))
 
@@ -85,7 +87,7 @@ describe('useGameSocket', () => {
 
     // Simulate unexpected close (triggers reconnect timer)
     act(() => { FakeWebSocket.instances[0].onclose?.() })
-    act(() => { vi.advanceTimersByTime(1000) })
+    await act(async () => { await vi.advanceTimersByTimeAsync(1000) })
 
     // Second open — __reconnected fires
     expect(FakeWebSocket.instances).toHaveLength(2)
@@ -178,16 +180,54 @@ describe('useGameSocket', () => {
     expect(ws.sentMessages).toHaveLength(0)
   })
 
-  it('should trigger a reconnect when the socket closes unexpectedly', () => {
+  it('should trigger a reconnect when the socket closes unexpectedly', async () => {
     renderHook(() => useGameSocket('game-abc', vi.fn()))
     const ws = FakeWebSocket.instances[0]
 
     // Simulate unexpected close (don't unmount — closed flag stays false)
     // We manually call onclose without going through close() to avoid setting readyState
     ws.onclose?.()
-    vi.advanceTimersByTime(1000)
+    await act(async () => { await vi.advanceTimersByTimeAsync(1000) })
 
     expect(FakeWebSocket.instances).toHaveLength(2)
     expect(FakeWebSocket.instances[1].url).toBe('ws://localhost:8080/games/game-abc/ws')
+  })
+
+  it('reconnect calls /auth/refresh before reconnecting', async () => {
+    const originalFetch = globalThis.fetch
+    globalThis.fetch = vi.fn().mockResolvedValue({ ok: true })
+
+    renderHook(() => useGameSocket('game-abc', vi.fn()))
+    const ws = FakeWebSocket.instances[0]
+
+    ws.onclose?.()
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(1000)
+    })
+
+    expect(globalThis.fetch).toHaveBeenCalledWith(
+      'http://localhost:8080/auth/refresh',
+      { method: 'POST', credentials: 'include' },
+    )
+    expect(FakeWebSocket.instances).toHaveLength(2)
+
+    globalThis.fetch = originalFetch
+  })
+
+  it('reconnect proceeds if refresh fails', async () => {
+    const originalFetch = globalThis.fetch
+    globalThis.fetch = vi.fn().mockRejectedValue(new Error('network'))
+
+    renderHook(() => useGameSocket('game-abc', vi.fn()))
+    const ws = FakeWebSocket.instances[0]
+
+    ws.onclose?.()
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(1000)
+    })
+
+    expect(FakeWebSocket.instances).toHaveLength(2)
+
+    globalThis.fetch = originalFetch
   })
 })

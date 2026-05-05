@@ -19,6 +19,16 @@ func CookieSecure() bool {
 	return v == "true" || v == "1"
 }
 
+// cookieSameSite returns the appropriate SameSite attribute.
+// Production (secure=true, HTTPS): None — allows cross-origin WebSocket auth.
+// Local dev (secure=false, HTTP):  Lax — works same-origin without Secure flag.
+func cookieSameSite(secure bool) http.SameSite {
+	if secure {
+		return http.SameSiteNoneMode
+	}
+	return http.SameSiteLaxMode
+}
+
 // SetAccessCookie writes the access_token cookie (HttpOnly, 15min).
 func SetAccessCookie(c echo.Context, value string, secure bool) {
 	c.SetCookie(&http.Cookie{
@@ -26,7 +36,7 @@ func SetAccessCookie(c echo.Context, value string, secure bool) {
 		Value:    value,
 		HttpOnly: true,
 		Secure:   secure,
-		SameSite: http.SameSiteStrictMode,
+		SameSite: cookieSameSite(secure),
 		Path:     "/",
 		MaxAge:   900,
 	})
@@ -39,7 +49,7 @@ func SetRefreshCookie(c echo.Context, value string, secure bool) {
 		Value:    value,
 		HttpOnly: true,
 		Secure:   secure,
-		SameSite: http.SameSiteStrictMode,
+		SameSite: cookieSameSite(secure),
 		Path:     "/auth/refresh",
 		MaxAge:   604800,
 	})
@@ -48,9 +58,10 @@ func SetRefreshCookie(c echo.Context, value string, secure bool) {
 // ClearAuthCookies clears all auth-related cookies.
 func ClearAuthCookies(c echo.Context) {
 	secure := CookieSecure()
-	c.SetCookie(&http.Cookie{Name: "access_token", Value: "", MaxAge: -1, HttpOnly: true, Secure: secure, SameSite: http.SameSiteStrictMode, Path: "/"})
-	c.SetCookie(&http.Cookie{Name: "refresh_token", Value: "", MaxAge: -1, HttpOnly: true, Secure: secure, SameSite: http.SameSiteStrictMode, Path: "/auth/refresh"})
-	c.SetCookie(&http.Cookie{Name: "csrf_token", Value: "", MaxAge: -1, HttpOnly: false, Secure: secure, SameSite: http.SameSiteStrictMode, Path: "/"})
+	sameSite := cookieSameSite(secure)
+	c.SetCookie(&http.Cookie{Name: "access_token", Value: "", MaxAge: -1, HttpOnly: true, Secure: secure, SameSite: sameSite, Path: "/"})
+	c.SetCookie(&http.Cookie{Name: "refresh_token", Value: "", MaxAge: -1, HttpOnly: true, Secure: secure, SameSite: sameSite, Path: "/auth/refresh"})
+	c.SetCookie(&http.Cookie{Name: "csrf_token", Value: "", MaxAge: -1, HttpOnly: false, Secure: secure, SameSite: sameSite, Path: "/"})
 }
 
 // RequireAuth validates the access_token cookie JWT.
