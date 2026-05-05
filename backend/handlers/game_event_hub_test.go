@@ -438,3 +438,80 @@ func TestGameEventHub_ConcurrentAccess(t *testing.T) {
 	_ = cConn.Close()
 	<-drainDone
 }
+
+// ---------------------------------------------------------------------------
+// 16. WritePing — ping frame is received by registered clients
+// ---------------------------------------------------------------------------
+
+func TestGameEventHub_WritePing_SendsPing(t *testing.T) {
+	hub := NewGameEventHub()
+	gameID := uuid.New()
+	userID := uuid.New()
+
+	sConn, cConn, cleanup := makeTestConn(t)
+	defer cleanup()
+
+	hub.Register(gameID, userID, sConn, false)
+
+	pingReceived := make(chan struct{}, 1)
+	cConn.SetPingHandler(func(appData string) error {
+		select {
+		case pingReceived <- struct{}{}:
+		default:
+		}
+		return cConn.WriteMessage(websocket.PongMessage, []byte(appData))
+	})
+
+	// ReadMessage loop is required for the ping handler to fire.
+	go func() {
+		for {
+			if _, _, err := cConn.ReadMessage(); err != nil {
+				return
+			}
+		}
+	}()
+
+	hub.WritePing(gameID)
+
+	select {
+	case <-pingReceived:
+		// success — ping arrived
+	case <-time.After(400 * time.Millisecond):
+		t.Fatal("expected ping to be received within 400ms")
+	}
+}
+
+// ---------------------------------------------------------------------------
+// 17. WritePing — dead connection is pruned
+// ---------------------------------------------------------------------------
+
+func TestGameEventHub_WritePing_PrunesDeadConn(t *testing.T) {
+	hub := NewGameEventHub()
+	gameID := uuid.New()
+	userID := uuid.New()
+
+	sConn, _, cleanup := makeTestConn(t)
+	defer cleanup()
+
+	hub.Register(gameID, userID, sConn, false)
+	_ = sConn.Close() // kill the server-side conn
+
+	hub.WritePing(gameID)
+
+	// Allow Unregister to settle.
+	time.Sleep(50 * time.Millisecond)
+	assert.False(t, hub.HasConn(gameID, userID),
+		"dead connection should be pruned after WritePing")
+}
+
+// ---------------------------------------------------------------------------
+// 18. WritePing on an empty game — must not panic
+// ---------------------------------------------------------------------------
+
+func TestGameEventHub_WritePing_Empty_NoPanic(t *testing.T) {
+	hub := NewGameEventHub()
+	gameID := uuid.New()
+	assert.NotPanics(t, func() {
+		hub.WritePing(gameID)
+	})
+}

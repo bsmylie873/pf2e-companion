@@ -1,10 +1,19 @@
 package handlers
 
 import (
+	"errors"
 	"sync"
+	"time"
 
 	"github.com/google/uuid"
 	"github.com/gorilla/websocket"
+)
+
+// WebSocket keepalive timing constants.
+const (
+	pongWait   = 60 * time.Second    // read deadline after any pong
+	pingPeriod = (pongWait * 9) / 10 // ping interval (< pongWait)
+	writeWait  = 10 * time.Second    // write deadline for every outbound frame
 )
 
 // GameEvent represents a real-time event broadcast to game subscribers.
@@ -77,6 +86,7 @@ func (h *GameEventHub) Unregister(gameID, userID uuid.UUID, conn *websocket.Conn
 // On error it logs, unregisters, and closes the dead connection.
 func (h *GameEventHub) writeOrPrune(gameID, userID uuid.UUID, entry *gameConn, event GameEvent) {
 	entry.mu.Lock()
+	_ = entry.conn.SetWriteDeadline(time.Now().Add(writeWait))
 	err := entry.conn.WriteJSON(event)
 	entry.mu.Unlock()
 	if err != nil {
@@ -153,4 +163,35 @@ func (h *GameEventHub) HasConn(gameID, userID uuid.UUID) bool {
 	defer h.mu.RUnlock()
 	_, ok := h.conns[gameID][userID]
 	return ok
+}
+
+// WritePing sends a WebSocket ping frame to all connections registered for the
+// given game. Connections that fail the write are pruned (same semantics as
+// writeOrPrune). ErrCloseSent is treated as a silent prune (no log noise).
+func (h *GameEventHub) WritePing(gameID uuid.UUID) {
+	type target struct {
+		uid   uuid.UUID
+		entry *gameConn
+	}
+	h.mu.RLock()
+	targets := make([]target, 0, len(h.conns[gameID]))
+	for uid, entry := range h.conns[gameID] {
+		targets = append(targets, target{uid, entry})
+	}
+	h.mu.RUnlock()
+	for _, t := range targets {
+		t.entry.mu.Lock()
+		_ = t.entry.conn.SetWriteDeadline(time.Now().Add(writeWait))
+		err := t.entry.conn.WriteMessage(websocket.PingMessage, nil)
+		t.entry.mu.Unlock()
+		if err != nil {
+			if !errors.Is(err, websocket.ErrCloseSent) {
+				if h.log != nil {
+					h.log("game-ws ping failed (game=%s user=%s): %v", gameID, t.uid, err)
+				}
+			}
+			h.Unregister(gameID, t.uid, t.entry.conn)
+			_ = t.entry.conn.Close()
+		}
+	}
 }

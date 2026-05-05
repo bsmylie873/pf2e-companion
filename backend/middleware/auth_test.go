@@ -186,3 +186,85 @@ func TestClearAuthCookies(t *testing.T) {
 	assert.Equal(t, "", names["refresh_token"].Value)
 	assert.Equal(t, "", names["csrf_token"].Value)
 }
+
+func TestCookieSameSite_Secure(t *testing.T) {
+	assert.Equal(t, http.SameSiteNoneMode, cookieSameSite(true))
+}
+
+func TestCookieSameSite_Insecure(t *testing.T) {
+	assert.Equal(t, http.SameSiteLaxMode, cookieSameSite(false))
+}
+
+func TestSetAccessCookie_SameSiteNone(t *testing.T) {
+	e := echo.New()
+	req := httptest.NewRequest(http.MethodGet, "/", nil)
+	rec := httptest.NewRecorder()
+	c := e.NewContext(req, rec)
+	SetAccessCookie(c, "tok", true)
+	for _, cookie := range rec.Result().Cookies() {
+		if cookie.Name == "access_token" {
+			assert.Equal(t, http.SameSiteNoneMode, cookie.SameSite)
+			return
+		}
+	}
+	t.Fatal("access_token cookie not found")
+}
+
+func TestSetAccessCookie_SameSiteLax(t *testing.T) {
+	e := echo.New()
+	req := httptest.NewRequest(http.MethodGet, "/", nil)
+	rec := httptest.NewRecorder()
+	c := e.NewContext(req, rec)
+	SetAccessCookie(c, "tok", false)
+	for _, cookie := range rec.Result().Cookies() {
+		if cookie.Name == "access_token" {
+			assert.Equal(t, http.SameSiteLaxMode, cookie.SameSite)
+			return
+		}
+	}
+	t.Fatal("access_token cookie not found")
+}
+
+func TestSetRefreshCookie_SameSiteNone(t *testing.T) {
+	e := echo.New()
+	req := httptest.NewRequest(http.MethodGet, "/", nil)
+	rec := httptest.NewRecorder()
+	c := e.NewContext(req, rec)
+	SetRefreshCookie(c, "tok", true)
+	for _, cookie := range rec.Result().Cookies() {
+		if cookie.Name == "refresh_token" {
+			assert.Equal(t, http.SameSiteNoneMode, cookie.SameSite)
+			return
+		}
+	}
+	t.Fatal("refresh_token cookie not found")
+}
+
+func TestSetRefreshCookie_SameSiteLax(t *testing.T) {
+	e := echo.New()
+	req := httptest.NewRequest(http.MethodGet, "/", nil)
+	rec := httptest.NewRecorder()
+	c := e.NewContext(req, rec)
+	SetRefreshCookie(c, "tok", false)
+	for _, cookie := range rec.Result().Cookies() {
+		if cookie.Name == "refresh_token" {
+			assert.Equal(t, http.SameSiteLaxMode, cookie.SameSite)
+			return
+		}
+	}
+	t.Fatal("refresh_token cookie not found")
+}
+
+func TestClearAuthCookies_SameSiteNoneWhenSecure(t *testing.T) {
+	os.Setenv("COOKIE_SECURE", "true")
+	defer os.Unsetenv("COOKIE_SECURE")
+	e := echo.New()
+	req := httptest.NewRequest(http.MethodGet, "/", nil)
+	rec := httptest.NewRecorder()
+	c := e.NewContext(req, rec)
+	ClearAuthCookies(c)
+	for _, cookie := range rec.Result().Cookies() {
+		assert.Equal(t, http.SameSiteNoneMode, cookie.SameSite,
+			"cookie %s should use SameSiteNoneMode when COOKIE_SECURE=true", cookie.Name)
+	}
+}

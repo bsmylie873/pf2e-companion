@@ -145,3 +145,84 @@ func TestGameWebSocket_TabReplacement_OldSocketClosed(t *testing.T) {
 	assert.Equal(t, 1, hub.ConnCount(gameID))
 	assert.True(t, hub.HasConn(gameID, userID))
 }
+
+// ---------------------------------------------------------------------------
+// 4. WritePing via hub — ping reaches the connected client and connection
+//    stays alive (verifies the pong handler and read-deadline reset)
+// ---------------------------------------------------------------------------
+
+func TestGameWebSocket_PingReachesClient(t *testing.T) {
+	hub := NewGameEventHub()
+	userID := uuid.New()
+	gameID := uuid.New()
+
+	mockRepo := &mocks.MockMembershipRepository{}
+	mockRepo.On("FindByUserAndGameID", userID, gameID).
+		Return(models.GameMembership{UserID: userID, GameID: gameID, IsGM: false}, nil)
+
+	wsURL, cleanup := setupGameWSServer(t, hub, mockRepo, gameID)
+	defer cleanup()
+
+	token, err := authpkg.GenerateAccessToken(userID)
+	require.NoError(t, err)
+
+	conn, _, err := dialWithToken(t, wsURL, token)
+	require.NoError(t, err)
+	defer conn.Close()
+
+	// Give the handler time to Register and set up keepalive.
+	time.Sleep(50 * time.Millisecond)
+	require.Equal(t, 1, hub.ConnCount(gameID))
+
+	pingReceived := make(chan struct{}, 1)
+	conn.SetPingHandler(func(appData string) error {
+		select {
+		case pingReceived <- struct{}{}:
+		default:
+		}
+		return conn.WriteMessage(websocket.PongMessage, []byte(appData))
+	})
+
+	// Drain loop required for the ping handler to fire.
+	go func() {
+		for {
+			if _, _, err := conn.ReadMessage(); err != nil {
+				return
+			}
+		}
+	}()
+
+	// Send a ping via the hub directly (don't wait for the 54s ticker).
+	hub.WritePing(gameID)
+
+	select {
+	case <-pingReceived:
+		// success
+	case <-time.After(400 * time.Millisecond):
+		t.Fatal("expected ping to reach the connected client within 400ms")
+	}
+
+	// Connection must still be registered after the round-trip.
+	assert.Equal(t, 1, hub.ConnCount(gameID))
+	mockRepo.AssertExpectations(t)
+}
+
+// ---------------------------------------------------------------------------
+// 5. No token — WS is rejected before upgrade (auth guard still works after
+//    keepalive changes)
+// ---------------------------------------------------------------------------
+
+func TestGameWebSocket_RejectsNoToken(t *testing.T) {
+	hub := NewGameEventHub()
+	gameID := uuid.New()
+	mockRepo := &mocks.MockMembershipRepository{}
+
+	wsURL, cleanup := setupGameWSServer(t, hub, mockRepo, gameID)
+	defer cleanup()
+
+	_, resp, err := websocket.DefaultDialer.Dial(wsURL, nil)
+	assert.Error(t, err, "WS handshake should fail without a token")
+	if resp != nil {
+		assert.Equal(t, http.StatusUnauthorized, resp.StatusCode)
+	}
+}
