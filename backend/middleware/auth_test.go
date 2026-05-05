@@ -188,14 +188,14 @@ func TestClearAuthCookies(t *testing.T) {
 }
 
 func TestCookieSameSite_Secure(t *testing.T) {
-	assert.Equal(t, http.SameSiteNoneMode, cookieSameSite(true))
+	assert.Equal(t, http.SameSiteLaxMode, cookieSameSite(true))
 }
 
 func TestCookieSameSite_Insecure(t *testing.T) {
 	assert.Equal(t, http.SameSiteLaxMode, cookieSameSite(false))
 }
 
-func TestSetAccessCookie_SameSiteNone(t *testing.T) {
+func TestSetAccessCookie_SameSiteLaxWhenSecure(t *testing.T) {
 	e := echo.New()
 	req := httptest.NewRequest(http.MethodGet, "/", nil)
 	rec := httptest.NewRecorder()
@@ -203,7 +203,7 @@ func TestSetAccessCookie_SameSiteNone(t *testing.T) {
 	SetAccessCookie(c, "tok", true)
 	for _, cookie := range rec.Result().Cookies() {
 		if cookie.Name == "access_token" {
-			assert.Equal(t, http.SameSiteNoneMode, cookie.SameSite)
+			assert.Equal(t, http.SameSiteLaxMode, cookie.SameSite)
 			return
 		}
 	}
@@ -225,7 +225,7 @@ func TestSetAccessCookie_SameSiteLax(t *testing.T) {
 	t.Fatal("access_token cookie not found")
 }
 
-func TestSetRefreshCookie_SameSiteNone(t *testing.T) {
+func TestSetRefreshCookie_SameSiteLaxWhenSecure(t *testing.T) {
 	e := echo.New()
 	req := httptest.NewRequest(http.MethodGet, "/", nil)
 	rec := httptest.NewRecorder()
@@ -233,7 +233,7 @@ func TestSetRefreshCookie_SameSiteNone(t *testing.T) {
 	SetRefreshCookie(c, "tok", true)
 	for _, cookie := range rec.Result().Cookies() {
 		if cookie.Name == "refresh_token" {
-			assert.Equal(t, http.SameSiteNoneMode, cookie.SameSite)
+			assert.Equal(t, http.SameSiteLaxMode, cookie.SameSite)
 			return
 		}
 	}
@@ -255,7 +255,22 @@ func TestSetRefreshCookie_SameSiteLax(t *testing.T) {
 	t.Fatal("refresh_token cookie not found")
 }
 
-func TestClearAuthCookies_SameSiteNoneWhenSecure(t *testing.T) {
+func TestSetRefreshCookie_PathIsRoot(t *testing.T) {
+	e := echo.New()
+	req := httptest.NewRequest(http.MethodGet, "/", nil)
+	rec := httptest.NewRecorder()
+	c := e.NewContext(req, rec)
+	SetRefreshCookie(c, "tok", false)
+	for _, cookie := range rec.Result().Cookies() {
+		if cookie.Name == "refresh_token" {
+			assert.Equal(t, "/", cookie.Path)
+			return
+		}
+	}
+	t.Fatal("refresh_token cookie not found")
+}
+
+func TestClearAuthCookies_SameSiteLaxWhenSecure(t *testing.T) {
 	os.Setenv("COOKIE_SECURE", "true")
 	defer os.Unsetenv("COOKIE_SECURE")
 	e := echo.New()
@@ -264,7 +279,22 @@ func TestClearAuthCookies_SameSiteNoneWhenSecure(t *testing.T) {
 	c := e.NewContext(req, rec)
 	ClearAuthCookies(c)
 	for _, cookie := range rec.Result().Cookies() {
-		assert.Equal(t, http.SameSiteNoneMode, cookie.SameSite,
-			"cookie %s should use SameSiteNoneMode when COOKIE_SECURE=true", cookie.Name)
+		assert.Equal(t, http.SameSiteLaxMode, cookie.SameSite,
+			"cookie %s should use SameSiteLaxMode when COOKIE_SECURE=true", cookie.Name)
 	}
+}
+
+func TestClearAuthCookies_RefreshPathIsRoot(t *testing.T) {
+	e := echo.New()
+	req := httptest.NewRequest(http.MethodGet, "/", nil)
+	rec := httptest.NewRecorder()
+	c := e.NewContext(req, rec)
+	ClearAuthCookies(c)
+	for _, cookie := range rec.Result().Cookies() {
+		if cookie.Name == "refresh_token" {
+			assert.Equal(t, "/", cookie.Path)
+			return
+		}
+	}
+	t.Fatal("refresh_token cookie not found")
 }

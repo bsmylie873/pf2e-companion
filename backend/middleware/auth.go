@@ -19,13 +19,9 @@ func CookieSecure() bool {
 	return v == "true" || v == "1"
 }
 
-// cookieSameSite returns the appropriate SameSite attribute.
-// Production (secure=true, HTTPS): None — allows cross-origin WebSocket auth.
-// Local dev (secure=false, HTTP):  Lax — works same-origin without Secure flag.
+// cookieSameSite returns http.SameSiteLaxMode in all environments.
+// Lax is safe because the Cloudflare Pages proxy forwards /api/* as same-origin requests.
 func cookieSameSite(secure bool) http.SameSite {
-	if secure {
-		return http.SameSiteNoneMode
-	}
 	return http.SameSiteLaxMode
 }
 
@@ -50,7 +46,7 @@ func SetRefreshCookie(c echo.Context, value string, secure bool) {
 		HttpOnly: true,
 		Secure:   secure,
 		SameSite: cookieSameSite(secure),
-		Path:     "/auth/refresh",
+		Path:     "/",
 		MaxAge:   604800,
 	})
 }
@@ -60,7 +56,7 @@ func ClearAuthCookies(c echo.Context) {
 	secure := CookieSecure()
 	sameSite := cookieSameSite(secure)
 	c.SetCookie(&http.Cookie{Name: "access_token", Value: "", MaxAge: -1, HttpOnly: true, Secure: secure, SameSite: sameSite, Path: "/"})
-	c.SetCookie(&http.Cookie{Name: "refresh_token", Value: "", MaxAge: -1, HttpOnly: true, Secure: secure, SameSite: sameSite, Path: "/auth/refresh"})
+	c.SetCookie(&http.Cookie{Name: "refresh_token", Value: "", MaxAge: -1, HttpOnly: true, Secure: secure, SameSite: sameSite, Path: "/"})
 	c.SetCookie(&http.Cookie{Name: "csrf_token", Value: "", MaxAge: -1, HttpOnly: false, Secure: secure, SameSite: sameSite, Path: "/"})
 }
 
