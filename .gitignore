@@ -5,6 +5,7 @@
 .DS_Store
 *.swp
 *.swo
+.idea/
 
 # Node
 node_modules/
@@ -19,6 +20,7 @@ backend/tmp/
 # UI
 ui/dist/
 ui/.env
+ui/src/assets/*.png
 
 # Fly.io
 .fly/
