@@ -515,3 +515,120 @@ func TestGameEventHub_WritePing_Empty_NoPanic(t *testing.T) {
 		hub.WritePing(gameID)
 	})
 }
+
+// ---------------------------------------------------------------------------
+// 19. BroadcastExceptPerUser — different payloads per user
+// ---------------------------------------------------------------------------
+
+func TestGameEventHub_BroadcastExceptPerUser_DifferentPayloads(t *testing.T) {
+	hub := NewGameEventHub()
+	gameID := uuid.New()
+	gmUserID := uuid.New()
+	playerUserID := uuid.New()
+	excludeID := uuid.New() // excluded sender, not registered
+
+	gmServer, gmClient, cleanupGM := makeTestConn(t)
+	defer cleanupGM()
+	playerServer, playerClient, cleanupPlayer := makeTestConn(t)
+	defer cleanupPlayer()
+
+	hub.Register(gameID, gmUserID, gmServer, true)
+	hub.Register(gameID, playerUserID, playerServer, false)
+
+	// Producer returns different data based on isGM flag
+	producer := func(userID uuid.UUID, isGM bool) *GameEvent {
+		var eventType string
+		if isGM {
+			eventType = "gm_event"
+		} else {
+			eventType = "player_event"
+		}
+		return &GameEvent{Type: eventType, GameID: gameID}
+	}
+
+	hub.BroadcastExceptPerUser(gameID, excludeID, producer)
+
+	// GM should receive gm_event
+	evGM, err := readEventWithTimeout(gmClient, 400*time.Millisecond)
+	require.NoError(t, err, "GM should receive event")
+	assert.Equal(t, "gm_event", evGM.Type)
+
+	// Player should receive player_event
+	evPlayer, err := readEventWithTimeout(playerClient, 400*time.Millisecond)
+	require.NoError(t, err, "Player should receive event")
+	assert.Equal(t, "player_event", evPlayer.Type)
+}
+
+// ---------------------------------------------------------------------------
+// 20. BroadcastExceptPerUser — nil producer skips user
+// ---------------------------------------------------------------------------
+
+func TestGameEventHub_BroadcastExceptPerUser_NilProducerSkipsUser(t *testing.T) {
+	hub := NewGameEventHub()
+	gameID := uuid.New()
+	user1 := uuid.New()
+	user2 := uuid.New()
+	excludeID := uuid.New()
+
+	sConn1, cConn1, cleanup1 := makeTestConn(t)
+	defer cleanup1()
+	sConn2, cConn2, cleanup2 := makeTestConn(t)
+	defer cleanup2()
+
+	hub.Register(gameID, user1, sConn1, false)
+	hub.Register(gameID, user2, sConn2, false)
+
+	// Producer returns nil for user1, a real event for user2
+	producer := func(userID uuid.UUID, isGM bool) *GameEvent {
+		if userID == user1 {
+			return nil
+		}
+		return &GameEvent{Type: "targeted", GameID: gameID}
+	}
+
+	hub.BroadcastExceptPerUser(gameID, excludeID, producer)
+
+	// user1 should NOT receive anything (nil returned for them)
+	_, err := readEventWithTimeout(cConn1, 200*time.Millisecond)
+	assert.Error(t, err, "user1 should be skipped when producer returns nil")
+
+	// user2 SHOULD receive the event
+	ev, err := readEventWithTimeout(cConn2, 400*time.Millisecond)
+	require.NoError(t, err, "user2 should receive the event")
+	assert.Equal(t, "targeted", ev.Type)
+}
+
+// ---------------------------------------------------------------------------
+// 21. BroadcastExceptPerUser — excluded user receives nothing
+// ---------------------------------------------------------------------------
+
+func TestGameEventHub_BroadcastExceptPerUser_ExcludesUser(t *testing.T) {
+	hub := NewGameEventHub()
+	gameID := uuid.New()
+	user1 := uuid.New() // will be excluded
+	user2 := uuid.New()
+
+	sConn1, cConn1, cleanup1 := makeTestConn(t)
+	defer cleanup1()
+	sConn2, cConn2, cleanup2 := makeTestConn(t)
+	defer cleanup2()
+
+	hub.Register(gameID, user1, sConn1, false)
+	hub.Register(gameID, user2, sConn2, false)
+
+	producer := func(userID uuid.UUID, isGM bool) *GameEvent {
+		return &GameEvent{Type: "broadcast", GameID: gameID}
+	}
+
+	// Exclude user1
+	hub.BroadcastExceptPerUser(gameID, user1, producer)
+
+	// user1 should NOT receive (excluded)
+	_, err := readEventWithTimeout(cConn1, 200*time.Millisecond)
+	assert.Error(t, err, "excluded user should not receive BroadcastExceptPerUser")
+
+	// user2 SHOULD receive
+	ev, err := readEventWithTimeout(cConn2, 400*time.Millisecond)
+	require.NoError(t, err, "non-excluded user should receive BroadcastExceptPerUser")
+	assert.Equal(t, "broadcast", ev.Type)
+}

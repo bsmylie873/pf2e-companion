@@ -7,6 +7,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/labstack/echo/v4"
 	"gorm.io/gorm"
+	"pf2e-companion/backend/models"
 	"pf2e-companion/backend/services"
 )
 
@@ -19,6 +20,18 @@ type PinGroupHandler struct {
 // NewPinGroupHandler constructs a PinGroupHandler with the given service and hub.
 func NewPinGroupHandler(service services.PinGroupService, hub *GameEventHub) *PinGroupHandler {
 	return &PinGroupHandler{service: service, hub: hub}
+}
+
+// pinGroupBroadcast sends a per-user-filtered pin group event to all subscribers
+// of the given game except the acting user.
+func (h *PinGroupHandler) pinGroupBroadcast(eventType string, gameID, excludeUserID uuid.UUID, resp models.PinGroupResponse) {
+	h.hub.BroadcastExceptPerUser(gameID, excludeUserID, func(userID uuid.UUID, isGM bool) *GameEvent {
+		filtered, err := h.service.FilterGroupPins(resp, gameID, userID)
+		if err != nil {
+			return nil
+		}
+		return &GameEvent{Type: eventType, GameID: gameID, Data: filtered}
+	})
 }
 
 // CreateGroup handles POST /games/:id/pin-groups.
@@ -50,8 +63,9 @@ func (h *PinGroupHandler) CreateGroup(c echo.Context) error {
 		}
 		return ErrorResponse(c, http.StatusUnprocessableEntity, err.Error())
 	}
-	h.hub.BroadcastExceptFiltered(gameID, authUserID, pinBroadcastFilter(), GameEvent{Type: "pin_group_created", GameID: gameID, Data: resp})
-	return SuccessResponse(c, http.StatusCreated, resp)
+	filteredResp, _ := h.service.FilterGroupPins(resp, gameID, authUserID)
+	h.pinGroupBroadcast("pin_group_created", gameID, authUserID, resp)
+	return SuccessResponse(c, http.StatusCreated, filteredResp)
 }
 
 // ListGameGroups handles GET /games/:id/pin-groups.
@@ -116,8 +130,9 @@ func (h *PinGroupHandler) UpdateGroup(c echo.Context) error {
 		}
 		return ErrorResponse(c, http.StatusInternalServerError, "failed to update pin group")
 	}
-	h.hub.BroadcastExceptFiltered(resp.GameID, authUserID, pinBroadcastFilter(), GameEvent{Type: "pin_group_updated", GameID: resp.GameID, Data: resp})
-	return SuccessResponse(c, http.StatusOK, resp)
+	filteredResp, _ := h.service.FilterGroupPins(resp, resp.GameID, authUserID)
+	h.pinGroupBroadcast("pin_group_updated", resp.GameID, authUserID, resp)
+	return SuccessResponse(c, http.StatusOK, filteredResp)
 }
 
 // AddPinToGroup handles POST /pin-groups/:id/pins.
@@ -146,8 +161,9 @@ func (h *PinGroupHandler) AddPinToGroup(c echo.Context) error {
 		}
 		return ErrorResponse(c, http.StatusUnprocessableEntity, err.Error())
 	}
-	h.hub.BroadcastExceptFiltered(resp.GameID, authUserID, pinBroadcastFilter(), GameEvent{Type: "pin_group_updated", GameID: resp.GameID, Data: resp})
-	return SuccessResponse(c, http.StatusOK, resp)
+	filteredResp, _ := h.service.FilterGroupPins(resp, resp.GameID, authUserID)
+	h.pinGroupBroadcast("pin_group_updated", resp.GameID, authUserID, resp)
+	return SuccessResponse(c, http.StatusOK, filteredResp)
 }
 
 // RemovePinFromGroup handles DELETE /pin-groups/:id/pins/:pinId.
@@ -176,7 +192,9 @@ func (h *PinGroupHandler) RemovePinFromGroup(c echo.Context) error {
 	}
 	// Only broadcast if the group still exists (non-zero GameID means group wasn't auto-disbanded).
 	if resp.GameID != uuid.Nil {
-		h.hub.BroadcastExceptFiltered(resp.GameID, authUserID, pinBroadcastFilter(), GameEvent{Type: "pin_group_updated", GameID: resp.GameID, Data: resp})
+		filteredResp, _ := h.service.FilterGroupPins(resp, resp.GameID, authUserID)
+		h.pinGroupBroadcast("pin_group_updated", resp.GameID, authUserID, resp)
+		return SuccessResponse(c, http.StatusOK, filteredResp)
 	}
 	return SuccessResponse(c, http.StatusOK, resp)
 }
@@ -244,8 +262,9 @@ func (h *PinGroupHandler) CreateMapGroup(c echo.Context) error {
 		}
 		return ErrorResponse(c, http.StatusUnprocessableEntity, err.Error())
 	}
-	h.hub.BroadcastExceptFiltered(resp.GameID, authUserID, pinBroadcastFilter(), GameEvent{Type: "pin_group_created", GameID: resp.GameID, Data: resp})
-	return SuccessResponse(c, http.StatusCreated, resp)
+	filteredResp, _ := h.service.FilterGroupPins(resp, resp.GameID, authUserID)
+	h.pinGroupBroadcast("pin_group_created", resp.GameID, authUserID, resp)
+	return SuccessResponse(c, http.StatusCreated, filteredResp)
 }
 
 // ListMapGroups handles GET /games/:id/maps/:mapId/pin-groups.

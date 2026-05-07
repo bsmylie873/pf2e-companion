@@ -116,6 +116,37 @@ func (h *GameEventHub) BroadcastExceptFiltered(
 	h.broadcastFiltered(gameID, excludeUserID, filter, event)
 }
 
+// EventProducer returns a per-user event, or nil to skip the recipient.
+type EventProducer func(userID uuid.UUID, isGM bool) *GameEvent
+
+// BroadcastExceptPerUser sends a customised event to each subscriber of the
+// given game (except excludeUserID). The producer function is called per
+// recipient and may return nil to skip that user.
+func (h *GameEventHub) BroadcastExceptPerUser(
+	gameID, excludeUserID uuid.UUID,
+	producer EventProducer,
+) {
+	type target struct {
+		uid   uuid.UUID
+		entry *gameConn
+	}
+	h.mu.RLock()
+	targets := make([]target, 0, len(h.conns[gameID]))
+	for uid, entry := range h.conns[gameID] {
+		if uid == excludeUserID {
+			continue
+		}
+		targets = append(targets, target{uid, entry})
+	}
+	h.mu.RUnlock()
+	for _, t := range targets {
+		evt := producer(t.uid, t.entry.isGM)
+		if evt != nil {
+			h.writeOrPrune(gameID, t.uid, t.entry, *evt)
+		}
+	}
+}
+
 func (h *GameEventHub) broadcastFiltered(
 	gameID, excludeUserID uuid.UUID, filter BroadcastFilter, event GameEvent,
 ) {

@@ -1010,3 +1010,218 @@ func TestPinGroupService_ListGameGroups_FindGroupsError(t *testing.T) {
 	mockPinGroupRepo.AssertExpectations(t)
 	mockMemberRepo.AssertExpectations(t)
 }
+
+func TestPinGroupService_ListMapGroups_NonGM_FiltersPrivateNote(t *testing.T) {
+	mockPinGroupRepo := &mocks.MockPinGroupRepository{}
+	mockPinRepo := &mocks.MockPinRepository{}
+	mockNoteRepo := &mocks.MockNoteRepository{}
+	mockMemberRepo := &mocks.MockMembershipRepository{}
+	mockMapRepo := &mocks.MockMapRepository{}
+	svc := NewPinGroupService(mockPinGroupRepo, mockPinRepo, mockNoteRepo, mockMemberRepo, mockMapRepo)
+
+	userID := uuid.New()
+	ownerID := uuid.New()
+	mapID := uuid.New()
+	gameID := uuid.New()
+	groupID := uuid.New()
+	noteID := uuid.New()
+	m := models.GameMap{ID: mapID, GameID: gameID}
+	membership := models.GameMembership{UserID: userID, GameID: gameID, IsGM: false}
+	groups := []models.PinGroup{{ID: groupID, GameID: gameID}}
+	// Pin linked to a private note owned by someone else
+	pins := []models.SessionPin{{ID: uuid.New(), NoteID: &noteID}}
+	privateNote := models.Note{ID: noteID, Visibility: "private", UserID: ownerID}
+
+	mockMapRepo.On("FindByID", mapID).Return(m, nil)
+	mockMemberRepo.On("FindByUserAndGameID", userID, gameID).Return(membership, nil)
+	mockPinGroupRepo.On("FindByMapID", mapID).Return(groups, nil)
+	mockPinRepo.On("FindByGroupID", groupID).Return(pins, nil)
+	mockNoteRepo.On("FindByID", noteID).Return(privateNote, nil)
+
+	result, err := svc.ListMapGroups(mapID, userID)
+
+	assert.NoError(t, err)
+	assert.Len(t, result, 1)
+	assert.Equal(t, 0, result[0].PinCount) // private note pin filtered out
+	mockMapRepo.AssertExpectations(t)
+	mockMemberRepo.AssertExpectations(t)
+	mockPinGroupRepo.AssertExpectations(t)
+	mockPinRepo.AssertExpectations(t)
+	mockNoteRepo.AssertExpectations(t)
+}
+
+func TestPinGroupService_ListMapGroups_GM_SeesAllPins(t *testing.T) {
+	mockPinGroupRepo := &mocks.MockPinGroupRepository{}
+	mockPinRepo := &mocks.MockPinRepository{}
+	mockNoteRepo := &mocks.MockNoteRepository{}
+	mockMemberRepo := &mocks.MockMembershipRepository{}
+	mockMapRepo := &mocks.MockMapRepository{}
+	svc := NewPinGroupService(mockPinGroupRepo, mockPinRepo, mockNoteRepo, mockMemberRepo, mockMapRepo)
+
+	userID := uuid.New()
+	mapID := uuid.New()
+	gameID := uuid.New()
+	groupID := uuid.New()
+	noteID := uuid.New()
+	m := models.GameMap{ID: mapID, GameID: gameID}
+	// GM membership
+	membership := models.GameMembership{UserID: userID, GameID: gameID, IsGM: true}
+	groups := []models.PinGroup{{ID: groupID, GameID: gameID}}
+	pins := []models.SessionPin{{ID: uuid.New(), NoteID: &noteID}}
+
+	mockMapRepo.On("FindByID", mapID).Return(m, nil)
+	mockMemberRepo.On("FindByUserAndGameID", userID, gameID).Return(membership, nil)
+	mockPinGroupRepo.On("FindByMapID", mapID).Return(groups, nil)
+	mockPinRepo.On("FindByGroupID", groupID).Return(pins, nil)
+	// noteRepo should NOT be called for GM
+
+	result, err := svc.ListMapGroups(mapID, userID)
+
+	assert.NoError(t, err)
+	assert.Len(t, result, 1)
+	assert.Equal(t, 1, result[0].PinCount) // GM sees all pins
+	mockMapRepo.AssertExpectations(t)
+	mockMemberRepo.AssertExpectations(t)
+	mockPinGroupRepo.AssertExpectations(t)
+	mockPinRepo.AssertExpectations(t)
+	mockNoteRepo.AssertExpectations(t) // should have no calls
+}
+
+func TestPinGroupService_FilterGroupPins_NonGM_FiltersPrivateNote(t *testing.T) {
+	mockPinGroupRepo := &mocks.MockPinGroupRepository{}
+	mockPinRepo := &mocks.MockPinRepository{}
+	mockNoteRepo := &mocks.MockNoteRepository{}
+	mockMemberRepo := &mocks.MockMembershipRepository{}
+	mockMapRepo := &mocks.MockMapRepository{}
+	svc := NewPinGroupService(mockPinGroupRepo, mockPinRepo, mockNoteRepo, mockMemberRepo, mockMapRepo)
+
+	userID := uuid.New()
+	ownerID := uuid.New()
+	gameID := uuid.New()
+	noteID := uuid.New()
+	pinWithNote := models.SessionPin{ID: uuid.New(), NoteID: &noteID}
+	privateNote := models.Note{ID: noteID, Visibility: "private", UserID: ownerID}
+	membership := models.GameMembership{UserID: userID, GameID: gameID, IsGM: false}
+
+	resp := models.PinGroupResponse{
+		ID:       uuid.New(),
+		GameID:   gameID,
+		Pins:     []models.SessionPin{pinWithNote},
+		PinCount: 1,
+	}
+
+	mockMemberRepo.On("FindByUserAndGameID", userID, gameID).Return(membership, nil)
+	mockNoteRepo.On("FindByID", noteID).Return(privateNote, nil)
+
+	result, err := svc.FilterGroupPins(resp, gameID, userID)
+
+	assert.NoError(t, err)
+	assert.Equal(t, 0, result.PinCount)
+	assert.Empty(t, result.Pins)
+	mockMemberRepo.AssertExpectations(t)
+	mockNoteRepo.AssertExpectations(t)
+}
+
+func TestPinGroupService_FilterGroupPins_GM_SeesAll(t *testing.T) {
+	mockPinGroupRepo := &mocks.MockPinGroupRepository{}
+	mockPinRepo := &mocks.MockPinRepository{}
+	mockNoteRepo := &mocks.MockNoteRepository{}
+	mockMemberRepo := &mocks.MockMembershipRepository{}
+	mockMapRepo := &mocks.MockMapRepository{}
+	svc := NewPinGroupService(mockPinGroupRepo, mockPinRepo, mockNoteRepo, mockMemberRepo, mockMapRepo)
+
+	userID := uuid.New()
+	gameID := uuid.New()
+	noteID := uuid.New()
+	pinWithNote := models.SessionPin{ID: uuid.New(), NoteID: &noteID}
+	membership := models.GameMembership{UserID: userID, GameID: gameID, IsGM: true}
+
+	resp := models.PinGroupResponse{
+		ID:       uuid.New(),
+		GameID:   gameID,
+		Pins:     []models.SessionPin{pinWithNote},
+		PinCount: 1,
+	}
+
+	mockMemberRepo.On("FindByUserAndGameID", userID, gameID).Return(membership, nil)
+	// noteRepo should NOT be called for GM
+
+	result, err := svc.FilterGroupPins(resp, gameID, userID)
+
+	assert.NoError(t, err)
+	assert.Equal(t, 1, result.PinCount)
+	assert.Len(t, result.Pins, 1)
+	mockMemberRepo.AssertExpectations(t)
+	mockNoteRepo.AssertExpectations(t) // no calls expected
+}
+
+func TestPinGroupService_FilterGroupPins_PublicNote_Visible(t *testing.T) {
+	mockPinGroupRepo := &mocks.MockPinGroupRepository{}
+	mockPinRepo := &mocks.MockPinRepository{}
+	mockNoteRepo := &mocks.MockNoteRepository{}
+	mockMemberRepo := &mocks.MockMembershipRepository{}
+	mockMapRepo := &mocks.MockMapRepository{}
+	svc := NewPinGroupService(mockPinGroupRepo, mockPinRepo, mockNoteRepo, mockMemberRepo, mockMapRepo)
+
+	userID := uuid.New()
+	ownerID := uuid.New() // different user
+	gameID := uuid.New()
+	noteID := uuid.New()
+	pinWithNote := models.SessionPin{ID: uuid.New(), NoteID: &noteID}
+	// Public note owned by someone else — non-GM should still see it
+	publicNote := models.Note{ID: noteID, Visibility: "public", UserID: ownerID}
+	membership := models.GameMembership{UserID: userID, GameID: gameID, IsGM: false}
+
+	resp := models.PinGroupResponse{
+		ID:       uuid.New(),
+		GameID:   gameID,
+		Pins:     []models.SessionPin{pinWithNote},
+		PinCount: 1,
+	}
+
+	mockMemberRepo.On("FindByUserAndGameID", userID, gameID).Return(membership, nil)
+	mockNoteRepo.On("FindByID", noteID).Return(publicNote, nil)
+
+	result, err := svc.FilterGroupPins(resp, gameID, userID)
+
+	assert.NoError(t, err)
+	assert.Equal(t, 1, result.PinCount) // public note pin is visible
+	assert.Len(t, result.Pins, 1)
+	mockMemberRepo.AssertExpectations(t)
+	mockNoteRepo.AssertExpectations(t)
+}
+
+func TestPinGroupService_FilterGroupPins_OwnPrivateNote_Visible(t *testing.T) {
+	mockPinGroupRepo := &mocks.MockPinGroupRepository{}
+	mockPinRepo := &mocks.MockPinRepository{}
+	mockNoteRepo := &mocks.MockNoteRepository{}
+	mockMemberRepo := &mocks.MockMembershipRepository{}
+	mockMapRepo := &mocks.MockMapRepository{}
+	svc := NewPinGroupService(mockPinGroupRepo, mockPinRepo, mockNoteRepo, mockMemberRepo, mockMapRepo)
+
+	userID := uuid.New()
+	gameID := uuid.New()
+	noteID := uuid.New()
+	pinWithNote := models.SessionPin{ID: uuid.New(), NoteID: &noteID}
+	// Private note owned by the SAME user — should be visible
+	ownNote := models.Note{ID: noteID, Visibility: "private", UserID: userID}
+	membership := models.GameMembership{UserID: userID, GameID: gameID, IsGM: false}
+
+	resp := models.PinGroupResponse{
+		ID:       uuid.New(),
+		GameID:   gameID,
+		Pins:     []models.SessionPin{pinWithNote},
+		PinCount: 1,
+	}
+
+	mockMemberRepo.On("FindByUserAndGameID", userID, gameID).Return(membership, nil)
+	mockNoteRepo.On("FindByID", noteID).Return(ownNote, nil)
+
+	result, err := svc.FilterGroupPins(resp, gameID, userID)
+
+	assert.NoError(t, err)
+	assert.Equal(t, 1, result.PinCount) // own private note pin is visible
+	assert.Len(t, result.Pins, 1)
+	mockMemberRepo.AssertExpectations(t)
+	mockNoteRepo.AssertExpectations(t)
+}

@@ -51,3 +51,8 @@ func (m *MockPinGroupService) ListMapGroups(mapID, callerID uuid.UUID) ([]models
 	args := m.Called(mapID, callerID)
 	return args.Get(0).([]models.PinGroupResponse), args.Error(1)
 }
+
+func (m *MockPinGroupService) FilterGroupPins(resp models.PinGroupResponse, gameID, userID uuid.UUID) (models.PinGroupResponse, error) {
+	args := m.Called(resp, gameID, userID)
+	return args.Get(0).(models.PinGroupResponse), args.Error(1)
+}
