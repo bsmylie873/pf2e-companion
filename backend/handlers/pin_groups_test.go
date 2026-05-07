@@ -42,6 +42,7 @@ func TestPinGroupHandler_CreateGroup_Success(t *testing.T) {
 
 	expected := models.PinGroupResponse{ID: uuid.New(), GameID: gameID}
 	mockSvc.On("CreateGroup", gameID, authUserID, mock.Anything).Return(expected, nil)
+	mockSvc.On("FilterGroupPins", expected, mock.AnythingOfType("uuid.UUID"), authUserID).Return(expected, nil)
 
 	err := h.CreateGroup(c)
 	require.NoError(t, err)
@@ -113,6 +114,7 @@ func TestPinGroupHandler_UpdateGroup_Success(t *testing.T) {
 
 	updated := models.PinGroupResponse{ID: groupID, GameID: gameID}
 	mockSvc.On("UpdateGroup", groupID, authUserID, mock.AnythingOfType("map[string]interface {}")).Return(updated, nil)
+	mockSvc.On("FilterGroupPins", updated, mock.AnythingOfType("uuid.UUID"), authUserID).Return(updated, nil)
 
 	err := h.UpdateGroup(c)
 	require.NoError(t, err)
@@ -161,6 +163,7 @@ func TestPinGroupHandler_AddPinToGroup_Success(t *testing.T) {
 
 	resp := models.PinGroupResponse{ID: groupID, GameID: gameID}
 	mockSvc.On("AddPinToGroup", groupID, pinID, authUserID).Return(resp, nil)
+	mockSvc.On("FilterGroupPins", resp, mock.AnythingOfType("uuid.UUID"), authUserID).Return(resp, nil)
 
 	err := h.AddPinToGroup(c)
 	require.NoError(t, err)
@@ -186,6 +189,7 @@ func TestPinGroupHandler_RemovePinFromGroup_Success(t *testing.T) {
 
 	resp := models.PinGroupResponse{ID: groupID, GameID: gameID}
 	mockSvc.On("RemovePinFromGroup", groupID, pinID, authUserID).Return(resp, nil)
+	mockSvc.On("FilterGroupPins", resp, mock.AnythingOfType("uuid.UUID"), authUserID).Return(resp, nil)
 
 	err := h.RemovePinFromGroup(c)
 	require.NoError(t, err)
@@ -260,6 +264,7 @@ func TestPinGroupHandler_CreateMapGroup_Success(t *testing.T) {
 
 	resp := models.PinGroupResponse{ID: uuid.New(), GameID: gameID}
 	mockSvc.On("CreateMapGroup", mapID, authUserID, mock.Anything).Return(resp, nil)
+	mockSvc.On("FilterGroupPins", resp, mock.AnythingOfType("uuid.UUID"), authUserID).Return(resp, nil)
 
 	err := h.CreateMapGroup(c)
 	require.NoError(t, err)
