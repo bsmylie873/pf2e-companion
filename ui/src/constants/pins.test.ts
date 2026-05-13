@@ -13,8 +13,8 @@ describe('PIN_COLOURS', () => {
     expect(Array.isArray(PIN_COLOURS)).toBe(true)
   })
 
-  it('contains exactly 8 colours', () => {
-    expect(PIN_COLOURS).toHaveLength(8)
+  it('contains exactly 9 colours', () => {
+    expect(PIN_COLOURS).toHaveLength(9)
   })
 
   it('contains expected colour names', () => {
@@ -26,6 +26,7 @@ describe('PIN_COLOURS', () => {
     expect(PIN_COLOURS).toContain('blue')
     expect(PIN_COLOURS).toContain('purple')
     expect(PIN_COLOURS).toContain('brown')
+    expect(PIN_COLOURS).toContain('amber')
   })
 })
 
@@ -34,8 +35,8 @@ describe('PIN_ICONS', () => {
     expect(Array.isArray(PIN_ICONS)).toBe(true)
   })
 
-  it('contains exactly 20 icon identifiers', () => {
-    expect(PIN_ICONS).toHaveLength(20)
+  it('contains exactly 21 icon identifiers', () => {
+    expect(PIN_ICONS).toHaveLength(21)
   })
 
   it('contains expected icon names', () => {
@@ -59,6 +60,7 @@ describe('PIN_ICONS', () => {
     expect(PIN_ICONS).toContain('cauldron')
     expect(PIN_ICONS).toContain('wood-cabin')
     expect(PIN_ICONS).toContain('portal')
+    expect(PIN_ICONS).toContain('party-marker')
   })
 })
 
@@ -90,6 +92,7 @@ describe('COLOUR_MAP', () => {
     expect(COLOUR_MAP.blue).toBe('#4a6fa5')
     expect(COLOUR_MAP.purple).toBe('#7b5ea7')
     expect(COLOUR_MAP.brown).toBe('#8b6b4a')
+    expect(COLOUR_MAP.amber).toBe('#e8a020')
   })
 })
 
@@ -140,6 +143,7 @@ describe('PIN_ICON_LABELS', () => {
     expect(PIN_ICON_LABELS['dragon-head']).toBe('Dragon Head')
     expect(PIN_ICON_LABELS['mine-entrance']).toBe('Mine Entrance')
     expect(PIN_ICON_LABELS['portal']).toBe('Portal')
+    expect(PIN_ICON_LABELS['party-marker']).toBe('Party Marker')
   })
 
   it('PIN_ICONS and PIN_ICON_LABELS have the same keys', () => {

@@ -13,6 +13,7 @@ interface MapSelectorProps {
   onUnarchiveMap: (mapId: string) => void
   onReorderMaps: (ids: string[]) => void
   archivedMaps: GameMap[]
+  partyMarkerMapId?: string | null
 }
 
 function formatElapsed(archivedAt: string | null): string {
@@ -36,6 +37,7 @@ export default function MapSelector({
   onUnarchiveMap,
   onReorderMaps,
   archivedMaps,
+  partyMarkerMapId,
 }: MapSelectorProps) {
   const [renamingId, setRenamingId] = useState<string | null>(null)
   const [renameValue, setRenameValue] = useState('')
@@ -132,6 +134,9 @@ export default function MapSelector({
                 onClick={() => onSelect(map.id)}
               >
                 {map.name}
+                {partyMarkerMapId === map.id && map.id !== activeMapId && (
+                  <span className="map-tab-party-badge" title="Party is here">🚩</span>
+                )}
               </button>
             )}
             {isGM && renamingId !== map.id && (

@@ -34,6 +34,8 @@ import type { GameSidebarState } from '../../api/preferences'
 import { useGameSocket } from '../../hooks/useGameSocket'
 import type { GameSocketEvent } from '../../hooks/useGameSocket'
 import { useDocumentTitle } from '../../hooks/useDocumentTitle'
+import type { PartyMarker } from '../../types/map'
+import { getPartyMarker, upsertPartyMarker, deletePartyMarker } from '../../api/partyMarker'
 
 /** Proximity threshold in map-percentage units (0–100). ~16px on a 1000px map. */
 export const GROUP_PROXIMITY_PCT = 1.5
@@ -111,6 +113,11 @@ export function useMapViewData(gameId: string | undefined) {
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const [openItems, setOpenItems] = useState<Array<{ type: 'session' | 'note'; itemId: string; label: string }>>([])
   const [mapEditorMode, setMapEditorMode] = useState(false)
+
+  // Party marker state
+  const [partyMarker, setPartyMarker] = useState<PartyMarker | null>(null)
+  const [placingPartyMarker, setPlacingPartyMarker] = useState(false)
+  const [draggingPartyMarker, setDraggingPartyMarker] = useState<{ startX: number; startY: number } | null>(null)
 
   // Sidebar-to-canvas drag-and-drop state
   const [sidebarDragOver, setSidebarDragOver] = useState(false)
@@ -226,14 +233,16 @@ export function useMapViewData(gameId: string | undefined) {
       listMemberships(gameId),
       listGameNotes(gameId),
       listMaps(gameId),
+      getPartyMarker(gameId),
     ])
-      .then(([gameData, sessionsData, membershipsData, notesData, mapsData]) => {
+      .then(([gameData, sessionsData, membershipsData, notesData, mapsData, partyMarkerData]) => {
         if (!cancelled) {
           setGame(gameData)
           setSessions(sessionsData)
           setMemberships(membershipsData)
           setNotes(notesData)
           setMaps(mapsData)
+          setPartyMarker(partyMarkerData)
           setActiveMapId((prev: string | null) => {
             if (prev && mapsData.some((m: GameMap) => m.id === prev)) return prev
             return mapsData[0]?.id ?? null
@@ -344,6 +353,12 @@ export function useMapViewData(gameId: string | undefined) {
       case 'pin_group_disbanded':
         setPinGroups(prev => prev.filter(g => g.id !== (event.data as { id: string }).id))
         break
+      case 'party_marker_updated':
+        setPartyMarker(event.data as PartyMarker)
+        break
+      case 'party_marker_deleted':
+        setPartyMarker(null)
+        break
       case '__reconnected':
         if (gameId) {
           listMaps(gameId).then(setMaps).catch(() => {})
@@ -352,6 +367,7 @@ export function useMapViewData(gameId: string | undefined) {
             listMapPins(gameId, activeMapId).then(setPins).catch(() => {})
             listMapPinGroups(gameId, activeMapId).then(setPinGroups).catch(() => {})
           }
+          getPartyMarker(gameId).then(setPartyMarker).catch(() => {})
         }
         break
     }
@@ -493,6 +509,17 @@ export function useMapViewData(gameId: string | undefined) {
   }, [pinnedSessionIds, pins, clientToMapPct, showToast])
 
   const handleMapClick = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
+    if (placingPartyMarker) {
+      const coords = clientToMapPct(e.clientX, e.clientY)
+      if (!gameId || !activeMapId) return
+      upsertPartyMarker(gameId, { map_id: activeMapId, x: coords.x, y: coords.y })
+        .then(marker => {
+          setPartyMarker(marker)
+          setPlacingPartyMarker(false)
+        })
+        .catch(err => console.error('Failed to place party marker', err))
+      return
+    }
     if (!mapContainerRef.current || dragging) return
     if ((e.target as HTMLElement).closest('.map-pin-wrapper')) return
 
@@ -532,7 +559,7 @@ export function useMapViewData(gameId: string | undefined) {
 
     setPendingCoords(coords)
 
-  }, [dragging, clientToMapPct, pins, pinGroups, editingPinId])
+  }, [dragging, clientToMapPct, pins, pinGroups, editingPinId, placingPartyMarker, gameId, activeMapId])
 
   const reloadPinGroups = useCallback(async () => {
     if (!gameId || !activeMapId) return
@@ -661,7 +688,40 @@ export function useMapViewData(gameId: string | undefined) {
     setDragging({ pinId: pin.id, startX: e.clientX, startY: e.clientY })
   }, [])
 
+  const handlePartyMarkerPointerDown = useCallback((e: React.PointerEvent<HTMLButtonElement>) => {
+    e.preventDefault()
+    e.stopPropagation()
+    ;(e.currentTarget as HTMLElement).setPointerCapture(e.pointerId)
+    wasDragRef.current = false
+    setDraggingPartyMarker({ startX: e.clientX, startY: e.clientY })
+  }, [])
+
+  const handlePlacePartyMarker = useCallback(() => {
+    setPlacingPartyMarker(prev => !prev)
+  }, [])
+
+  const handleRemovePartyMarker = useCallback(async () => {
+    if (!gameId) return
+    try {
+      await deletePartyMarker(gameId)
+      setPartyMarker(null)
+    } catch (err) {
+      console.error('Failed to remove party marker', err)
+    }
+  }, [gameId])
+
   const handlePointerMove = useCallback((e: React.PointerEvent<HTMLDivElement>) => {
+    if (draggingPartyMarker && mapContainerRef.current) {
+      if (!wasDragRef.current) {
+        const dx = e.clientX - draggingPartyMarker.startX
+        const dy = e.clientY - draggingPartyMarker.startY
+        if (Math.sqrt(dx * dx + dy * dy) <= 5) return
+        wasDragRef.current = true
+      }
+      const coords = clientToMapPct(e.clientX, e.clientY)
+      setPartyMarker(prev => prev ? { ...prev, x: coords.x, y: coords.y } : prev)
+      return
+    }
     if (!dragging || !mapContainerRef.current) return
 
     // Check if we've exceeded the 5px drag threshold
@@ -689,9 +749,20 @@ export function useMapViewData(gameId: string | undefined) {
       if (Math.sqrt(dx * dx + dy * dy) <= GROUP_PROXIMITY_PCT) targets.add(g.id)
     })
     setDropTargetIds(targets)
-  }, [dragging, clientToMapPct, pins, pinGroups])
+  }, [dragging, draggingPartyMarker, clientToMapPct, pins, pinGroups])
 
   const handlePointerUp = useCallback(async (e: React.PointerEvent<HTMLDivElement>) => {
+    if (draggingPartyMarker && mapContainerRef.current) {
+      setDraggingPartyMarker(null)
+      if (!wasDragRef.current) return
+      const coords = clientToMapPct(e.clientX, e.clientY)
+      if (gameId && activeMapId) {
+        upsertPartyMarker(gameId, { map_id: activeMapId, x: coords.x, y: coords.y })
+          .then(marker => setPartyMarker(marker))
+          .catch(err => console.error('Failed to update party marker', err))
+      }
+      return
+    }
     if (!dragging || !mapContainerRef.current) return
     const pinId = dragging.pinId
     const draggedPin = pins.find(p => p.id === pinId)
@@ -742,7 +813,7 @@ export function useMapViewData(gameId: string | undefined) {
     } catch (err: unknown) {
       console.error('Failed to update pin', err)
     }
-  }, [dragging, clientToMapPct, pins, pinGroups])
+  }, [dragging, draggingPartyMarker, clientToMapPct, pins, pinGroups, gameId, activeMapId])
 
   const handleDeletePin = useCallback(async (pinId: string) => {
     try {
@@ -938,6 +1009,7 @@ export function useMapViewData(gameId: string | undefined) {
       archivedMaps,
       activeMapId,
       isGM,
+      partyMarkerMapId: partyMarker?.map_id ?? null,
       onSelectMap: (mapId: string) => setActiveMapId(mapId),
       onCreateMap: handleCreateMap,
       onRenameMap: handleRenameMap,
@@ -945,7 +1017,7 @@ export function useMapViewData(gameId: string | undefined) {
       onUnarchiveMap: handleRestoreMap,
       onReorderMaps: handleReorderMaps,
     })
-  }, [gameId, game?.title, maps, archivedMaps, activeMapId, isGM, loading, error])
+  }, [gameId, game?.title, maps, archivedMaps, activeMapId, isGM, partyMarker, loading, error])
 
   useEffect(() => {
     return () => unregister()
@@ -1045,6 +1117,15 @@ export function useMapViewData(gameId: string | undefined) {
     transformRef,
     wasDragRef,
     sidebarStateRef,
+    // Party marker
+    partyMarker,
+    setPartyMarker,
+    placingPartyMarker,
+    setPlacingPartyMarker,
+    draggingPartyMarker,
+    handlePlacePartyMarker,
+    handleRemovePartyMarker,
+    handlePartyMarkerPointerDown,
     // Derived
     isGM,
     pinnedSessionIds,

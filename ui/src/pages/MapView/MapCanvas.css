@@ -862,3 +862,13 @@
 .map-pin-error-banner:hover {
   border-left-color: var(--color-accent-hover);
 }
+
+.map-pin--party-marker {
+  border: 2px solid #e8a020;
+  box-shadow: 0 0 6px rgba(232, 160, 32, 0.6);
+}
+
+.map-pin-wrapper--party-marker .map-pin__label {
+  color: #e8a020;
+  font-weight: 600;
+}

@@ -36,6 +36,8 @@ export default function MapView() {
     mapContainerRef, viewportContainerRef, fileInputRef, transformRef, wasDragRef,
     handleImageLoad, handleTransformed, handleTransformEnd,
     handleMapClick, handlePointerMove, handlePointerUp, handlePinPointerDown,
+    partyMarker, placingPartyMarker, draggingPartyMarker,
+    handlePlacePartyMarker, handleRemovePartyMarker, handlePartyMarkerPointerDown,
     handleSelectSession, handleSelectNote, handleCreateMarker,
     handleDeletePin, handleEditPinField,
     handleUploadClick, handleFileChange, handleDeleteMap,
@@ -178,6 +180,10 @@ export default function MapView() {
               onPointerMove={handlePointerMove}
               onPointerUp={handlePointerUp}
               onPinPointerDown={handlePinPointerDown}
+              partyMarker={partyMarker}
+              placingPartyMarker={placingPartyMarker}
+              draggingPartyMarker={draggingPartyMarker}
+              onPartyMarkerPointerDown={handlePartyMarkerPointerDown}
               onHoverPin={setHoveredPinId}
               onEditPin={(id) => { setEditingPinId(id); setEditLinkSearch('') }}
               onDeletePin={handleDeletePin}
@@ -213,6 +219,11 @@ export default function MapView() {
               onUploadClick={handleUploadClick}
               onDeleteMap={handleDeleteMap}
               onFileChange={handleFileChange}
+              partyMarker={partyMarker}
+              placingPartyMarker={placingPartyMarker}
+              activeMapId={activeMapId}
+              onPlacePartyMarker={handlePlacePartyMarker}
+              onRemovePartyMarker={handleRemovePartyMarker}
             />
 
             {/* Sidebar toggle + FolderSidebar — inside viewport container */}

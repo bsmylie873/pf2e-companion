@@ -1,6 +1,8 @@
 import React from 'react'
 import { TransformWrapper, TransformComponent } from 'react-zoom-pan-pinch'
 import type { ReactZoomPanPinchRef } from 'react-zoom-pan-pinch'
+import { GiPerson } from 'react-icons/gi'
+import type { PartyMarker } from '../../types/map'
 import { COLOUR_MAP, PIN_ICON_COMPONENTS, PIN_COLOURS, PIN_ICONS, PIN_ICON_LABELS } from '../../constants/pins'
 import type { PinColour } from '../../constants/pins'
 import type { SessionPin, PinGroup } from '../../types/pin'
@@ -62,6 +64,10 @@ interface MapCanvasProps {
   sessionForPin: (pin: SessionPin) => Session | undefined
   noteForPin: (pin: SessionPin) => Note | undefined
   isGM: boolean
+  partyMarker: PartyMarker | null
+  placingPartyMarker: boolean
+  draggingPartyMarker: { startX: number; startY: number } | null
+  onPartyMarkerPointerDown: (e: React.PointerEvent<HTMLButtonElement>) => void
 }
 
 export default function MapCanvas(props: MapCanvasProps) {
@@ -149,7 +155,7 @@ export default function MapCanvas(props: MapCanvasProps) {
         >
           <div
             ref={mapContainerRef}
-            style={{ width: '100%', position: 'relative' }}
+            style={{ width: '100%', position: 'relative', cursor: props.placingPartyMarker ? 'crosshair' : undefined }}
             onClick={onMapClick}
             onPointerMove={onPointerMove}
             onPointerUp={onPointerUp}
@@ -389,6 +395,24 @@ export default function MapCanvas(props: MapCanvasProps) {
                 </div>
               )
             })}
+
+            {props.partyMarker && props.partyMarker.map_id === props.activeMapId && (
+              <div
+                className={`map-pin-wrapper map-pin-wrapper--party-marker${props.draggingPartyMarker ? ' map-pin-wrapper--dragging' : ''}`}
+                style={{ left: `${props.partyMarker.x}%`, top: `${props.partyMarker.y}%` }}
+              >
+                <button
+                  className="map-pin map-pin--party-marker"
+                  style={{ '--pin-colour': '#e8a020' } as React.CSSProperties}
+                  title="Party Location"
+                  onPointerDown={props.onPartyMarkerPointerDown}
+                  onClick={e => e.stopPropagation()}
+                >
+                  <span className="map-pin__icon"><GiPerson size={10} /></span>
+                </button>
+                <span className="map-pin__label">Party</span>
+              </div>
+            )}
           </div>
         </TransformComponent>
       </TransformWrapper>

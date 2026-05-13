@@ -19,6 +19,11 @@ const baseProps = {
   onUploadClick: vi.fn(),
   onDeleteMap: vi.fn(),
   onFileChange: vi.fn(),
+  partyMarker: null,
+  placingPartyMarker: false,
+  activeMapId: null,
+  onPlacePartyMarker: vi.fn(),
+  onRemovePartyMarker: vi.fn(),
 }
 
 describe('MapOverlayPanel', () => {
@@ -142,5 +147,45 @@ describe('MapOverlayPanel', () => {
     render(<MapOverlayPanel {...baseProps} panelOpen={true} displayScale={1.0} />)
     expect(screen.getByTitle('Zoom in')).not.toBeDisabled()
     expect(screen.getByTitle('Zoom out')).not.toBeDisabled()
+  })
+
+  it('shows Place Party Marker button when panel is open', () => {
+    render(<MapOverlayPanel {...baseProps} panelOpen={true} />)
+    expect(screen.getByTitle('Place party marker')).toBeInTheDocument()
+  })
+
+  it('shows active state when placingPartyMarker is true', () => {
+    render(<MapOverlayPanel {...baseProps} panelOpen={true} placingPartyMarker={true} />)
+    expect(screen.getByTitle('Cancel placement')).toBeInTheDocument()
+  })
+
+  it('calls onPlacePartyMarker when Place Party Marker button is clicked', () => {
+    render(<MapOverlayPanel {...baseProps} panelOpen={true} />)
+    fireEvent.click(screen.getByTitle('Place party marker'))
+    expect(baseProps.onPlacePartyMarker).toHaveBeenCalledTimes(1)
+  })
+
+  it('shows Remove Party Marker button when partyMarker matches activeMapId', () => {
+    const marker = { id: 'm1', game_id: 'g1', map_id: 'map-1', x: 50, y: 50, created_at: '', updated_at: '' }
+    render(<MapOverlayPanel {...baseProps} panelOpen={true} partyMarker={marker} activeMapId="map-1" />)
+    expect(screen.getByText('Remove Party Marker')).toBeInTheDocument()
+  })
+
+  it('does not show Remove Party Marker when marker is on different map', () => {
+    const marker = { id: 'm1', game_id: 'g1', map_id: 'map-2', x: 50, y: 50, created_at: '', updated_at: '' }
+    render(<MapOverlayPanel {...baseProps} panelOpen={true} partyMarker={marker} activeMapId="map-1" />)
+    expect(screen.queryByText('Remove Party Marker')).not.toBeInTheDocument()
+  })
+
+  it('does not show Remove Party Marker when partyMarker is null', () => {
+    render(<MapOverlayPanel {...baseProps} panelOpen={true} partyMarker={null} activeMapId="map-1" />)
+    expect(screen.queryByText('Remove Party Marker')).not.toBeInTheDocument()
+  })
+
+  it('calls onRemovePartyMarker when Remove Party Marker button is clicked', () => {
+    const marker = { id: 'm1', game_id: 'g1', map_id: 'map-1', x: 50, y: 50, created_at: '', updated_at: '' }
+    render(<MapOverlayPanel {...baseProps} panelOpen={true} partyMarker={marker} activeMapId="map-1" />)
+    fireEvent.click(screen.getByText('Remove Party Marker'))
+    expect(baseProps.onRemovePartyMarker).toHaveBeenCalledTimes(1)
   })
 })
