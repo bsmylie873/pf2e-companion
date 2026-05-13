@@ -11,6 +11,7 @@ var allowedColours = map[string]bool{
 	"blue":   true,
 	"purple": true,
 	"brown":  true,
+	"amber":  true,
 }
 
 var allowedIcons = map[string]bool{
@@ -34,12 +35,13 @@ var allowedIcons = map[string]bool{
 	"cauldron":        true,
 	"wood-cabin":      true,
 	"portal":          true,
+	"party-marker":    true,
 }
 
 // ValidatePinColour returns an error if the colour is not in the allowed set.
 func ValidatePinColour(colour string) error {
 	if !allowedColours[colour] {
-		return fmt.Errorf("invalid colour %q: must be one of grey, red, orange, gold, green, blue, purple, brown", colour)
+		return fmt.Errorf("invalid colour %q: must be one of grey, red, orange, gold, green, blue, purple, brown, amber", colour)
 	}
 	return nil
 }
@@ -47,7 +49,7 @@ func ValidatePinColour(colour string) error {
 // ValidatePinIcon returns an error if the icon is not in the allowed set.
 func ValidatePinIcon(icon string) error {
 	if !allowedIcons[icon] {
-		return fmt.Errorf("invalid icon %q: must be one of position-marker, castle, crossed-swords, skull, treasure-map, campfire, forest-camp, mountain-cave, village, temple-gate, sailboat, crown, dragon-head, tombstone, bridge, mine-entrance, tower-flag, cauldron, wood-cabin, portal", icon)
+		return fmt.Errorf("invalid icon %q: must be one of position-marker, castle, crossed-swords, skull, treasure-map, campfire, forest-camp, mountain-cave, village, temple-gate, sailboat, crown, dragon-head, tombstone, bridge, mine-entrance, tower-flag, cauldron, wood-cabin, portal, party-marker", icon)
 	}
 	return nil
 }

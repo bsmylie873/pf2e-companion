@@ -9,6 +9,7 @@ interface MapNavState {
   archivedMaps: GameMap[]
   activeMapId: string | null
   isGM: boolean
+  partyMarkerMapId: string | null
   onSelectMap: (mapId: string) => void
   onCreateMap: (name: string) => void
   onRenameMap: (mapId: string, name: string) => void

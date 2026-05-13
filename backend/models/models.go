@@ -119,6 +119,19 @@ type GameMap struct {
 
 func (GameMap) TableName() string { return "maps" }
 
+// PartyMarker represents the single party-location marker for a campaign.
+type PartyMarker struct {
+	ID        uuid.UUID `gorm:"type:uuid;default:gen_random_uuid();primaryKey" json:"id"`
+	GameID    uuid.UUID `gorm:"type:uuid;not null;column:game_id"              json:"game_id"`
+	MapID     uuid.UUID `gorm:"type:uuid;not null;column:map_id"               json:"map_id"`
+	X         float64   `gorm:"type:numeric(6,4);not null"                     json:"x"`
+	Y         float64   `gorm:"type:numeric(6,4);not null"                     json:"y"`
+	CreatedAt time.Time `gorm:"autoCreateTime"                                 json:"created_at"`
+	UpdatedAt time.Time `gorm:"autoUpdateTime"                                 json:"updated_at"`
+}
+
+func (PartyMarker) TableName() string { return "party_markers" }
+
 // Folder represents the folders table.
 type Folder struct {
 	ID         uuid.UUID  `gorm:"type:uuid;default:gen_random_uuid();primaryKey" json:"id"`

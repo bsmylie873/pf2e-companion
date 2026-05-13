@@ -1,4 +1,6 @@
 import type { ReactZoomPanPinchRef } from 'react-zoom-pan-pinch'
+import { GiPerson } from 'react-icons/gi'
+import type { PartyMarker } from '../../types/map'
 import './MapOverlayPanel.css'
 
 interface MapOverlayPanelProps {
@@ -17,6 +19,11 @@ interface MapOverlayPanelProps {
   onUploadClick: () => void
   onDeleteMap: () => void
   onFileChange: (e: React.ChangeEvent<HTMLInputElement>) => void
+  partyMarker: PartyMarker | null
+  placingPartyMarker: boolean
+  activeMapId: string | null
+  onPlacePartyMarker: () => void
+  onRemovePartyMarker: () => void
 }
 
 export default function MapOverlayPanel({
@@ -35,6 +42,11 @@ export default function MapOverlayPanel({
   onUploadClick,
   onDeleteMap,
   onFileChange,
+  partyMarker,
+  placingPartyMarker,
+  activeMapId,
+  onPlacePartyMarker,
+  onRemovePartyMarker,
 }: MapOverlayPanelProps) {
   return (
     <>
@@ -117,6 +129,25 @@ export default function MapOverlayPanel({
                 <line x1="5" y1="12" x2="19" y2="12" />
               </svg>
             </button>
+          </div>
+
+          <div className="map-party-marker-controls">
+            <button
+              className={`map-party-marker-btn${placingPartyMarker ? ' map-party-marker-btn--active' : ''}`}
+              onClick={onPlacePartyMarker}
+              title={placingPartyMarker ? 'Cancel placement' : 'Place party marker'}
+            >
+              <GiPerson size={14} />
+              {placingPartyMarker ? 'Cancel Placement' : 'Place Party Marker'}
+            </button>
+            {partyMarker && partyMarker.map_id === activeMapId && (
+              <button
+                className="map-party-marker-remove-btn"
+                onClick={onRemovePartyMarker}
+              >
+                Remove Party Marker
+              </button>
+            )}
           </div>
 
           {unpinnedSessionsCount === 0 && pinsCount > 0 && (

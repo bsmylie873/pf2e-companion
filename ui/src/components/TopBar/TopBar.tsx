@@ -141,6 +141,7 @@ export default function TopBar() {
                   onUnarchiveMap={mapNav.onUnarchiveMap}
                   onReorderMaps={mapNav.onReorderMaps}
                   archivedMaps={mapNav.archivedMaps}
+                  partyMarkerMapId={mapNav.partyMarkerMapId}
                 />
               </div>
             )}

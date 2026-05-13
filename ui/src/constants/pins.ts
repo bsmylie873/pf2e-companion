@@ -1,8 +1,8 @@
-import { GiPositionMarker, GiCastle, GiCrossedSwords, GiDeathSkull, GiTreasureMap, GiCampfire, GiForestCamp, GiMountainCave, GiVillage, GiTempleGate, GiSailboat, GiCrown, GiDragonHead, GiTombstone, GiBridge, GiGoldMine, GiTowerFlag, GiCauldron, GiWoodCabin, GiPortal } from 'react-icons/gi'
+import { GiPerson, GiPositionMarker, GiCastle, GiCrossedSwords, GiDeathSkull, GiTreasureMap, GiCampfire, GiForestCamp, GiMountainCave, GiVillage, GiTempleGate, GiSailboat, GiCrown, GiDragonHead, GiTombstone, GiBridge, GiGoldMine, GiTowerFlag, GiCauldron, GiWoodCabin, GiPortal } from 'react-icons/gi'
 import type React from 'react'
 
-export const PIN_COLOURS = ['grey', 'red', 'orange', 'gold', 'green', 'blue', 'purple', 'brown'] as const
-export const PIN_ICONS = ['position-marker', 'castle', 'crossed-swords', 'skull', 'treasure-map', 'campfire', 'forest-camp', 'mountain-cave', 'village', 'temple-gate', 'sailboat', 'crown', 'dragon-head', 'tombstone', 'bridge', 'mine-entrance', 'tower-flag', 'cauldron', 'wood-cabin', 'portal'] as const
+export const PIN_COLOURS = ['grey', 'red', 'orange', 'gold', 'green', 'blue', 'purple', 'brown', 'amber'] as const
+export const PIN_ICONS = ['position-marker', 'castle', 'crossed-swords', 'skull', 'treasure-map', 'campfire', 'forest-camp', 'mountain-cave', 'village', 'temple-gate', 'sailboat', 'crown', 'dragon-head', 'tombstone', 'bridge', 'mine-entrance', 'tower-flag', 'cauldron', 'wood-cabin', 'portal', 'party-marker'] as const
 export type PinColour = typeof PIN_COLOURS[number]
 export type PinIcon = typeof PIN_ICONS[number]
 
@@ -15,6 +15,7 @@ export const COLOUR_MAP: Record<PinColour, string> = {
   blue:   '#4a6fa5',
   purple: '#7b5ea7',
   brown:  '#8b6b4a',
+  amber:  '#e8a020',
 }
 
 export const PIN_ICON_COMPONENTS: Record<string, React.ComponentType<{ size?: number }>> = {
@@ -38,6 +39,7 @@ export const PIN_ICON_COMPONENTS: Record<string, React.ComponentType<{ size?: nu
   'cauldron': GiCauldron,
   'wood-cabin': GiWoodCabin,
   'portal': GiPortal,
+  'party-marker': GiPerson,
 }
 
 export const PIN_ICON_LABELS: Record<string, string> = {
@@ -61,4 +63,5 @@ export const PIN_ICON_LABELS: Record<string, string> = {
   'cauldron': 'Cauldron',
   'wood-cabin': 'Wood Cabin',
   'portal': 'Portal',
+  'party-marker': 'Party Marker',
 }

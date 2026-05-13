@@ -105,6 +105,9 @@ func main() {
 	handlers.RegisterPinGroupRoutes(protected, pinGroupService, hub)
 	handlers.RegisterPreferenceRoutes(protected, preferenceService)
 	handlers.RegisterMapRoutes(protected, mapService, hub)
+	partyMarkerRepo := repositories.NewPartyMarkerRepository(db)
+	partyMarkerService := services.NewPartyMarkerService(partyMarkerRepo, membershipRepo)
+	handlers.RegisterPartyMarkerRoutes(protected, partyMarkerService, hub)
 	backupRateLimiter := custmw.BackupRateLimiter()
 	handlers.RegisterBackupRoutes(protected, backupService, backupRateLimiter)
 

@@ -144,6 +144,10 @@ const baseProps = {
   transformRef: React.createRef() as React.RefObject<null>,
   wasDragRef: { current: false },
   isGM: false,
+  partyMarker: null,
+  placingPartyMarker: false,
+  draggingPartyMarker: null,
+  onPartyMarkerPointerDown: vi.fn(),
   ...baseHandlers,
 }
 
@@ -401,5 +405,37 @@ describe('MapCanvas', () => {
     const pinButton = document.querySelector('.map-pin') as HTMLElement
     fireEvent.pointerDown(pinButton)
     expect(baseHandlers.onPinPointerDown).toHaveBeenCalled()
+  })
+
+  it('renders party marker when partyMarker.map_id matches activeMapId', () => {
+    const marker = { id: 'm1', game_id: 'g1', map_id: 'map-1', x: 40, y: 60, created_at: '', updated_at: '' }
+    render(<MapCanvas {...baseProps} partyMarker={marker} activeMapId="map-1" />)
+    expect(screen.getByTitle('Party Location')).toBeInTheDocument()
+    expect(screen.getByText('Party')).toBeInTheDocument()
+  })
+
+  it('does not render party marker when partyMarker.map_id differs from activeMapId', () => {
+    const marker = { id: 'm1', game_id: 'g1', map_id: 'map-2', x: 40, y: 60, created_at: '', updated_at: '' }
+    render(<MapCanvas {...baseProps} partyMarker={marker} activeMapId="map-1" />)
+    expect(screen.queryByTitle('Party Location')).not.toBeInTheDocument()
+  })
+
+  it('does not render party marker when partyMarker is null', () => {
+    render(<MapCanvas {...baseProps} partyMarker={null} />)
+    expect(screen.queryByTitle('Party Location')).not.toBeInTheDocument()
+  })
+
+  it('applies crosshair cursor when placingPartyMarker is true', () => {
+    render(<MapCanvas {...baseProps} placingPartyMarker={true} />)
+    // The mapContainerRef div has the cursor style applied
+    const container = document.querySelector('[style*="crosshair"]')
+    expect(container).toBeTruthy()
+  })
+
+  it('adds dragging class to party marker wrapper when draggingPartyMarker is set', () => {
+    const marker = { id: 'm1', game_id: 'g1', map_id: 'map-1', x: 40, y: 60, created_at: '', updated_at: '' }
+    render(<MapCanvas {...baseProps} partyMarker={marker} activeMapId="map-1" draggingPartyMarker={{ startX: 100, startY: 100 }} />)
+    const wrapper = document.querySelector('.map-pin-wrapper--party-marker')!
+    expect(wrapper.classList.contains('map-pin-wrapper--dragging')).toBe(true)
   })
 })

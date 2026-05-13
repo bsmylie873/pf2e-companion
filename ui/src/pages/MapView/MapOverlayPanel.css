@@ -461,3 +461,69 @@
   font-size: 0.6rem;
   flex-shrink: 0;
 }
+
+.map-party-marker-controls {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+}
+
+.map-party-marker-btn {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.4rem 0.75rem;
+  background: transparent;
+  color: var(--color-text-muted);
+  border: 1px solid var(--color-border);
+  border-radius: 2px;
+  font-family: var(--font-heading);
+  font-size: 0.6rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: color var(--transition-fast), border-color var(--transition-fast), background var(--transition-fast);
+}
+
+.map-party-marker-btn:hover {
+  color: #e8a020;
+  border-color: #e8a020;
+}
+
+.map-party-marker-btn--active {
+  background: #e8a020;
+  color: #1a1a1a;
+  border-color: #e8a020;
+}
+
+.map-party-marker-btn--active:hover {
+  background: #d4901c;
+  color: #1a1a1a;
+}
+
+.map-party-marker-remove-btn {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.3rem 0.6rem;
+  background: transparent;
+  color: var(--color-text-muted);
+  border: 1px solid var(--color-border);
+  border-radius: 2px;
+  font-family: var(--font-heading);
+  font-size: 0.55rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: color var(--transition-fast), border-color var(--transition-fast);
+}
+
+.map-party-marker-remove-btn:hover {
+  color: var(--color-accent);
+  border-color: var(--color-accent);
+}
+
+.map-tab-party-badge {
+  font-size: 0.65rem;
+  margin-left: 0.25rem;
+}

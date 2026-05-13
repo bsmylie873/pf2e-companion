@@ -247,4 +247,20 @@ describe('MapSelector', () => {
     fireEvent.click(screen.getByText(/Show Archived Maps/))
     expect(screen.getByText('3d ago')).toBeInTheDocument()
   })
+
+  // ── Party marker badge ──────────────────────────────────────────
+  it('shows party badge when partyMarkerMapId matches a non-active map', () => {
+    render(<MapSelector {...defaultProps} activeMapId="map-1" partyMarkerMapId="map-2" />)
+    expect(screen.getByTitle('Party is here')).toBeInTheDocument()
+  })
+
+  it('does not show party badge when partyMarkerMapId matches the active map', () => {
+    render(<MapSelector {...defaultProps} activeMapId="map-1" partyMarkerMapId="map-1" />)
+    expect(screen.queryByTitle('Party is here')).not.toBeInTheDocument()
+  })
+
+  it('does not show party badge when partyMarkerMapId is not set', () => {
+    render(<MapSelector {...defaultProps} activeMapId="map-1" />)
+    expect(screen.queryByTitle('Party is here')).not.toBeInTheDocument()
+  })
 })
